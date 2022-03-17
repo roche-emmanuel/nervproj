@@ -1,0 +1,17 @@
+{
+  "python.linting.pylintEnabled": true,
+  "python.linting.enabled": true,
+  "python.linting.pylintPath": "${workspaceFolder}\\tools\\windows\\python-3.10.1\\Scripts\\pylint.exe",
+  "python.linting.pylintArgs": [
+    "--max-line-length=120"
+  ],
+  "python.defaultInterpreterPath": "${workspaceFolder}\\tools\\windows\\python-3.10.1\\python.exe",
+  "python.formatting.autopep8Path": "${workspaceFolder}\\tools\\windows\\python-3.10.1\\Scripts\\autopep8.exe",
+  "python.formatting.provider": "autopep8",
+  "python.formatting.autopep8Args": [
+    "--max-line-length=120",
+    "--experimental"
+  ],
+  "editor.formatOnSave": true
+  // "python.envFile": "${workspaceFolder}/.vs_env"
+}
