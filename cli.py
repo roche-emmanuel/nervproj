@@ -1,4 +1,4 @@
-"""Main module used for the environment setup of NervLand"""
+"""Main module used for the environment setup of NervProj"""
 from asyncio.subprocess import DEVNULL
 import os
 import sys
@@ -46,19 +46,19 @@ def onerror(func, path, _exc_info):
 
 
 class NVLBuilder(object):
-    """NervLand builder class"""
+    """NervProj builder class"""
 
     def __init__(self, settings):
         self.settings = settings
         logger.info("NVLBuilder settings: %s", settings)
 
-        # Get the NervLand root folder:
+        # Get the NervProj root folder:
         self.root_dir = os.path.dirname(os.path.abspath(__file__))
-        self.root_dir = os.path.abspath(os.path.join(self.root_dir, os.pardir))
-        logger.info("NervLand root folder is %s", self.root_dir)
+        # self.root_dir = os.path.abspath(os.path.join(self.root_dir, os.pardir))
+        logger.info("NervProj root folder is %s", self.root_dir)
 
-        # Load the build config:
-        self.load_build_config()
+        # Load the manager config:
+        self.load_config()
 
         # Get the platform flavor:
         self.setup_flavor()
@@ -69,7 +69,7 @@ class NVLBuilder(object):
         if settings.get('install_python_requirements', False):
             self.install_python_requirements()
 
-        if 'check_deps' in settings:
+        if settings.get('check_deps', None) is not None:
             dlist = settings['check_deps'].split(',')
             self.check_dependencies(dlist)
 
@@ -124,7 +124,7 @@ class NVLBuilder(object):
         self.deps_package_dir = self.make_folder(self.root_dir, "deps", "packages")
 
         # Prepare the tool paths:
-        tools = self.config['tools'][self.platform]
+        tools = self.config[f'tools:{self.platform}']
         tools_pkg_dir = self.get_path(self.root_dir, "tools", "packages")
 
         self.tool_paths = {}
@@ -356,10 +356,10 @@ class NVLBuilder(object):
 
         return None
 
-    def load_build_config(self):
-        """Load the build_config.json file, can only be done after we have the root path."""
+    def load_config(self):
+        """Load the config.json file, can only be done after we have the root path."""
 
-        cfgfile = self.get_path(self.root_dir, "build_config.json")
+        cfgfile = self.get_path(self.root_dir, "config.json")
         with open(cfgfile, 'r', encoding="utf-8") as fd_:
             self.config = jstyleson.load(fd_)
             logger.log(0, "Loaded config: %s", self.config)
@@ -421,7 +421,7 @@ class NVLBuilder(object):
                 sys.stdout.flush()
 
     def check_dependencies(self, dep_list):
-        """Build all the dependencies for NervLand."""
+        """Build all the dependencies for NervProj."""
         # Iterate on each dependency:
         logger.debug("Checking dependencies:")
         alldeps = self.config['dependencies']
@@ -732,7 +732,7 @@ parser = argparse.ArgumentParser()
 
 # cf. https://stackoverflow.com/questions/15301147/python-argparse-default-value-or-specified-value
 parser.add_argument("--check-deps", dest='check_deps', nargs='?', type=str, const="all",
-                    help="Check and build the dependencies required for NervLand")
+                    help="Check and build the dependencies required for NervProj")
 parser.add_argument("--rebuild", dest='rebuild', action='store_true',
                     help="Force rebuilding from sources")
 parser.add_argument("--install-python-requirements", dest='install_python_requirements', action='store_true',

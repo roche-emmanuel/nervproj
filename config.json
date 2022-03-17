@@ -1,0 +1,52 @@
+// Global configuration file for NervProj
+{
+    // Folder where to search for VisualStudio installations:
+    // This is applicable when targetting the flavor "msvc64" which
+    // is the default on windows:
+    "msvc_install_paths": [
+        "D:\\Softs\\VisualStudio\\VS2017"
+    ],
+    // Tools that can be used on windows:
+    "tools:windows": [
+        {
+            "name": "7zip",
+            "sub_path": "7za.exe",
+            "version": "9.20"
+        },
+        // {
+        //     "name": "cmake",
+        //     "sub_path": "bin/cmake.exe",
+        //     "version": "3.22.3"
+        // },
+        // {
+        //     "name": "git",
+        //     "sub_path": "bin/git.exe",
+        //     "version": "2.35.1"
+        // }
+    ],
+    "tools:linux": [
+        // {
+        //     "name": "7zip",
+        //     "sub_path": "7zzs",
+        //     "version": "21.07"
+        // },
+        // {
+        //     "name": "cmake",
+        //     "sub_path": "bin/cmake",
+        //     "version": "3.22.3"
+        // },
+        // {
+        //     "name": "git",
+        //     "path": "git"
+        // },
+        // {
+        //     "name": "clang",
+        //     "sub_path": "bin/clang++",
+        //     "version": "13.0.1",
+        //     "urls": [
+        //         "/mnt/array1/dev/compilers/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz",
+        //         "https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz"
+        //     ]
+        // }
+    ]
+}

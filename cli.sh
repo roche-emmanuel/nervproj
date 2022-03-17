@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
 # cf. https://stackoverflow.com/questions/59895/how-can-i-get-the-source-directory-of-a-bash-script-from-within-the-script-itsel
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+ROOT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 run_cli_windows()
 {
     # On windows we should simply rely on the cli.bat script below:
-    SCRIPT_DIR="`cygpath -w $SCRIPT_DIR`"
-    cmd /C "$SCRIPT_DIR\\cli.bat" "$@"
+    ROOT_DIR="`cygpath -w $ROOT_DIR`"
+    cmd /C "$ROOT_DIR\\cli.bat" "$@"
 }
 
 run_cli_linux()
@@ -17,7 +17,7 @@ run_cli_linux()
 
     # On linux we should call the python cli directly:
     # Get the project root folder: 
-    local root_dir=`readlink -f $SCRIPT_DIR/../`
+    local root_dir=`readlink -f $ROOT_DIR/`
     echo "NervLand root dir is: $root_dir"
     
     # Check if we already have python:
@@ -117,7 +117,6 @@ run_cli_linux()
     # Execute the command in python:
     $python_path $root_dir/scripts/cli.py "$@"
 }
-
 
 # Check if we are on a windows or a linux system:
 pname=`uname -s`
