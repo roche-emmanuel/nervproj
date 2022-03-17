@@ -3,14 +3,14 @@
 # cf. https://stackoverflow.com/questions/59895/how-can-i-get-the-source-directory-of-a-bash-script-from-within-the-script-itsel
 ROOT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-run_cli_windows()
+_nvp_run_cli_windows()
 {
     # On windows we should simply rely on the cli.bat script below:
     ROOT_DIR="`cygpath -w $ROOT_DIR`"
     cmd /C "$ROOT_DIR\\cli.bat" "$@"
 }
 
-run_cli_linux()
+_nvp_run_cli_linux()
 {
     local python_version="3.10.2"
     local unzip_version="21.07"
@@ -118,24 +118,27 @@ run_cli_linux()
     $python_path $root_dir/scripts/cli.py "$@"
 }
 
-
-if [ "$#" != "0" ]; then
+nvp()
+{
     if [ "$1" == "home" ]; then
-        echo "Going to: $ROOT_DIR"
         cd "$ROOT_DIR"
     else
-        echo "running cli..."
-
         # Check if we are on a windows or a linux system:
         pname=`uname -s`
 
         case $pname in
         CYGWIN*)
-            run_cli_windows "$@"
+            _nvp_run_cli_windows "$@"
             ;;
         *)
-            run_cli_linux "$@"
+            _nvp_run_cli_linux "$@"
             ;;
         esac
     fi
+}
+
+if [ "$#" != "0" ]; then
+    nvp "$@"
+else
+    echo "NervProj manager loaded."
 fi

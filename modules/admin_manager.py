@@ -41,14 +41,7 @@ class AdminManager(ManagerBase):
             logger.warning("Cannot install cli alias: no .bashrc file in HOME folder.")
             return
 
-        content = self.read_text_file(bashrc_file)
-
-        # pat = re.compile(f"^alias {alias_name}='[^']*'")
-        pat = re.compile(f"alias {alias_name}='[^']*'")
-
-        match = pat.search(content)
-
-        script_path = f"{self.root_dir}/cli.sh"
+        script_path = self.get_path(self.root_dir, "cli.sh")
 
         # If we are on windows, we may want to convert this path to a cygwin path
         # if we are in a cygwin environment (but running the native python executable):
@@ -56,22 +49,21 @@ class AdminManager(ManagerBase):
             script_path = self.to_cygwin_path(script_path)
             assert script_path is not None, "Invalid cygwin environment."
 
-        aline = f"alias {alias_name}='{script_path}'"
+        sline = f"\n[ -f \"{script_path}\" ] && source \"{script_path}\"\n"
+
+        # Check if this string is already in the bashrc file:
+        content = self.read_text_file(bashrc_file)
+
+        if content.find(sline) == -1:
+            # We should add the string:
+            logger.info("Adding source file in .bashrc for NervProj")
+
+            # Make a backup of the file:
+            self.copy_file(bashrc_file, bashrc_file+".bak", force=True)
+            self.write_text_file(content+sline, bashrc_file, newline='\n')
+        else:
+            logger.info("NervProj setup file already referenced in .bashrc")
 
         # pp = pprint.PrettyPrinter(indent=2)
         # res = pp.pformat(dict(os.environ))
         # logger.info("Current environment is: %s", res)
-
-        new_content = None
-        if match is None:
-            logger.info("Adding alias in .bashrc file: %s", aline)
-            new_content = content + '\n' + aline + "\n"
-        elif match.group() != aline:
-            src = match.group()
-            logger.info("Replacing mismatched alias: %s != %s", src, aline)
-            new_content = content.replace(src, aline)
-
-        if new_content is not None:
-            # Make a backup of the file:
-            self.copy_file(bashrc_file, bashrc_file+".bak", force=True)
-            self.write_text_file(new_content, bashrc_file, newline='\n')
