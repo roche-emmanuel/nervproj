@@ -1,0 +1,4 @@
+# Note: The definition of the PYTHONPATH below is necessary when using a Visual Studio Code environment
+# to all pylint to properly find references to local base classes.
+
+PYTHONPATH=.
