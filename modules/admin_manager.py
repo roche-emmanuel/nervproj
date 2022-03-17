@@ -20,12 +20,11 @@ class AdminManager(ManagerBase):
 
         # Check the value of the sub command:
         sub_cmd = settings['sub_cmd']
-        if sub_cmd == 'install-cli-alias':
-            name = settings['install_cli_alias']
-            self.install_cli_alias(name)
+        if sub_cmd == 'install-cli':
+            self.install_cli()
 
-    def install_cli_alias(self, alias_name):
-        """Install a CLI alias with the given name."""
+    def install_cli(self):
+        """Install a CLI script in .bashrc if application"""
 
         # Check if an $HOME folder is provider:
         home_dir = os.getenv('HOME')

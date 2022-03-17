@@ -38,9 +38,9 @@ sub_p = admin_p.add_subparsers(title='sub commands',
                                dest='sub_cmd',
                                description='Available sub commands below:',
                                help='Sub commands additional help')
-cmd_p = sub_p.add_parser("install-cli-alias")
-cmd_p.add_argument("install_cli_alias", nargs="?", default='nvp', type=str,
-                   help="Install bash alias for the NervProj CLI")
+cmd_p = sub_p.add_parser("install-cli")
+# cmd_p.add_argument("install_cli_alias", nargs="?", default='nvp', type=str,
+#                    help="Install bash alias for the NervProj CLI")
 
 
 args = parser.parse_args()
@@ -55,7 +55,7 @@ logger.info("Received arguments: %s", vars(args))
 if args.cmd == 'admin':
     AdminManager(vars(args))
 
-    # if args.sub_cmd == 'install-cli-alias':
+    # if args.sub_cmd == 'install-cli':
     #     logger.info("Should install cli alias here with name %s", args.install_cli_alias)
 
 # NVLBuilder(vars(args))
