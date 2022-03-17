@@ -4,7 +4,6 @@ from asyncio.subprocess import DEVNULL
 import os
 import sys
 import logging
-import jstyleson
 import subprocess
 import requests
 
@@ -19,9 +18,6 @@ class BuildManager(ManagerBase):
     def __init__(self, settings):
         """Build manager constructor"""
         ManagerBase.__init__(self, settings)
-
-        # Load the manager config:
-        self.load_config()
 
         # Get the platform flavor:
         self.setup_flavor()
@@ -171,14 +167,6 @@ class BuildManager(ManagerBase):
         env['CFLAGS'] = f"-I{inc_dir} -w -fPIC"
 
         return env
-
-    def load_config(self):
-        """Load the config.json file, can only be done after we have the root path."""
-
-        cfgfile = self.get_path(self.root_dir, "config.json")
-        with open(cfgfile, 'r', encoding="utf-8") as fd_:
-            self.config = jstyleson.load(fd_)
-            logger.log(0, "Loaded config: %s", self.config)
 
     def execute(self, cmd, verbose=True, cwd=None, env=None):
         """Execute a command optionally displaying the outputs."""

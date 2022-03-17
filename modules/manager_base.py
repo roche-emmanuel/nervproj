@@ -6,6 +6,7 @@ import time
 import logging
 import shutil
 import subprocess
+import jstyleson
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,9 @@ class ManagerBase(object):
         self.root_dir = os.path.dirname(os.path.abspath(__file__))
         self.root_dir = os.path.abspath(os.path.join(self.root_dir, os.pardir))
 
+        # Load the manager config:
+        self.load_config()
+
         self.flavor = None
         self.platform = None
 
@@ -56,6 +60,19 @@ class ManagerBase(object):
         assert self.platform in ["windows", "linux"], f"Unsupported platform {pname}"
 
         logger.info("Using flavor %s", self.flavor)
+
+    def load_config(self):
+        """Load the config.json file, can only be done after we have the root path."""
+
+        cfgfile = self.get_path(self.root_dir, "config.json")
+        self.config = self.read_json(cfgfile)
+        logger.log(0, "Loaded config: %s", self.config)
+
+        # Apply config override if any:
+        cfgfile = self.get_path(self.root_dir, "config.user.json")
+        if self.file_exists(cfgfile):
+            user_cfg = self.read_json(cfgfile)
+            self.config.update(user_cfg)
 
     def is_windows(self):
         """Return true if this is a windows platform"""
@@ -149,6 +166,16 @@ class ManagerBase(object):
         fname = self.get_path(*parts)
         with open(fname, mode, encoding="utf-8", newline=newline) as file:
             file.write(content)
+
+    def read_json(self, *parts):
+        """Read JSON file as object"""
+        content = self.read_text_file(*parts)
+        return jstyleson.load(content)
+
+    def write_json(self, data, *parts):
+        """Write a structure as JSON file"""
+        content = jstyleson.dumps(data)
+        self.write_text_file(content, *parts)
 
     def replace_in_file(self, filename, src, repl):
         """Replace a given statement with another in a given file, and then

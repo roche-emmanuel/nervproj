@@ -1,10 +1,6 @@
 """Collection of admin utility functions"""
 import os
 import logging
-import re
-import pprint
-
-import distutils
 
 from modules.manager_base import ManagerBase
 
