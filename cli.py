@@ -3,6 +3,8 @@ import sys
 import logging
 import argparse
 
+from modules.admin_manager import AdminManager
+
 # print(f"Received arguments: {sys.argv[1:]}")
 
 # prepare the builder class:
@@ -23,16 +25,21 @@ parser.add_argument("--install-python-requirements", dest='install_python_requir
 parser.add_argument("-v", "--verbose", dest='verbose', action='store_true',
                     help="Enable display of verbose debug outputs.")
 
-subparsers = parser.add_subparsers(title='subcommands',
+subparsers = parser.add_subparsers(title='main commands',
                                    dest='cmd',
-                                   description='Available subcommands',
-                                   help='Subcommands additional help')
+                                   description='Available main commands below:',
+                                   help='Main commands additional help')
+
+home_p = subparsers.add_parser("home")
 
 admin_p = subparsers.add_parser("admin")
 
-sub_p = admin_p.add_subparsers(help='sub-sub-command help', dest='sub_cmd')
+sub_p = admin_p.add_subparsers(title='sub commands',
+                               dest='sub_cmd',
+                               description='Available sub commands below:',
+                               help='Sub commands additional help')
 cmd_p = sub_p.add_parser("install-cli-alias")
-cmd_p.add_argument("install_cli_alias", nargs="?", default='nv_cli', type=str,
+cmd_p.add_argument("install_cli_alias", nargs="?", default='nvp', type=str,
                    help="Install bash alias for the NervProj CLI")
 
 
@@ -45,11 +52,11 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG if args.verbose else 
 
 logger.info("Received arguments: %s", vars(args))
 
-
-# Handle the args:
 if args.cmd == 'admin':
-    if args.sub_cmd == 'install-cli-alias':
-        logger.info("Should install cli alias here with name %s", args.install_cli_alias)
+    AdminManager(vars(args))
+
+    # if args.sub_cmd == 'install-cli-alias':
+    #     logger.info("Should install cli alias here with name %s", args.install_cli_alias)
 
 # NVLBuilder(vars(args))
 

@@ -1,4 +1,6 @@
 # Ignore all the windows tools except the 7zip folder:
-
 tools/windows/*
 !tools/windows/7zip-*
+
+# Ignore compiled python files:
+*.pyc

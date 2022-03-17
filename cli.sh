@@ -118,14 +118,24 @@ run_cli_linux()
     $python_path $root_dir/scripts/cli.py "$@"
 }
 
-# Check if we are on a windows or a linux system:
-pname=`uname -s`
 
-case $pname in
-CYGWIN*)
-    run_cli_windows "$@"
-    ;;
-*)
-    run_cli_linux "$@"
-    ;;
-esac
+if [ "$#" != "0" ]; then
+    if [ "$1" == "home" ]; then
+        echo "Going to: $ROOT_DIR"
+        cd "$ROOT_DIR"
+    else
+        echo "running cli..."
+
+        # Check if we are on a windows or a linux system:
+        pname=`uname -s`
+
+        case $pname in
+        CYGWIN*)
+            run_cli_windows "$@"
+            ;;
+        *)
+            run_cli_linux "$@"
+            ;;
+        esac
+    fi
+fi

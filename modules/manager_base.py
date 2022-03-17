@@ -1,9 +1,11 @@
 """Collection of filesystem utility functions"""
 import os
+import sys
 import stat
 import time
 import logging
 import shutil
+import subprocess
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,38 @@ def onerror(func, path, _exc_info):
 
 class ManagerBase(object):
     """Base file manager class"""
+
+    def __init__(self, settings):
+        """Manager base constructor"""
+        self.settings = settings
+
+        self.root_dir = os.path.dirname(os.path.abspath(__file__))
+        self.root_dir = os.path.abspath(os.path.join(self.root_dir, os.pardir))
+
+        self.flavor = None
+        self.platform = None
+
+        pname = sys.platform
+        if pname.startswith('win32'):
+            self.flavor = "msvc64"
+            self.platform = "windows"
+        elif pname.startswith('linux'):
+            self.flavor = 'linux64'
+            self.platform = "linux"
+
+        self.flavor = self.settings.get("flavor", self.flavor)
+
+        assert self.platform in ["windows", "linux"], f"Unsupported platform {pname}"
+
+        logger.info("Using flavor %s", self.flavor)
+
+    def is_windows(self):
+        """Return true if this is a windows platform"""
+        return self.platform == "windows"
+
+    def is_linux(self):
+        """Return true if this is a linux platform"""
+        return self.platform == "linux"
 
     def add_execute_permission(self, *parts):
         """Add the execute permission to a given file"""
@@ -101,6 +135,21 @@ class ManagerBase(object):
         """Rename a file"""
         self.move_path(src_path, dest_path)
 
+    def read_text_file(self, *parts, mode="r"):
+        """Read the content of a file as string."""
+
+        fname = self.get_path(*parts)
+        with open(fname, mode, encoding="utf-8") as file:
+            content = file.read()
+        return content
+
+    def write_text_file(self, content, *parts, mode="w", newline=None):
+        """Write content of file"""
+
+        fname = self.get_path(*parts)
+        with open(fname, mode, encoding="utf-8", newline=newline) as file:
+            file.write(content)
+
     def replace_in_file(self, filename, src, repl):
         """Replace a given statement with another in a given file, and then
         re-write that file in place."""
@@ -159,3 +208,13 @@ class ManagerBase(object):
                 return pname
 
         return None
+
+    def to_cygwin_path(self, *parts):
+        """Try convert a windows path to a cygwin path if applicable"""
+        fname = self.get_path(*parts)
+        try:
+            res = subprocess.check_output(["cygpath.exe", fname])
+            # Convert to string an remove trailing newlines:
+            return res.decode("utf-8").rstrip()
+        except FileNotFoundError:
+            return None

@@ -8,7 +8,7 @@ import jstyleson
 import subprocess
 import requests
 
-from manager_base import ManagerBase
+from modules.manager_base import ManagerBase
 
 logger = logging.getLogger(__name__)
 
@@ -17,13 +17,8 @@ class BuildManager(ManagerBase):
     """NervProj builder class"""
 
     def __init__(self, settings):
-        self.settings = settings
-        logger.info("NVLBuilder settings: %s", settings)
-
-        # Get the NervProj root folder:
-        self.root_dir = os.path.dirname(os.path.abspath(__file__))
-        # self.root_dir = os.path.abspath(os.path.join(self.root_dir, os.pardir))
-        logger.info("NervProj root folder is %s", self.root_dir)
+        """Build manager constructor"""
+        ManagerBase.__init__(self, settings)
 
         # Load the manager config:
         self.load_config()
@@ -43,24 +38,6 @@ class BuildManager(ManagerBase):
 
     def setup_flavor(self):
         """Setup the target flavor depending on the current platform we are on."""
-
-        self.flavor = None
-        self.platform = None
-
-        pname = sys.platform
-        if pname.startswith('win32'):
-            self.flavor = "msvc64"
-            self.platform = "windows"
-        elif pname.startswith('linux'):
-            self.flavor = 'linux64'
-            self.platform = "linux"
-
-        self.flavor = self.settings.get("flavor", self.flavor)
-
-        if not self.platform in ["windows", "linux"]:
-            raise RuntimeError(f"Unsupported platform {pname}")
-
-        logger.info("Using flavor %s", self.flavor)
 
         self.msvc_setup_path = None
 
