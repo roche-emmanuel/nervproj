@@ -1,4 +1,6 @@
 """Collection of filesystem utility functions"""
+from asyncio.subprocess import DEVNULL
+
 import os
 import sys
 import stat
@@ -7,6 +9,7 @@ import logging
 import shutil
 import subprocess
 import jstyleson
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +173,7 @@ class ManagerBase(object):
     def read_json(self, *parts):
         """Read JSON file as object"""
         content = self.read_text_file(*parts)
-        return jstyleson.load(content)
+        return jstyleson.loads(content)
 
     def write_json(self, data, *parts):
         """Write a structure as JSON file"""
@@ -221,13 +224,28 @@ class ManagerBase(object):
         fname, _ext = os.path.splitext(filename)
         return fname
 
+    def is_downloadable(self, url):
+        """Check if a given URL is downloadable"""
+        # cf. https://stackoverflow.com/questions/61629856/how-to-check-whether-a-url-is-downloadable-or-not
+        # headers = requests.head(url).headers
+        # return 'attachment' in headers.get('Content-Disposition', '')
+        response = requests.get(url, stream=True)
+        if not response.ok:
+            return False
+
+        if not 'content-length' in response.headers:
+            return False
+
+        return int(response.headers.get('content-length')) > 0
+
     def select_first_valid_path(self, allpaths):
         """Select the first valid path in a given list.
         The list may also contain URLs. May return None if no valid path is found."""
 
         for pname in allpaths:
-            if pname.startswith("http://") or pname.startswith("https://"):
-                # URL resources are assumed to always be valid:
+            logger.info("Checking path %s", pname)
+            if (pname.startswith("http://") or pname.startswith("https://")) and self.is_downloadable(pname):
+                # URL resource is downloadable:
                 return pname
 
             # check if the path is valid:
@@ -245,3 +263,12 @@ class ManagerBase(object):
             return res.decode("utf-8").rstrip()
         except FileNotFoundError:
             return None
+
+    def execute(self, cmd, verbose=True, cwd=None, env=None):
+        """Execute a command optionally displaying the outputs."""
+
+        stdout = None if verbose else DEVNULL
+        stderr = None if verbose else DEVNULL
+        # logger.info("Executing command: %s", cmd)
+        subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
+        # subprocess.check_call(cmd)

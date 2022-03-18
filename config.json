@@ -3,7 +3,15 @@
   // Folder where to search for VisualStudio installations:
   // This is applicable when targetting the flavor "msvc64" which
   // is the default on windows:
-  "msvc_install_paths": ["D:\\Softs\\VisualStudio\\VS2017"],
+  // Note that the first valid path in this list will be used here.
+  "msvc_install_paths": [
+    "D:\\Softs\\VisualStudio\\VS2017",
+    "D:\\Softs\\VisualStudio2022CE"
+  ],
+
+  // list of location where we should search for packages:
+  "package:urls": ["https://gitlab.nervtech.org/shared/packages/-/raw/main/"],
+
   // Tools that can be used on windows:
   "tools:windows": [
     {
@@ -14,7 +22,10 @@
     {
       "name": "cmake",
       "sub_path": "bin/cmake.exe",
-      "version": "3.22.3"
+      "version": "3.22.3",
+      "urls": [
+        "https://github.com/Kitware/CMake/releases/download/v3.22.3/cmake-3.22.3-windows-x86_64.zip"
+      ]
     }
     // {
     //     "name": "git",

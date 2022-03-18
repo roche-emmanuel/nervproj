@@ -1,10 +1,8 @@
 """Module for build management system"""
 
-from asyncio.subprocess import DEVNULL
 import os
 import sys
 import logging
-import subprocess
 import requests
 
 from nvp.manager_base import ManagerBase
@@ -66,7 +64,6 @@ class BuildManager(ManagerBase):
 
         # Prepare the tool paths:
         tools = self.config[f'tools:{self.platform}']
-        tools_pkg_dir = self.get_path(self.root_dir, "tools", "packages")
 
         self.tool_paths = {}
         for desc in tools:
@@ -75,33 +72,63 @@ class BuildManager(ManagerBase):
                 # logger.debug("Using system path '%s' for %s tool", desc['path'], tname)
                 self.tool_paths[tname] = desc['path']
             else:
-                vers = desc['version']
-                full_name = f"{tname}-{vers}"
+                full_name = f"{tname}-{desc['version']}"
                 tpath = self.get_path(self.tools_dir, full_name, desc['sub_path'])
                 if not self.file_exists(tpath):
-                    pkg_file = self.get_path(tools_pkg_dir, f"{tname}-{vers}-{self.platform}.7z")
 
-                    # check if we have an "url" element:
-                    if "urls" in desc:
-                        url = self.select_first_valid_path(desc["urls"])
-                        filename = os.path.basename(url)
+                    # retrieve the most appropriate source package for that tool:
+                    pkg_file = self.retrieve_tool_package(desc)
 
-                        # We download the file directly into the tools_dir as we don't want to
-                        # keep it on the repository:
-                        tgt_pkg_path = self.get_path(self.tools_dir, filename)
-
-                        if not self.file_exists(tgt_pkg_path):
-                            # Download that file locally:
-                            self.download_file(url, tgt_pkg_path)
-
-                        # override our "source" pkg_file:
-                        pkg_file = tgt_pkg_path
-                        logger.debug("Using source package %s for %s", pkg_file, full_name)
-
+                    # Extract the package:
                     self.extract_package(pkg_file, self.tools_dir, rename=full_name)
 
+                    # Remove the source package:
+                    # self.remove_file(pkg_file)
+
+                # The tool path should really exist now:
+                assert self.file_exists(tpath), f"No valid package provided for {full_name}"
+
+                # Store the tool path:
                 self.tool_paths[tname] = tpath
+
+                # Ensure the execution permission is set:
                 self.add_execute_permission(self.tool_paths[tname])
+
+    def retrieve_tool_package(self, desc):
+        """Retrieve the most appropriate package for a given tool and
+        store it in a local folder for extraction."""
+
+        # Tool packages can be searched with "per tool" urls, of inside the package urls.
+        # priority shoould be given to per "tool url" if available:
+
+        urls = desc.get("urls", [])
+
+        # Next we should extend with the package urls:
+        full_name = f"{desc['name']}-{desc['version']}"
+        canonical_pkg_name = f"tools/{full_name}-{self.platform}.7z"
+
+        pkg_urls = self.config.get("package:urls", [])
+        urls += [base_url+canonical_pkg_name for base_url in pkg_urls]
+
+        # Next we select the first valid URL:
+        url = self.select_first_valid_path(urls)
+        logger.info("Retrieving package for %s from url %s", full_name, url)
+
+        filename = os.path.basename(url)
+
+        # We download the file directly into the tools_dir as we don't want to
+        tgt_pkg_path = self.get_path(self.tools_dir, filename)
+
+        if not self.file_exists(tgt_pkg_path):
+            # Download that file locally:
+            self.download_file(url, tgt_pkg_path)
+        else:
+            logger.info("Using already downloaded package source %s", tgt_pkg_path)
+
+        pkg_file = tgt_pkg_path
+        logger.debug("Using source package %s for %s", pkg_file, full_name)
+
+        return pkg_file
 
     def get_tool_desc(self, tname):
         """Retrieve the description dic for a given tool by name"""
@@ -168,15 +195,6 @@ class BuildManager(ManagerBase):
 
         return env
 
-    def execute(self, cmd, verbose=True, cwd=None, env=None):
-        """Execute a command optionally displaying the outputs."""
-
-        stdout = None if verbose else DEVNULL
-        stderr = None if verbose else DEVNULL
-        # logger.info("Executing command: %s", cmd)
-        subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
-        # subprocess.check_call(cmd)
-
     def install_python_requirements(self):
         """Install the requirements for the main python environment using pip"""
 
@@ -186,43 +204,6 @@ class BuildManager(ManagerBase):
         # logger.info("Executing command: %s", cmd)
         self.execute(cmd)
         logger.info("Done installing python requirements.")
-
-    def download_file(self, url, dest_file):
-        """Helper function used to download a file with progress report."""
-
-        if url.startswith("git@"):
-            logger.info("Checking out git repo %s...", url)
-            cmd = [self.get_git_path(), "clone", url, dest_file]
-            self.execute(cmd)
-            return
-
-        # Check if this is a valid local file:
-        if self.file_exists(url):
-            # Just copy the file in that case:
-            logger.info("Copying file from %s...", url)
-            self.copy_file(url, dest_file, True)
-            return
-
-        logger.info("Downloading file from %s...", url)
-        with open(dest_file, "wb") as fdd:
-            response = requests.get(url, stream=True)
-            total_length = response.headers.get('content-length')
-
-            if total_length is None:  # no content length header
-                fdd.write(response.content)
-            else:
-                dlsize = 0
-                total_length = int(total_length)
-                for data in response.iter_content(chunk_size=4096):
-                    dlsize += len(data)
-                    fdd.write(data)
-                    frac = dlsize / total_length
-                    done = int(50 * frac)
-                    sys.stdout.write(f"\r[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}%")
-                    sys.stdout.flush()
-
-                sys.stdout.write('\n')
-                sys.stdout.flush()
 
     def check_dependencies(self, dep_list):
         """Build all the dependencies for NervProj."""
@@ -296,6 +277,17 @@ class BuildManager(ManagerBase):
 
         logger.info("Extracting %s...", src_pkg_path)
 
+        # check what is our expected extracted name:
+        cur_name = self.remove_file_extension(os.path.basename(src_pkg_path))
+
+        expected_name = cur_name if rename is None else rename
+        dst_dir = self.get_path(dest_dir, expected_name)
+        src_dir = self.get_path(dest_dir, cur_name)
+
+        # Ensure that the destination/source folders do not exists:
+        assert not self.path_exists(dst_dir), f"Unexpected existing path: {dst_dir}"
+        assert not self.path_exists(src_dir), f"Unexpected existing path: {src_dir}"
+
         # check if this is a tar.xz archive:
         if src_pkg_path.endswith(".tar.xz"):
             cmd = ["tar", "-xvJf", src_pkg_path, "-C", dest_dir]
@@ -303,16 +295,11 @@ class BuildManager(ManagerBase):
             cmd = [self.get_unzip_path(), "x", "-o"+dest_dir, src_pkg_path]
         self.execute(cmd, self.settings['verbose'])
 
-        # Check if we need to rename the destination folder:
-        if rename is not None:
-            cur_name = self.remove_file_extension(os.path.basename(src_pkg_path))
-
-            if cur_name != rename:
-                src_dir = self.get_path(dest_dir, cur_name)
-                dst_dir = self.get_path(dest_dir, rename)
-                assert self.dir_exists(src_dir), f"Invalid extracted directory {src_dir} from {src_pkg_path}"
-                logger.debug("Renaming folder %s to %s", cur_name, rename)
-                self.rename_folder(src_dir, dst_dir)
+        # Check if renaming is necessary:
+        if not self.path_exists(dst_dir):
+            assert self.path_exists(src_dir), f"Missing extracted path {src_dir}"
+            logger.debug("Renaming folder %s to %s", cur_name, rename)
+            self.rename_folder(src_dir, dst_dir)
 
         logger.debug("Done extracting package.")
 
@@ -529,3 +516,40 @@ class BuildManager(ManagerBase):
         # We should rename the include sub folder: "luajit-2.1" -> "luajit"
         dst_name = self.get_path(prefix, "include", "luajit")
         self.rename_folder(f"{dst_name}-{desc['version']}", dst_name)
+
+    def download_file(self, url, dest_file):
+        """Helper function used to download a file with progress report."""
+
+        if url.startswith("git@"):
+            logger.info("Checking out git repo %s...", url)
+            cmd = [self.get_git_path(), "clone", url, dest_file]
+            self.execute(cmd)
+            return
+
+        # Check if this is a valid local file:
+        if self.file_exists(url):
+            # Just copy the file in that case:
+            logger.info("Copying file from %s...", url)
+            self.copy_file(url, dest_file, True)
+            return
+
+        logger.info("Downloading file from %s...", url)
+        with open(dest_file, "wb") as fdd:
+            response = requests.get(url, stream=True)
+            total_length = response.headers.get('content-length')
+
+            if total_length is None:  # no content length header
+                fdd.write(response.content)
+            else:
+                dlsize = 0
+                total_length = int(total_length)
+                for data in response.iter_content(chunk_size=4096):
+                    dlsize += len(data)
+                    fdd.write(data)
+                    frac = dlsize / total_length
+                    done = int(50 * frac)
+                    sys.stdout.write(f"\r[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}%")
+                    sys.stdout.flush()
+
+                sys.stdout.write('\n')
+                sys.stdout.flush()
