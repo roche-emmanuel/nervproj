@@ -90,7 +90,7 @@ class BuildManager(ManagerBase):
 
                     # CHeck if we have a post install command:
                     fname = f"_post_install_{desc['name']}_{self.platform}"
-                    postinst = getattr(self, fname.lower(), None)
+                    postinst = self.get_method(fname.lower())
                     if postinst is not None:
                         logger.info("Running post install for %s...", full_name)
                         postinst(install_path, desc)
@@ -121,7 +121,7 @@ class BuildManager(ManagerBase):
 
         # add support for ".7z" or ".tar.xz" archives:
         canonical_pkg_name = f"tools/{full_name}-{self.platform}"
-        extensions = [ ".7z", ".tar.xz"]
+        extensions = [".7z", ".tar.xz"]
         pkg_urls = self.config.get("package_urls", [])
         pkg_urls = [base_url+canonical_pkg_name+ext for base_url in pkg_urls for ext in extensions]
 
@@ -280,7 +280,7 @@ class BuildManager(ManagerBase):
             # Find the build method that should be used for that dependency
             # and execute it:
             fname = f"_build_{desc['name']}_{self.flavor}"
-            builder = getattr(self, fname.lower())
+            builder = self.get_method(fname.lower())
             builder(build_dir, prefix, desc)
 
             # Finally we should create the package from that installed dependency folder

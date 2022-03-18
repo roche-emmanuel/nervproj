@@ -72,10 +72,17 @@ class ManagerBase(object):
         logger.log(0, "Loaded config: %s", self.config)
 
         # Apply config override if any:
-        cfgfile = self.get_path(self.root_dir, "config.user.json")
-        if self.file_exists(cfgfile):
-            user_cfg = self.read_json(cfgfile)
+        # First we should retrieve the list of potential paths for that file:
+        cfg_paths = self.config.get("user_config_urls", ["${NVP_DIR}/config.user.json"])
+        cfg_file = self.select_first_valid_path(cfg_paths)
+
+        if cfg_file is not None:
+            user_cfg = self.read_json(cfg_file)
             self.config.update(user_cfg)
+
+    def get_method(self, method_name):
+        """Retrieve a method by name in self, or return None if not found"""
+        return getattr(self, method_name, None)
 
     def is_windows(self):
         """Return true if this is a windows platform"""
@@ -92,8 +99,8 @@ class ManagerBase(object):
         # check if we already have the execution permission:
         if not os.access(filename, os.X_OK):
             logger.info("Adding execute permission on %s", filename)
-            st = os.stat(filename)
-            os.chmod(filename, st.st_mode | stat.S_IEXEC)
+            stt = os.stat(filename)
+            os.chmod(filename, stt.st_mode | stat.S_IEXEC)
 
     def dir_exists(self, *parts):
         """Check if a directory exists."""
@@ -245,7 +252,10 @@ class ManagerBase(object):
         The list may also contain URLs. May return None if no valid path is found."""
 
         for pname in allpaths:
-            logger.info("Checking path %s", pname)
+            logger.debug("Checking path %s", pname)
+            # Replace the variables if any:
+            pname = pname.replace("${NVP_DIR}", self.root_dir)
+
             if (pname.startswith("http://") or pname.startswith("https://")) and self.is_downloadable(pname):
                 # URL resource is downloadable:
                 return pname

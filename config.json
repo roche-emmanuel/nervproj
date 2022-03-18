@@ -67,5 +67,7 @@
     }
   ],
   // list of available projects:
-  "projects": []
+  "projects": [],
+  // Paths where to load the user config file from:
+  "user_config_urls": ["D:\\Seafile\\Perso\\Admin\\nervproj.config.json"]
 }
