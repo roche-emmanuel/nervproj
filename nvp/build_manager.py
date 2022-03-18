@@ -23,6 +23,9 @@ class BuildManager(ManagerBase):
         # Setup the paths:
         self.setup_paths()
 
+        # Setup the tools:
+        self.setup_tools()
+
         if settings.get('install_python_requirements', False):
             self.install_python_requirements()
 
@@ -62,8 +65,10 @@ class BuildManager(ManagerBase):
         self.deps_build_dir = self.make_folder(self.root_dir, "deps", "build")
         self.deps_package_dir = self.make_folder(self.root_dir, "deps", "packages")
 
+    def setup_tools(self):
+        """Setup all the tools on this platform."""
         # Prepare the tool paths:
-        tools = self.config[f'tools:{self.platform}']
+        tools = self.config[f'{self.platform}_tools']
 
         self.tool_paths = {}
         for desc in tools:
@@ -73,7 +78,8 @@ class BuildManager(ManagerBase):
                 self.tool_paths[tname] = desc['path']
             else:
                 full_name = f"{tname}-{desc['version']}"
-                tpath = self.get_path(self.tools_dir, full_name, desc['sub_path'])
+                install_path = self.get_path(self.tools_dir, full_name)
+                tpath = self.get_path(install_path, desc['sub_path'])
                 if not self.file_exists(tpath):
 
                     # retrieve the most appropriate source package for that tool:
@@ -81,6 +87,13 @@ class BuildManager(ManagerBase):
 
                     # Extract the package:
                     self.extract_package(pkg_file, self.tools_dir, rename=full_name)
+
+                    # CHeck if we have a post install command:
+                    fname = f"_post_install_{desc['name']}_{self.platform}"
+                    postinst = getattr(self, fname.lower(), None)
+                    if postinst is not None:
+                        logger.info("Running post install for %s...", full_name)
+                        postinst(install_path, desc)
 
                     # Remove the source package:
                     # self.remove_file(pkg_file)
@@ -107,8 +120,11 @@ class BuildManager(ManagerBase):
         full_name = f"{desc['name']}-{desc['version']}"
         canonical_pkg_name = f"tools/{full_name}-{self.platform}.7z"
 
-        pkg_urls = self.config.get("package:urls", [])
-        urls += [base_url+canonical_pkg_name for base_url in pkg_urls]
+        pkg_urls = self.config.get("package_urls", [])
+        if self.config.get("prioritize_package_urls", False):
+            urls = [base_url+canonical_pkg_name for base_url in pkg_urls] + urls
+        else:
+            urls = urls + [base_url+canonical_pkg_name for base_url in pkg_urls]
 
         # Next we select the first valid URL:
         url = self.select_first_valid_path(urls)
@@ -291,6 +307,8 @@ class BuildManager(ManagerBase):
         # check if this is a tar.xz archive:
         if src_pkg_path.endswith(".tar.xz"):
             cmd = ["tar", "-xvJf", src_pkg_path, "-C", dest_dir]
+        elif src_pkg_path.endswith(".7z.exe"):
+            cmd = [self.get_unzip_path(), "x", "-o"+dest_dir+"/"+expected_name, src_pkg_path]
         else:
             cmd = [self.get_unzip_path(), "x", "-o"+dest_dir, src_pkg_path]
         self.execute(cmd, self.settings['verbose'])
@@ -516,6 +534,26 @@ class BuildManager(ManagerBase):
         # We should rename the include sub folder: "luajit-2.1" -> "luajit"
         dst_name = self.get_path(prefix, "include", "luajit")
         self.rename_folder(f"{dst_name}-{desc['version']}", dst_name)
+
+    def _post_install_git_windows(self, install_path, _desc):
+        """Run post install for portable git on windows"""
+
+        # There should be a "post-install.bat" script in the install folder:
+        sfile = self.get_path(install_path, "post-install.bat")
+        assert self.file_exists(sfile), "No post-install.bat script found."
+
+        # We should not delete that file automatically at this end of it,
+        # as this would trigger an error:
+        self.replace_in_file(sfile, "@DEL post-install.bat", "")
+
+        cmd = [self.get_path(install_path, "git-cmd.exe"), "--no-needs-console",
+               "--hide", "--no-cd", "--command=post-install.bat"]
+
+        logger.info("Executing command: %s", cmd)
+        self.execute(cmd, cwd=install_path, verbose=True)
+
+        # Finally we remove the script file:
+        self.remove_file(sfile)
 
     def download_file(self, url, dest_file):
         """Helper function used to download a file with progress report."""

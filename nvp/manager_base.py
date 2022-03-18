@@ -220,6 +220,8 @@ class ManagerBase(object):
             return filename[:-8]
         if fname.endswith(".tar.xz") or fname.endswith(".tar.gz"):
             return filename[:-7]
+        if fname.endswith(".7z.exe"):
+            return filename[:-7]
 
         fname, _ext = os.path.splitext(filename)
         return fname

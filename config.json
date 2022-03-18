@@ -10,10 +10,12 @@
   ],
 
   // list of location where we should search for packages:
-  "package:urls": ["https://gitlab.nervtech.org/shared/packages/-/raw/main/"],
+  "package_urls": ["https://gitlab.nervtech.org/shared/packages/-/raw/main/"],
+
+  "prioritize_package_urls": true,
 
   // Tools that can be used on windows:
-  "tools:windows": [
+  "windows_tools": [
     {
       "name": "7zip",
       "sub_path": "7za.exe",
@@ -26,14 +28,17 @@
       "urls": [
         "https://github.com/Kitware/CMake/releases/download/v3.22.3/cmake-3.22.3-windows-x86_64.zip"
       ]
+    },
+    {
+      "name": "git",
+      "sub_path": "bin/git.exe",
+      "version": "2.35.1",
+      "urls": [
+        "https://github.com/git-for-windows/git/releases/download/v2.35.1.windows.2/PortableGit-2.35.1.2-64-bit.7z.exe"
+      ]
     }
-    // {
-    //     "name": "git",
-    //     "sub_path": "bin/git.exe",
-    //     "version": "2.35.1"
-    // }
   ],
-  "tools:linux": [
+  "linux_tools": [
     // {
     //     "name": "7zip",
     //     "sub_path": "7zzs",
