@@ -118,13 +118,17 @@ class BuildManager(ManagerBase):
 
         # Next we should extend with the package urls:
         full_name = f"{desc['name']}-{desc['version']}"
-        canonical_pkg_name = f"tools/{full_name}-{self.platform}.7z"
 
+        # add support for ".7z" or ".tar.xz" archives:
+        canonical_pkg_name = f"tools/{full_name}-{self.platform}"
+        extensions = [ ".7z", ".tar.xz"]
         pkg_urls = self.config.get("package_urls", [])
+        pkg_urls = [base_url+canonical_pkg_name+ext for base_url in pkg_urls for ext in extensions]
+
         if self.config.get("prioritize_package_urls", False):
-            urls = [base_url+canonical_pkg_name for base_url in pkg_urls] + urls
+            urls = pkg_urls + urls
         else:
-            urls = urls + [base_url+canonical_pkg_name for base_url in pkg_urls]
+            urls = urls + pkg_urls
 
         # Next we select the first valid URL:
         url = self.select_first_valid_path(urls)
@@ -307,6 +311,8 @@ class BuildManager(ManagerBase):
         # check if this is a tar.xz archive:
         if src_pkg_path.endswith(".tar.xz"):
             cmd = ["tar", "-xvJf", src_pkg_path, "-C", dest_dir]
+        elif src_pkg_path.endswith(".tar.gz") or src_pkg_path.endswith(".tgz"):
+            cmd = ["tar", "-xvzf", src_pkg_path, "-C", dest_dir]
         elif src_pkg_path.endswith(".7z.exe"):
             cmd = [self.get_unzip_path(), "x", "-o"+dest_dir+"/"+expected_name, src_pkg_path]
         else:
