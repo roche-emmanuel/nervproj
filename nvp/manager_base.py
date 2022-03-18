@@ -7,11 +7,14 @@ import stat
 import time
 import logging
 import shutil
+import pprint
 import subprocess
 import jstyleson
 import requests
 
 logger = logging.getLogger(__name__)
+
+printer = pprint.PrettyPrinter(indent=2)
 
 
 def onerror(func, path, _exc_info):
@@ -79,6 +82,10 @@ class ManagerBase(object):
         if cfg_file is not None:
             user_cfg = self.read_json(cfg_file)
             self.config.update(user_cfg)
+
+    def pretty_print(self, obj):
+        """Pretty print an object"""
+        return printer.pformat(obj)
 
     def get_method(self, method_name):
         """Retrieve a method by name in self, or return None if not found"""

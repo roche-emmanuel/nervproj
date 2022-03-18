@@ -1,5 +1,9 @@
 """Collection of gitlab utility functions"""
 import logging
+import re
+import time
+import json
+import requests
 
 from nvp.manager_base import ManagerBase
 
@@ -14,7 +18,65 @@ class GitlabManager(ManagerBase):
         ManagerBase.__init__(self, settings)
 
         self.proj = None
+        self.base_url = None
+        self.access_token = None
+        self.proj_id = None
+
         self.process_command()
+
+    def send_request(self, req_type, url, data=None, max_retries=5, auth=True):
+        """Method used to send a generic request to the server."""
+
+        headers = {'content-type': "application/json", 'cache-control': "no-cache"}
+
+        assert self.base_url is not None, "Invalid base url."
+
+        if auth:
+            assert self.access_token is not None, "Invalid access token."
+            headers['PRIVATE-TOKEN'] = self.access_token
+
+        try_count = 0
+        while max_retries <= 0 or try_count < max_retries:
+            try:
+                if req_type == "GET":
+                    response = requests.request(req_type, self.base_url+url, params=data, headers=headers)
+                    res = json.loads(response.text)
+                elif req_type == "DELETE":
+                    response = requests.request(req_type, self.base_url+url, headers=headers)
+                    res = response.text
+                else:
+                    payload = json.dumps(data)
+                    response = requests.request(req_type, self.base_url+url, data=payload, headers=headers)
+                    res = json.loads(response.text)
+                return res
+            except requests.exceptions.RequestException as err:
+                logger.error("Request exception detected: %s", str(err))
+            # except Exception as err:
+            #     logger.error('No response from URL: %s', str(err))
+
+            # wait 1 seconds:
+            time.sleep(2)
+
+            # Increment the try count:
+            try_count += 1
+
+        return None
+
+    def get(self, url, data=None, max_retries=5, auth=True):
+        """Send a get request"""
+        return self.send_request("GET", url, data, max_retries, auth)
+
+    def post(self, url, data, max_retries=5, auth=True):
+        """Send a post request"""
+        return self.send_request("POST", url, data, max_retries, auth)
+
+    def put(self, url, data, max_retries=5, auth=True):
+        """Send a put request"""
+        return self.send_request("PUT", url, data, max_retries, auth)
+
+    def delete(self, url, data=None, max_retries=5, auth=True):
+        """Send a delete request"""
+        return self.send_request("DELETE", url, data, max_retries, auth)
 
     def process_command(self):
         """Process a command"""
@@ -46,22 +108,139 @@ class GitlabManager(ManagerBase):
 
         return False
 
-    def get_project_path(self, pname):
+    def get_project_path(self, pname=None):
         """Search for the location of a project given its name"""
 
         proj_path = None
-        for pdesc in self.config.get("projects", []):
-            if pname in pdesc['names']:
-                # Select the first valid path for that project:
-                proj_path = self.select_first_valid_path(pdesc['paths'])
-                break
+
+        if pname is None:
+            assert self.proj is not None, "Invalid current project."
+            proj_path = self.select_first_valid_path(self.proj['paths'])
+        else:
+            for pdesc in self.config.get("projects", []):
+                if pname in pdesc['names']:
+                    # Select the first valid path for that project:
+                    proj_path = self.select_first_valid_path(pdesc['paths'])
+                    break
 
         assert proj_path is not None, f"No valid path for project '{pname}'"
 
         # Return that project path:
         return proj_path
 
+    def read_git_config(self, *parts):
+        """Read the important git config elements from a given file"""
+        cfg_file = self.get_path(*parts)
+
+        if not self.file_exists(cfg_file):
+            return None
+
+        cfg = {
+            'remotes': {}
+        }
+
+        # Read the config file and split on lines:
+        lines = self.read_text_file(cfg_file).split("\n")
+
+        current_ctx = None
+        ctx_name = None
+
+        # Example data:
+        # [remote "gitlab"]
+        #   url = ssh://git@gitlab.nervtech.org:22002/gmv/simcore.git
+
+        ctx_pat = re.compile(r"^\[([^\s]+)\s\"([^\"]+)\"\]$")
+        url_pat = re.compile(r"^url\s*=\s*(.*)$")
+
+        git_pat = re.compile(r"^git@([^:]+):(.*)$")
+        git_ssh_pat = re.compile(r"^ssh://git@([^:/]+)(:[0-9]+)?/(.*)$")
+
+        for line in lines:
+            # logger.info("Found line: %s", line)
+            line = line.strip()
+
+            if current_ctx == "remote":
+                mval = url_pat.match(line)
+                if mval is not None:
+                    url = mval.group(1)
+                    # logger.info("Found url %s for remote %s", url, ctx_name)
+                    desc = cfg['remotes'].setdefault(ctx_name, {})
+                    desc['url'] = url
+
+                    # find the git user prefix in the url
+                    gitm = git_ssh_pat.match(url) if url.startswith("ssh://") else git_pat.match(url)
+                    if gitm is None:
+                        logger.error("Cannot parse git URL: %s", url)
+                    else:
+                        # logger.info("Groups: %s", gitm.groups())
+                        ngrp = len(gitm.groups())
+                        desc['server'] = gitm.group(1)
+                        if ngrp == 2:
+                            desc['sub_path'] = gitm.group(2)
+                        else:
+                            desc['port'] = int(gitm.group(2)[1:])
+                            desc['sub_path'] = gitm.group(3)
+
+            mval = ctx_pat.match(line)
+            if mval is not None:
+                current_ctx = mval.group(1)
+                ctx_name = mval.group(2)
+                # logger.info("Entering context %s %s", current_ctx, ctx_name)
+
+        return cfg
+
+    def setup_gitlab_api(self):
+        """Setup the elements required for the gitlab API usage. 
+        return True on success, False otherwise."""
+        proj_dir = self.get_project_path()
+
+        git_cfg = self.read_git_config(proj_dir, ".git", "config")
+        logger.info("Read git config: %s", git_cfg)
+
+        if git_cfg is None:
+            logger.error("Invalid git repository in %s", proj_dir)
+            return False
+
+        # get the origin remote:
+        rname = "origin"
+        if not rname in git_cfg['remotes']:
+            logger.error("No '%s' remote git repository in %s", rname, proj_dir)
+            return False
+
+        remote_cfg = git_cfg['remotes'][rname]
+
+        # retrieve the server from that remote:
+        if not 'server' in remote_cfg:
+            logger.error("No server extracted from remote config: %s", remote_cfg)
+            return False
+
+        sname = remote_cfg['server']
+
+        # Check if we have an access token for that server:
+        tokens = self.config.get("gitlab_access_tokens", {})
+
+        if not sname in tokens:
+            logger.error("No access token availble for gitlab server %s", sname)
+            return False
+
+        # logger.info("Should use access token %s for %s", self.access_token, sname)
+
+        # store the base_url and access_token:
+        self.base_url = f"https://{sname}/api/v4"
+        self.access_token = tokens[sname]
+
+        # We should now URL encode the project name:
+        self.proj_id = remote_cfg['sub_path'].replace(".git", "").replace("/", "%2F")
+
+        # logger.info("Using project URL encoded path: %s", self.proj_id)
+        return True
+
     def process_milestone_list(self):
         """List of the milestone available in the current project"""
 
-        logger.info("Should list all milestones here from %s", self.proj)
+        # logger.info("Should list all milestones here from %s", self.proj)
+        if not self.setup_gitlab_api():
+            return
+
+        res = self.get(f"/projects/{self.proj_id}/milestones")
+        logger.info("Got result: %s", self.pretty_print(res))
