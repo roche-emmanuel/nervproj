@@ -13,7 +13,6 @@ _nvp_run_cli_windows()
 _nvp_run_cli_linux()
 {
     local python_version="3.10.2"
-    local unzip_version="21.07"
 
     # On linux we should call the python cli directly:
     # Get the project root folder: 
@@ -22,21 +21,9 @@ _nvp_run_cli_linux()
     
     # Check if we already have python:
     local tools_dir=$root_dir/tools/linux
-
-    local tmp_dir=$root_dir/temp
-    if [[ ! -d $tmp_dir ]]; then
-        echo "Creating temp folder..."
-        mkdir $tmp_dir
-    fi
-
-    local unzip_dir=$tools_dir/7zip-$unzip_version
-    local unzip_path=$unzip_dir/7zzs
-
-    if [[ ! -d $unzip_dir ]]; then
-        echo "Extracting 7zip tool..."
-        pushd $tools_dir > /dev/null
-        tar xvJf ../packages/7zip-$unzip_version-linux.tar.xz
-        popd > /dev/null
+    if [[ ! -d $tools_dir ]]; then
+        echo "Creating tools/linux folder..."
+        mkdir $tools_dir
     fi
 
     local python_dir=$tools_dir/python-$python_version
@@ -44,15 +31,25 @@ _nvp_run_cli_linux()
 
     if [[ ! -d $python_dir ]]; then
         # Check if we already have the python.7z 
-        local python_pkg=$root_dir/tools/packages/python-$python_version-linux.7z
+        local python_pkg=$root_dir/tools/packages/python-$python_version-linux.tar.xz
 
         if [[ -e "$python_pkg" ]]; then
             echo "Extracting $python_pkg..."
-            $unzip_path x -o"$tools_dir" "$python_pkg" > /dev/null
+            # $unzip_path x -o"$tools_dir" "$python_pkg" > /dev/null
+            pushd $tools_dir > /dev/null
+            tar xvJf $python_pkg
+            popd > /dev/null
         else
+            echo "Building python-$python_version from sources..."
             local pyfolder="Python-$python_version"
             local tarfile="$pyfolder.tar.xz"
             local url="https://www.python.org/ftp/python/$python_version/$tarfile"
+
+            local tmp_dir=$root_dir/temp
+            if [[ ! -d $tmp_dir ]]; then
+                echo "Creating temp folder..."
+                mkdir $tmp_dir
+            fi
 
             pushd $tmp_dir > /dev/null
 
@@ -81,7 +78,6 @@ _nvp_run_cli_linux()
             # --enable-loadable-sqlite-extensions --with-system-expat --with-system-ffi CPPFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib
 
             echo "Building python..."
-            # Note: Building with optimizations is very slow:
             make
 
             echo "Installing python..."
@@ -96,7 +92,11 @@ _nvp_run_cli_linux()
 
             # And we create the 7z package:
             echo "Generating python tool package..."
-            $unzip_path a -t7z $python_pkg $python_dir -m0=lzma2 -mx=9 -aoa -mfb=64 -md=32m -ms=on -r
+            pushd $tools_dir > /dev/null
+            tar cJf python-$python_version-linux.tar.xz python-$python_version
+            mv python-$python_version-linux.tar.xz ../packages
+            popd > /dev/null
+            # $unzip_path a -t7z $python_pkg $python_dir -m0=lzma2 -mx=9 -aoa -mfb=64 -md=32m -ms=on -r
 
             # removing python build folder:
             echo "Removing python build folder..."
@@ -115,7 +115,7 @@ _nvp_run_cli_linux()
     fi
     
     # Execute the command in python:
-    $python_path $root_dir/scripts/cli.py "$@"
+    $python_path $root_dir/cli.py "$@"
 }
 
 nvp()
