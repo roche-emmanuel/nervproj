@@ -3,7 +3,7 @@ import sys
 import logging
 import argparse
 
-from modules.admin_manager import AdminManager
+from nvp.admin_manager import AdminManager
 
 # print(f"Received arguments: {sys.argv[1:]}")
 

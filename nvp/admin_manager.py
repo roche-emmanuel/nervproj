@@ -2,7 +2,7 @@
 import os
 import logging
 
-from modules.manager_base import ManagerBase
+from nvp.manager_base import ManagerBase
 
 logger = logging.getLogger(__name__)
 

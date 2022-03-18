@@ -7,7 +7,7 @@ import logging
 import subprocess
 import requests
 
-from modules.manager_base import ManagerBase
+from nvp.manager_base import ManagerBase
 
 logger = logging.getLogger(__name__)
 
