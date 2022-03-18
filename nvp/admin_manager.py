@@ -15,7 +15,7 @@ class AdminManager(ManagerBase):
         ManagerBase.__init__(self, settings)
 
         # Check the value of the sub command:
-        sub_cmd = settings['sub_cmd']
+        sub_cmd = settings['l1_cmd']
         if sub_cmd == 'install-cli':
             self.install_cli()
 
