@@ -276,4 +276,7 @@ class GitlabManager(ManagerBase):
         logger.info("Project url: %s", self.proj_id)
         res = self.post(f"/projects/{self.proj_id}/milestones", data)
         # res = self.post(f"/projects/10/milestones", data)
-        logger.info("Got result: %s", self.pretty_print(res))
+        # logger.info("Got result: %s", self.pretty_print(res))
+        id = res['id']
+        web_url = res['web_url']
+        logger.info("Created milestone '%s': id=%s, url=%s", title, id, web_url)
