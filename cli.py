@@ -62,33 +62,17 @@ parser_desc = {
 }
 
 parsers = define_subparsers(parser, parser_desc)
-
-# subparsers = parser.add_subparsers(title='main commands',
-#                                    dest='cmd',
-#                                    description='Available main commands below:',
-#                                    help='Main commands additional help')
-
-# home_p = subparsers.add_parser("home")
-
-# admin_p = subparsers.add_parser("admin")
-
-# sub_p = admin_p.add_subparsers(title='sub commands',
-#                                dest='sub_cmd',
-#                                description='Available sub commands below:',
-#                                help='Sub commands additional help')
-# cmd_p = sub_p.add_parser("install-cli")
-# # cmd_p.add_argument("install_cli_alias", nargs="?", default='nvp', type=str,
-# #                    help="Install bash alias for the NervProj CLI")
-
-# tools_p = subparsers.add_parser("tools")
-
-# sub_p = tools_p.add_subparsers(title='sub commands',
-#                                dest='sub_cmd',
-#                                description='Available sub commands below:',
-#                                help='Sub commands additional help')
-# cmd_p = sub_p.add_parser("install")
-
-# milestone_p = subparsers.add_parser("milestone")
+psr = parsers['main.milestone.add']
+psr.add_argument("-p", "--project", dest='project', type=str, default="none",
+                 help="Select the current sub-project")
+psr.add_argument("-t", "--title", dest='title', type=str,
+                 help="Title for the new milestone")
+psr.add_argument("-d", "--desc", dest='description', type=str,
+                 help="Description for the new milestone")
+psr.add_argument("-s", "--start", dest='start_date', type=str,
+                 help="Start date for the new milestone")
+psr.add_argument("-e", "--end", dest='end_date', type=str,
+                 help="End date for the new milestone")
 
 args = parser.parse_args()
 

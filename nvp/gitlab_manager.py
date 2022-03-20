@@ -10,6 +10,8 @@ from nvp.manager_base import ManagerBase
 logger = logging.getLogger(__name__)
 
 
+# cf. Gitlab REST API documentation: https://docs.gitlab.com/ee/api/api_resources.html
+
 class GitlabManager(ManagerBase):
     """Gitlab command manager class"""
 
@@ -243,4 +245,35 @@ class GitlabManager(ManagerBase):
             return
 
         res = self.get(f"/projects/{self.proj_id}/milestones")
+        logger.info("Got result: %s", self.pretty_print(res))
+
+    def process_milestone_add(self):
+        """Add a milestone in the current project given a title, desc
+        start and end date"""
+
+        # logger.info("Should list all milestones here from %s", self.proj)
+        if not self.setup_gitlab_api():
+            return
+
+        title = self.settings['title']
+        desc = self.settings['description']
+        start_date = self.settings['start_date']
+        end_date = self.settings['end_date']
+
+        logger.info("Should add a new milestone with: title=%s, desc=%s, start_date=%s, end_date=%s",
+                    title, desc, start_date, end_date)
+
+        assert title is not None, "Title is mandatory to create a milestone."
+
+        data = {'title': title}
+        if desc is not None:
+            data['description'] = desc
+        if start_date is not None:
+            data['start_date'] = start_date
+        if end_date is not None:
+            data['due_date'] = end_date
+
+        logger.info("Project url: %s", self.proj_id)
+        res = self.post(f"/projects/{self.proj_id}/milestones", data)
+        # res = self.post(f"/projects/10/milestones", data)
         logger.info("Got result: %s", self.pretty_print(res))
