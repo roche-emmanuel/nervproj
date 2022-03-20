@@ -1,5 +1,6 @@
 """Collection of gitlab utility functions"""
 import logging
+import sys
 import re
 import time
 import json
@@ -93,11 +94,12 @@ class GitlabManager(ManagerBase):
             return
 
         cmd0 = self.settings['l0_cmd']
-        cmd1 = self.settings['l1_cmd']
+        cmd1 = self.settings.get('l1_cmd', None)
+        hname = f"process_{cmd0}" if cmd1 is None else f"process_{cmd0}_{cmd1}"
 
-        handler = self.get_method(f"process_{cmd0}_{cmd1}")
+        handler = self.get_method(hname)
         if not handler:
-            logger.warning("No handler available for '%s %s'", cmd0, cmd1)
+            logger.warning("No handler available with name '%s'", hname)
             return
 
         handler()
@@ -277,6 +279,18 @@ class GitlabManager(ManagerBase):
         res = self.post(f"/projects/{self.proj_id}/milestones", data)
         # res = self.post(f"/projects/10/milestones", data)
         # logger.info("Got result: %s", self.pretty_print(res))
-        id = res['id']
+        mid = res['id']
         web_url = res['web_url']
-        logger.info("Created milestone '%s': id=%s, url=%s", title, id, web_url)
+        logger.info("Created milestone '%s': id=%s, url=%s", title, mid, web_url)
+
+    def process_get_dir(self):
+        """Retrieve the root dir for a given sub project and
+        return that path on stdout"""
+
+        proj_dir = self.get_project_path()
+
+        if self.is_windows():
+            proj_dir = self.to_cygwin_path(proj_dir)
+
+        sys.stdout.write(proj_dir)
+        sys.stdout.flush()

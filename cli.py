@@ -54,6 +54,7 @@ parser.add_argument("-p", "--project", dest='project', type=str, default="none",
 
 parser_desc = {
     "home": None,
+    "get_dir": None,
     "admin": {
         "install-cli": None
     },
@@ -62,6 +63,10 @@ parser_desc = {
 }
 
 parsers = define_subparsers(parser, parser_desc)
+psr = parsers['main.get_dir']
+psr.add_argument("-p", "--project", dest='project', type=str, default="none",
+                 help="Select the current sub-project")
+
 psr = parsers['main.milestone.add']
 psr.add_argument("-p", "--project", dest='project', type=str, default="none",
                  help="Select the current sub-project")
@@ -82,6 +87,8 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG if args.verbose else 
 
 
 # logger.info("Received arguments: %s", vars(args))
+if args.l0_cmd == 'get_dir':
+    GitlabManager(vars(args))
 
 if args.l0_cmd == 'admin':
     AdminManager(vars(args))

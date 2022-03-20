@@ -121,7 +121,15 @@ _nvp_run_cli_linux()
 nvp()
 {
     if [ "$1" == "home" ]; then
-        cd "$ROOT_DIR"
+        # check if we are requesting the home of a sub project:
+        if [ "$2" == "" ]; then
+            # We simply go to the home of nervproj:
+            cd "$ROOT_DIR"
+        else
+            # Find the home dir of the sub project:
+            local home_dir=`nvp get_dir -p $2`
+            cd $home_dir
+        fi
     else
         # Check if we are on a windows or a linux system:
         pname=`uname -s`

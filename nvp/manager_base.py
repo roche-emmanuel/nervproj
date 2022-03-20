@@ -65,7 +65,7 @@ class ManagerBase(object):
 
         assert self.platform in ["windows", "linux"], f"Unsupported platform {pname}"
 
-        logger.info("Using flavor %s", self.flavor)
+        logger.debug("Using flavor %s", self.flavor)
 
     def load_config(self):
         """Load the config.json file, can only be done after we have the root path."""
