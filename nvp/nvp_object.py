@@ -1,14 +1,13 @@
-"""Collection of filesystem utility functions"""
+"""NVP base object class"""
 from asyncio.subprocess import DEVNULL
 
-import os
-import sys
-import stat
-import time
 import logging
-import shutil
+import os
+import stat
 import pprint
+import time
 import subprocess
+import shutil
 import jstyleson
 import requests
 
@@ -37,59 +36,8 @@ def onerror(func, path, _exc_info):
         raise  # pylint: disable=misplaced-bare-raise
 
 
-class ManagerBase(object):
-    """Base file manager class"""
-
-    def __init__(self, settings):
-        """Manager base constructor"""
-        self.settings = settings
-
-        self.root_dir = os.path.dirname(os.path.abspath(__file__))
-        self.root_dir = os.path.abspath(os.path.join(self.root_dir, os.pardir))
-
-        # Also retrieve the home directory here:
-        self.home_dir = os.getenv("HOME")
-        if self.home_dir is None and self.is_windows():
-            home_drive = os.getenv("HOMEDRIVE")
-            home_path = os.getenv("HOMEPATH")
-            assert home_drive is not None and home_path is not None, "Invalid home drive or path"
-            self.home_dir = home_drive+home_path
-
-        # Load the manager config:
-        self.load_config()
-
-        self.flavor = None
-        self.platform = None
-
-        pname = sys.platform
-        if pname.startswith('win32'):
-            self.flavor = "msvc64"
-            self.platform = "windows"
-        elif pname.startswith('linux'):
-            self.flavor = 'linux64'
-            self.platform = "linux"
-
-        self.flavor = self.settings.get("flavor", self.flavor)
-
-        assert self.platform in ["windows", "linux"], f"Unsupported platform {pname}"
-
-        logger.debug("Using flavor %s", self.flavor)
-
-    def load_config(self):
-        """Load the config.json file, can only be done after we have the root path."""
-
-        cfgfile = self.get_path(self.root_dir, "config.json")
-        self.config = self.read_json(cfgfile)
-        logger.log(0, "Loaded config: %s", self.config)
-
-        # Apply config override if any:
-        # First we should retrieve the list of potential paths for that file:
-        cfg_paths = self.config.get("user_config_urls", ["${NVP_DIR}/config.user.json"])
-        cfg_file = self.select_first_valid_path(cfg_paths)
-
-        if cfg_file is not None:
-            user_cfg = self.read_json(cfg_file)
-            self.config.update(user_cfg)
+class NVPObject(object):
+    """Base NVP object class"""
 
     def pretty_print(self, obj):
         """Pretty print an object"""
@@ -98,14 +46,6 @@ class ManagerBase(object):
     def get_method(self, method_name):
         """Retrieve a method by name in self, or return None if not found"""
         return getattr(self, method_name, None)
-
-    def is_windows(self):
-        """Return true if this is a windows platform"""
-        return self.platform == "windows"
-
-    def is_linux(self):
-        """Return true if this is a linux platform"""
-        return self.platform == "linux"
 
     def add_execute_permission(self, *parts):
         """Add the execute permission to a given file"""
@@ -261,26 +201,6 @@ class ManagerBase(object):
             return False
 
         return int(response.headers.get('content-length')) > 0
-
-    def select_first_valid_path(self, allpaths):
-        """Select the first valid path in a given list.
-        The list may also contain URLs. May return None if no valid path is found."""
-
-        for pname in allpaths:
-            logger.debug("Checking path %s", pname)
-            # Replace the variables if any:
-            pname = pname.replace("${NVP_DIR}", self.root_dir)
-            pname = pname.replace("${HOME}", self.home_dir)
-
-            if (pname.startswith("http://") or pname.startswith("https://")) and self.is_downloadable(pname):
-                # URL resource is downloadable:
-                return pname
-
-            # check if the path is valid:
-            if self.path_exists(pname):
-                return pname
-
-        return None
 
     def to_cygwin_path(self, *parts):
         """Try convert a windows path to a cygwin path if applicable"""

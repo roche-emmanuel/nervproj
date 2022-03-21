@@ -2,20 +2,21 @@
 import os
 import logging
 
-from nvp.manager_base import ManagerBase
+from nvp.nvp_component import NVPComponent
+from nvp.nvp_context import NVPContext
 
 logger = logging.getLogger(__name__)
 
 
-class AdminManager(ManagerBase):
+class AdminManager(NVPComponent):
     """Admin command manager class"""
 
-    def __init__(self, settings):
+    def __init__(self, ctx: NVPContext):
         """Admin commands manager constructor"""
-        ManagerBase.__init__(self, settings)
+        NVPComponent.__init__(self, ctx)
 
         # Check the value of the sub command:
-        sub_cmd = settings['l1_cmd']
+        sub_cmd = self.settings['l1_cmd']
         if sub_cmd == 'install-cli':
             self.install_cli()
 
@@ -36,11 +37,11 @@ class AdminManager(ManagerBase):
             logger.warning("Cannot install cli alias: no .bashrc file in HOME folder.")
             return
 
-        script_path = self.get_path(self.root_dir, "cli.sh")
+        script_path = self.get_path(self.ctx.get_root_dir(), "cli.sh")
 
         # If we are on windows, we may want to convert this path to a cygwin path
         # if we are in a cygwin environment (but running the native python executable):
-        if self.is_windows():
+        if self.ctx.is_windows():
             script_path = self.to_cygwin_path(script_path)
             assert script_path is not None, "Invalid cygwin environment."
 

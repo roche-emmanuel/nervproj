@@ -6,26 +6,31 @@ import time
 import json
 import requests
 
-from nvp.manager_base import ManagerBase
+from nvp.nvp_component import NVPComponent
+from nvp.nvp_context import NVPContext
 
 logger = logging.getLogger(__name__)
 
 
+def register_component(ctx: NVPContext):
+    """Register this component in the given context"""
+    comp = GitlabManager(ctx)
+    ctx.register_component('gitlab', comp)
+
 # cf. Gitlab REST API documentation: https://docs.gitlab.com/ee/api/api_resources.html
 
-class GitlabManager(ManagerBase):
+
+class GitlabManager(NVPComponent):
     """Gitlab command manager class"""
 
-    def __init__(self, settings):
+    def __init__(self, ctx: NVPContext):
         """Gitlab commands manager constructor"""
-        ManagerBase.__init__(self, settings)
+        NVPComponent.__init__(self, ctx)
 
         self.proj = None
         self.base_url = None
         self.access_token = None
         self.proj_id = None
-
-        self.process_command()
 
     def send_request(self, req_type, url, data=None, max_retries=5, auth=True):
         """Method used to send a generic request to the server."""
@@ -118,7 +123,6 @@ class GitlabManager(ManagerBase):
         proj_path = None
         def_paths = self.config.get("project_paths", [])
 
-        all_paths = []
         proj_desc = None
         if pname is None:
             assert self.proj is not None, "Invalid current project."
@@ -131,13 +135,13 @@ class GitlabManager(ManagerBase):
 
         assert proj_desc is not None, f"Invalid project {pname}"
 
-        ppaths = [self.get_path(base_path, proj_name) for base_path in def_paths
-                    for proj_name in proj_desc['names']]
+        all_paths = [self.get_path(base_path, proj_name) for base_path in def_paths
+                     for proj_name in proj_desc['names']]
 
         if 'paths' in proj_desc:
-            ppaths = proj_desc['paths'] + ppaths
+            all_paths = proj_desc['paths'] + all_paths
 
-        proj_path = self.select_first_valid_path(ppaths)
+        proj_path = self.ctx.select_first_valid_path(all_paths)
 
         assert proj_path is not None, f"No valid path for project '{pname}'"
 
@@ -206,7 +210,7 @@ class GitlabManager(ManagerBase):
         return cfg
 
     def setup_gitlab_api(self):
-        """Setup the elements required for the gitlab API usage. 
+        """Setup the elements required for the gitlab API usage.
         return True on success, False otherwise."""
         proj_dir = self.get_project_path()
 
@@ -301,7 +305,7 @@ class GitlabManager(ManagerBase):
 
         proj_dir = self.get_project_path()
 
-        if self.is_windows():
+        if self.ctx.is_windows():
             proj_dir = self.to_cygwin_path(proj_dir)
 
         sys.stdout.write(proj_dir)

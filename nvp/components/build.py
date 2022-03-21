@@ -5,17 +5,21 @@ import sys
 import logging
 import requests
 
-from nvp.manager_base import ManagerBase
+from nvp.nvp_component import NVPComponent
+from nvp.nvp_context import NVPContext
 
 logger = logging.getLogger(__name__)
 
 
-class BuildManager(ManagerBase):
+class BuildManager(NVPComponent):
     """NervProj builder class"""
 
-    def __init__(self, settings):
+    def __init__(self, ctx: NVPContext):
         """Build manager constructor"""
-        ManagerBase.__init__(self, settings)
+        NVPComponent.__init__(self, ctx)
+
+        self.flavor = ctx.get_flavor()
+        self.platform = ctx.get_platform()
 
         # Get the platform flavor:
         self.setup_flavor()
@@ -26,11 +30,11 @@ class BuildManager(ManagerBase):
         # Setup the tools:
         self.setup_tools()
 
-        if settings.get('install_python_requirements', False):
+        if self.settings.get('install_python_requirements', False):
             self.install_python_requirements()
 
-        if settings.get('check_deps', None) is not None:
-            dlist = settings['check_deps'].split(',')
+        if self.settings.get('check_deps', None) is not None:
+            dlist = self.settings['check_deps'].split(',')
             self.check_dependencies(dlist)
 
     def setup_flavor(self):
@@ -60,10 +64,11 @@ class BuildManager(ManagerBase):
         """Setup the paths that will be used during build or run process."""
 
         # Store the deps folder:
-        self.tools_dir = self.get_path(self.root_dir, "tools", self.platform)
-        self.deps_dir = self.make_folder(self.root_dir, "deps", self.flavor)
-        self.deps_build_dir = self.make_folder(self.root_dir, "deps", "build")
-        self.deps_package_dir = self.make_folder(self.root_dir, "deps", "packages")
+        base_dir = self.ctx.get_root_dir()
+        self.tools_dir = self.get_path(base_dir, "tools", self.platform)
+        self.deps_dir = self.make_folder(base_dir, "deps", self.flavor)
+        self.deps_build_dir = self.make_folder(base_dir, "deps", "build")
+        self.deps_package_dir = self.make_folder(base_dir, "deps", "packages")
 
     def setup_tools(self):
         """Setup all the tools on this platform."""
@@ -131,7 +136,7 @@ class BuildManager(ManagerBase):
             urls = urls + pkg_urls
 
         # Next we select the first valid URL:
-        url = self.select_first_valid_path(urls)
+        url = self.ctx.select_first_valid_path(urls)
         logger.info("Retrieving package for %s from url %s", full_name, url)
 
         filename = os.path.basename(url)
@@ -219,7 +224,7 @@ class BuildManager(ManagerBase):
         """Install the requirements for the main python environment using pip"""
 
         logger.info("Installing python requirements...")
-        reqfile = self.get_path(self.root_dir, "tools/requirements.txt")
+        reqfile = self.get_path(self.ctx.get_root_dir(), "tools/requirements.txt")
         cmd = [sys.executable, "-m", "pip", "install", "-r", reqfile]
         # logger.info("Executing command: %s", cmd)
         self.execute(cmd)
@@ -353,7 +358,7 @@ class BuildManager(ManagerBase):
         We then return the build_dir, dep_name and target install prefix"""
 
         # First we need to download the source package if missing:
-        base_build_dir = self.get_path(self.root_dir, "deps", "build")
+        base_build_dir = self.get_path(self.ctx.get_root_dir(), "deps", "build")
 
         # get the filename from the url:
         url = desc['url']
