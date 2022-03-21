@@ -62,6 +62,7 @@ class NVPContext(NVPObject):
         self.components = {}
         self.flavor = None
         self.platform = None
+        self.proj = None
 
         pname = sys.platform
         if pname.startswith('win32'):
@@ -142,6 +143,44 @@ class NVPContext(NVPObject):
             user_cfg = self.read_json(cfg_file)
             self.config.update(user_cfg)
 
+    def has_project(self, pname):
+        """Check if a given project should be considered available"""
+        for pdesc in self.config.get("projects", []):
+            if pname in pdesc['names']:
+                return True
+
+        return False
+
+    def get_project_path(self, pname=None):
+        """Search for the location of a project given its name"""
+
+        proj_path = None
+        def_paths = self.config.get("project_paths", [])
+
+        proj_desc = None
+        if pname is None:
+            proj_desc = self.get_project()
+        else:
+            for pdesc in self.config.get("projects", []):
+                if pname in pdesc['names']:
+                    proj_desc = pdesc
+                    break
+
+        assert proj_desc is not None, f"Invalid project {pname}"
+
+        all_paths = [self.get_path(base_path, proj_name) for base_path in def_paths
+                     for proj_name in proj_desc['names']]
+
+        if 'paths' in proj_desc:
+            all_paths = proj_desc['paths'] + all_paths
+
+        proj_path = self.select_first_valid_path(all_paths)
+
+        assert proj_path is not None, f"No valid path for project '{pname}'"
+
+        # Return that project path:
+        return proj_path
+
     def is_windows(self):
         """Return true if this is a windows platform"""
         return self.platform == "windows"
@@ -198,28 +237,61 @@ class NVPContext(NVPObject):
         """Register a component with a given name"""
         self.components[cname] = comp
 
-    def get_component(self, hname):
+    def register_project_component(self, cname, comp):
+        """Register a component with a given name for a specific sub project"""
+        pname = self.settings['project'].lower()
+
+        self.components[f"{pname}-{cname}"] = comp
+
+    def get_component(self, cname):
         """Retrieve a component by name or create it if missing"""
-        if hname in self.components:
-            return self.components[hname]
+
+        # Here we should also support project specific components:
+        pname = self.settings['project'].lower()
+        proj_comp_name = f"{pname}-{cname}"
+
+        if proj_comp_name in self.components:
+            return self.components[proj_comp_name]
+
+        if cname in self.components:
+            return self.components[cname]
 
         # Search for that component in the component paths:
         cpaths = [self.get_path(self.get_root_dir(), "nvp", "components")] + sys.path
-        cfiles = [self.get_path(base_dir, f"{hname}.py") for base_dir in cpaths]
+        cfiles = [self.get_path(base_dir, f"{cname}.py") for base_dir in cpaths]
 
         comp_path = self.select_first_valid_path(cfiles)
-        logger.info("Loading component %s from %s", hname, comp_path)
+        logger.debug("Loading component %s from %s", cname, comp_path)
         base_dir = os.path.dirname(comp_path)
         if not base_dir in sys.path:
-            logger.info("Adding %s to python sys.path", base_dir)
+            logger.debug("Adding %s to python sys.path", base_dir)
             sys.path.insert(0, base_dir)
 
-        comp_module = import_module(hname)
+        comp_module = import_module(cname)
         comp_module.register_component(self)
 
         # Should now have the component name in the dict:
-        assert hname in self.components, f"Could not register component for {hname}"
-        return self.components[hname]
+        assert cname in self.components, f"Could not register component for {cname}"
+        return self.components[cname]
+
+    def get_project(self):
+        """Retrieve the project details."""
+
+        pname = self.settings['project']
+
+        if self.proj is not None:
+            return self.proj
+
+        for pdesc in self.config.get("projects", []):
+            if pname in pdesc['names']:
+                self.proj = pdesc
+                break
+
+        if self.proj is None:
+            logger.warning("Invalid project '%s'", pname)
+            return None
+
+        return self.proj
 
     def run(self):
         """Run this context."""

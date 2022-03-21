@@ -88,16 +88,6 @@ class GitlabManager(NVPComponent):
 
     def process_command(self):
         """Process a command"""
-        pname = self.settings['project']
-
-        for pdesc in self.config.get("projects", []):
-            if pname in pdesc['names']:
-                self.proj = pdesc
-
-        if self.proj is None:
-            logger.warning("Invalid project '%s'", pname)
-            return
-
         cmd0 = self.settings['l0_cmd']
         cmd1 = self.settings.get('l1_cmd', None)
         hname = f"process_{cmd0}" if cmd1 is None else f"process_{cmd0}_{cmd1}"
@@ -108,45 +98,6 @@ class GitlabManager(NVPComponent):
             return
 
         handler()
-
-    def has_project(self, pname):
-        """Check if a given project should be considered available"""
-        for pdesc in self.config.get("projects", []):
-            if pname in pdesc['names']:
-                return True
-
-        return False
-
-    def get_project_path(self, pname=None):
-        """Search for the location of a project given its name"""
-
-        proj_path = None
-        def_paths = self.config.get("project_paths", [])
-
-        proj_desc = None
-        if pname is None:
-            assert self.proj is not None, "Invalid current project."
-            proj_desc = self.proj
-        else:
-            for pdesc in self.config.get("projects", []):
-                if pname in pdesc['names']:
-                    proj_desc = pdesc
-                    break
-
-        assert proj_desc is not None, f"Invalid project {pname}"
-
-        all_paths = [self.get_path(base_path, proj_name) for base_path in def_paths
-                     for proj_name in proj_desc['names']]
-
-        if 'paths' in proj_desc:
-            all_paths = proj_desc['paths'] + all_paths
-
-        proj_path = self.ctx.select_first_valid_path(all_paths)
-
-        assert proj_path is not None, f"No valid path for project '{pname}'"
-
-        # Return that project path:
-        return proj_path
 
     def read_git_config(self, *parts):
         """Read the important git config elements from a given file"""
@@ -212,7 +163,7 @@ class GitlabManager(NVPComponent):
     def setup_gitlab_api(self):
         """Setup the elements required for the gitlab API usage.
         return True on success, False otherwise."""
-        proj_dir = self.get_project_path()
+        proj_dir = self.ctx.get_project_path()
 
         git_cfg = self.read_git_config(proj_dir, ".git", "config")
         logger.info("Read git config: %s", git_cfg)
@@ -303,7 +254,7 @@ class GitlabManager(NVPComponent):
         """Retrieve the root dir for a given sub project and
         return that path on stdout"""
 
-        proj_dir = self.get_project_path()
+        proj_dir = self.ctx.get_project_path()
 
         if self.ctx.is_windows():
             proj_dir = self.to_cygwin_path(proj_dir)
