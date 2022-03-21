@@ -160,10 +160,14 @@ class GitlabManager(NVPComponent):
 
         return cfg
 
-    def setup_gitlab_api(self):
+    def setup_gitlab_api(self, project=None):
         """Setup the elements required for the gitlab API usage.
         return True on success, False otherwise."""
-        proj_dir = self.ctx.get_project_path()
+
+        if project is None:
+            project = self.ctx.get_current_project()
+
+        proj_dir = project.get_root_dir()
 
         git_cfg = self.read_git_config(proj_dir, ".git", "config")
         logger.info("Read git config: %s", git_cfg)
@@ -216,14 +220,25 @@ class GitlabManager(NVPComponent):
         res = self.get(f"/projects/{self.proj_id}/milestones")
         logger.info("Got result: %s", self.pretty_print(res))
 
+    def add_milestone(self, data, project=None):
+        """Add a milestone to the given project using the provided data"""
+        if not self.setup_gitlab_api(project):
+            return
+
+        assert data['title'] is not None, "Title is mandatory to create a milestone."
+        logger.info("Project url: %s", self.proj_id)
+        res = self.post(f"/projects/{self.proj_id}/milestones", data)
+        # res = self.post(f"/projects/10/milestones", data)
+        # logger.info("Got result: %s", self.pretty_print(res))
+        mid = res['id']
+        web_url = res['web_url']
+        logger.info("Created milestone '%s': id=%s, url=%s", data['title'], mid, web_url)
+
     def process_milestone_add(self):
         """Add a milestone in the current project given a title, desc
         start and end date"""
 
         # logger.info("Should list all milestones here from %s", self.proj)
-        if not self.setup_gitlab_api():
-            return
-
         title = self.settings['title']
         desc = self.settings['description']
         start_date = self.settings['start_date']
@@ -231,8 +246,6 @@ class GitlabManager(NVPComponent):
 
         logger.info("Should add a new milestone with: title=%s, desc=%s, start_date=%s, end_date=%s",
                     title, desc, start_date, end_date)
-
-        assert title is not None, "Title is mandatory to create a milestone."
 
         data = {'title': title}
         if desc is not None:
@@ -242,13 +255,7 @@ class GitlabManager(NVPComponent):
         if end_date is not None:
             data['due_date'] = end_date
 
-        logger.info("Project url: %s", self.proj_id)
-        res = self.post(f"/projects/{self.proj_id}/milestones", data)
-        # res = self.post(f"/projects/10/milestones", data)
-        # logger.info("Got result: %s", self.pretty_print(res))
-        mid = res['id']
-        web_url = res['web_url']
-        logger.info("Created milestone '%s': id=%s, url=%s", title, mid, web_url)
+        self.add_milestone(data)
 
     def process_get_dir(self):
         """Retrieve the root dir for a given sub project and

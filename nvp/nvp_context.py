@@ -6,6 +6,7 @@ import argparse
 from importlib import import_module
 
 from nvp.nvp_object import NVPObject
+from nvp.nvp_project import NVPProject
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +38,10 @@ class NVPContext(NVPObject):
         self.load_config()
 
         self.components = {}
+        self.projects = []
+
         self.flavor = None
         self.platform = None
-        self.proj = None
 
         pname = sys.platform
         if pname.startswith('win32'):
@@ -55,7 +57,7 @@ class NVPContext(NVPObject):
         self.sub_parsers = {}
         self.setup_parsers()
 
-        self.load_plugins()
+        self.load_projects()
 
         self.settings = vars(self.parsers['main'].parse_args())
 
@@ -164,41 +166,19 @@ class NVPContext(NVPObject):
 
     def has_project(self, pname):
         """Check if a given project should be considered available"""
-        for pdesc in self.config.get("projects", []):
-            if pname in pdesc['names']:
+        for proj in self.projects:
+            if proj.has_name(pname):
                 return True
 
         return False
 
-    def get_project_path(self, pname=None):
-        """Search for the location of a project given its name"""
+    def get_project(self, pname):
+        """Retrieve a project by name."""
+        for proj in self.projects:
+            if proj.has_name(pname):
+                return proj
 
-        proj_path = None
-        def_paths = self.config.get("project_paths", [])
-
-        proj_desc = None
-        if pname is None:
-            proj_desc = self.get_project()
-        else:
-            for pdesc in self.config.get("projects", []):
-                if pname in pdesc['names']:
-                    proj_desc = pdesc
-                    break
-
-        assert proj_desc is not None, f"Invalid project {pname}"
-
-        all_paths = [self.get_path(base_path, proj_name) for base_path in def_paths
-                     for proj_name in proj_desc['names']]
-
-        if 'paths' in proj_desc:
-            all_paths = proj_desc['paths'] + all_paths
-
-        proj_path = self.select_first_valid_path(all_paths)
-
-        assert proj_path is not None, f"No valid path for project '{pname}'"
-
-        # Return that project path:
-        return proj_path
+        return None
 
     def is_windows(self):
         """Return true if this is a windows platform"""
@@ -256,23 +236,12 @@ class NVPContext(NVPObject):
         """Register a component with a given name"""
         self.components[cname] = comp
 
-    def register_project_component(self, pdesc, cname, comp):
-        """Register a component with a given name for a specific sub project"""
-        pname = pdesc['names'][0].lower()
-
-        self.components[f"{pname}-{cname}"] = comp
-
-    def get_component(self, cname, pname=None):
+    def get_component(self, cname):
         """Retrieve a component by name or create it if missing"""
 
-        if pname is None:
-            pname = self.get_project_name()
-
-        # Here we should also support project specific components:
-        proj_comp_name = f"{pname}-{cname}"
-
-        if proj_comp_name in self.components:
-            return self.components[proj_comp_name]
+        proj = self.get_current_project()
+        if proj.has_component(cname):
+            return proj.get_component(cname)
 
         if cname in self.components:
             return self.components[cname]
@@ -302,28 +271,12 @@ class NVPContext(NVPObject):
         assert cname in self.components, f"Could not register component for {cname}"
         return self.components[cname]
 
-    def get_project(self):
+    def get_current_project(self):
         """Retrieve the project details."""
 
         pname = self.settings['project']
 
-        if self.proj is not None:
-            return self.proj
-
-        for pdesc in self.config.get("projects", []):
-            if pname in pdesc['names']:
-                self.proj = pdesc
-                break
-
-        if self.proj is None:
-            logger.warning("Invalid project '%s'", pname)
-            return None
-
-        return self.proj
-
-    def get_project_name(self):
-        """Retrieve the canonical project name"""
-        return self.get_project()['names'][0].lower()
+        return self.get_project(pname)
 
     def run(self):
         """Run this context."""
@@ -350,19 +303,9 @@ class NVPContext(NVPObject):
         else:
             logger.warning("No component available to process '%s'", l0_cmd)
 
-    def load_plugins(self):
+    def load_projects(self):
         """Load the plugins from the sub-project if any"""
+
         for pdesc in self.config.get("projects", []):
-            # Each project should have at least one name here:
-            proj_name = pdesc['names'][0]
-
-            proj_path = self.get_project_path(proj_name)
-
-            if self.file_exists(proj_path, "nvp_plug.py"):
-                # logger.info("Loading NVP plugin from %s...", proj_name)
-                sys.path.insert(0, proj_path)
-                plug_module = import_module("nvp_plug")
-                plug_module.register_nvp_plugin(self, pdesc)
-                sys.path.pop(0)
-                # Remove the module name from the list of loaded modules:
-                del sys.modules["nvp_plug"]
+            proj = NVPProject(pdesc, self)
+            self.projects.append(proj)
