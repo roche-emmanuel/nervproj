@@ -17,7 +17,7 @@ _nvp_run_cli_linux()
     # On linux we should call the python cli directly:
     # Get the project root folder: 
     local root_dir=`readlink -f $ROOT_DIR/`
-    echo "NervLand root dir is: $root_dir"
+    # echo "NervLand root dir is: $root_dir"
     
     # Check if we already have python:
     local tools_dir=$root_dir/tools/linux
@@ -128,7 +128,11 @@ nvp()
         else
             # Find the home dir of the sub project:
             local home_dir=`nvp get_dir -p $2`
-            cd $home_dir
+            if [ -d "$home_dir" ]; then
+                cd $home_dir
+            else
+                echo "Invalid result: $home_dir"
+            fi
         fi
     else
         # Check if we are on a windows or a linux system:

@@ -116,16 +116,28 @@ class GitlabManager(ManagerBase):
         """Search for the location of a project given its name"""
 
         proj_path = None
+        def_paths = self.config.get("project_paths", [])
 
+        all_paths = []
+        proj_desc = None
         if pname is None:
             assert self.proj is not None, "Invalid current project."
-            proj_path = self.select_first_valid_path(self.proj['paths'])
+            proj_desc = self.proj
         else:
             for pdesc in self.config.get("projects", []):
                 if pname in pdesc['names']:
-                    # Select the first valid path for that project:
-                    proj_path = self.select_first_valid_path(pdesc['paths'])
+                    proj_desc = pdesc
                     break
+
+        assert proj_desc is not None, f"Invalid project {pname}"
+
+        ppaths = [self.get_path(base_path, proj_name) for base_path in def_paths
+                    for proj_name in proj_desc['names']]
+
+        if 'paths' in proj_desc:
+            ppaths = proj_desc['paths'] + ppaths
+
+        proj_path = self.select_first_valid_path(ppaths)
 
         assert proj_path is not None, f"No valid path for project '{pname}'"
 

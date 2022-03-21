@@ -47,6 +47,14 @@ class ManagerBase(object):
         self.root_dir = os.path.dirname(os.path.abspath(__file__))
         self.root_dir = os.path.abspath(os.path.join(self.root_dir, os.pardir))
 
+        # Also retrieve the home directory here:
+        self.home_dir = os.getenv("HOME")
+        if self.home_dir is None and self.is_windows():
+            home_drive = os.getenv("HOMEDRIVE")
+            home_path = os.getenv("HOMEPATH")
+            assert home_drive is not None and home_path is not None, "Invalid home drive or path"
+            self.home_dir = home_drive+home_path
+
         # Load the manager config:
         self.load_config()
 
@@ -262,6 +270,7 @@ class ManagerBase(object):
             logger.debug("Checking path %s", pname)
             # Replace the variables if any:
             pname = pname.replace("${NVP_DIR}", self.root_dir)
+            pname = pname.replace("${HOME}", self.home_dir)
 
             if (pname.startswith("http://") or pname.startswith("https://")) and self.is_downloadable(pname):
                 # URL resource is downloadable:
