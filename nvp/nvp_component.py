@@ -13,5 +13,9 @@ class NVPComponent(NVPObject):
     def __init__(self, ctx: NVPContext):
         """Manager base constructor"""
         self.ctx = ctx
-        self.settings = ctx.get_settings()
         self.config = ctx.get_config()
+
+    @property
+    def settings(self):
+        """retrieve the settings from the context."""
+        return self.ctx.get_settings()

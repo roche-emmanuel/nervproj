@@ -10,29 +10,6 @@ from nvp.nvp_object import NVPObject
 logger = logging.getLogger(__name__)
 
 
-def define_subparsers(parent, desc, lvl=0, pname="main", plist=None):
-    """define subparsers recursively."""
-
-    if plist is None:
-        plist = {"main": parent}
-
-    subparsers = parent.add_subparsers(title=f'Level{lvl} commands',
-                                       dest=f'l{lvl}_cmd',
-                                       description=f'Available level{lvl} commands below:',
-                                       help=f'Level{lvl} commands additional help')
-    for key, sub_desc in desc.items():
-        # logger.info("Adding parser for %s", key)
-        ppp = subparsers.add_parser(key)
-        sub_name = f"{pname}.{key}"
-        plist[sub_name] = ppp
-
-        # Check if we have more sub parsers:
-        if sub_desc is not None:
-            plist = define_subparsers(ppp, sub_desc, lvl+1, sub_name, plist)
-
-    return plist
-
-
 class NVPContext(NVPObject):
     """Main NVP context class"""
 
@@ -74,12 +51,46 @@ class NVPContext(NVPObject):
 
         assert self.platform in ["windows", "linux"], f"Unsupported platform {pname}"
 
-        self.parsers = self.setup_parsers()
+        self.parsers = None
+        self.sub_parsers = {}
+        self.setup_parsers()
+
+        self.load_plugins()
 
         self.settings = vars(self.parsers['main'].parse_args())
 
         self.flavor = self.settings.get("flavor", self.flavor)
         logger.debug("Using flavor %s", self.flavor)
+
+    def define_subparsers(self, pname, desc):
+        """define subparsers recursively."""
+
+        parent = self.parsers[pname]
+
+        # level is the number of '.' we have in the parent parser name:
+        lvl = pname.count('.')
+
+        if pname not in self.sub_parsers:
+            self.sub_parsers[pname] = parent.add_subparsers(title=f'Level{lvl} commands',
+                                                            dest=f'l{lvl}_cmd',
+                                                            description=f'Available level{lvl} commands below:',
+                                                            help=f'Level{lvl} commands additional help')
+
+        subparsers = self.sub_parsers[pname]
+
+        for key, sub_desc in desc.items():
+            # logger.info("Adding parser for %s", key)
+            ppp = subparsers.add_parser(key)
+            sub_name = f"{pname}.{key}"
+            assert sub_name not in self.parsers, f"Parser {sub_name} already defined."
+
+            self.parsers[sub_name] = ppp
+
+            # Check if we have more sub parsers:
+            if sub_desc is not None:
+                self.define_subparsers(sub_name, sub_desc)
+
+        return self.parsers
 
     def setup_parsers(self):
         """Setup the command line parsers to use in this context"""
@@ -108,12 +119,14 @@ class NVPContext(NVPObject):
             "milestone": {"add": {}, "list": {}},
         }
 
-        parsers = define_subparsers(parser, parser_desc)
-        psr = parsers['main.get_dir']
+        self.parsers = {'main': parser}
+
+        self.define_subparsers("main", parser_desc)
+        psr = self.parsers['main.get_dir']
         psr.add_argument("-p", "--project", dest='project', type=str, default="none",
                          help="Select the current sub-project")
 
-        psr = parsers['main.milestone.add']
+        psr = self.parsers['main.milestone.add']
         psr.add_argument("-p", "--project", dest='project', type=str, default="none",
                          help="Select the current sub-project")
         psr.add_argument("-t", "--title", dest='title', type=str,
@@ -125,7 +138,13 @@ class NVPContext(NVPObject):
         psr.add_argument("-e", "--end", dest='end_date', type=str,
                          help="End date for the new milestone")
 
-        return parsers
+    def get_parser(self, name):
+        """Retrieve a parser by name"""
+        return self.parsers[name]
+
+    def has_parser(self, name):
+        """Check if a given parser is already created."""
+        return name in self.parsers
 
     def load_config(self):
         """Load the config.json file, can only be done after we have the root path."""
@@ -237,17 +256,19 @@ class NVPContext(NVPObject):
         """Register a component with a given name"""
         self.components[cname] = comp
 
-    def register_project_component(self, cname, comp):
+    def register_project_component(self, pdesc, cname, comp):
         """Register a component with a given name for a specific sub project"""
-        pname = self.settings['project'].lower()
+        pname = pdesc['names'][0].lower()
 
         self.components[f"{pname}-{cname}"] = comp
 
-    def get_component(self, cname):
+    def get_component(self, cname, pname=None):
         """Retrieve a component by name or create it if missing"""
 
+        if pname is None:
+            pname = self.get_project_name()
+
         # Here we should also support project specific components:
-        pname = self.settings['project'].lower()
         proj_comp_name = f"{pname}-{cname}"
 
         if proj_comp_name in self.components:
@@ -256,19 +277,26 @@ class NVPContext(NVPObject):
         if cname in self.components:
             return self.components[cname]
 
+        # logger.info("Component list: %s", self.components.keys())
+        # logger.info("proj_comp_name: %s", proj_comp_name)
         # Search for that component in the component paths:
         cpaths = [self.get_path(self.get_root_dir(), "nvp", "components")] + sys.path
         cfiles = [self.get_path(base_dir, f"{cname}.py") for base_dir in cpaths]
 
         comp_path = self.select_first_valid_path(cfiles)
-        logger.debug("Loading component %s from %s", cname, comp_path)
-        base_dir = os.path.dirname(comp_path)
-        if not base_dir in sys.path:
-            logger.debug("Adding %s to python sys.path", base_dir)
-            sys.path.insert(0, base_dir)
+        if comp_path is None:
+            # logger.warning("No path found for %s in %s", cname, cfiles)
+            return None
 
+        logger.info("Loading component %s from %s", cname, comp_path)
+        base_dir = os.path.dirname(comp_path)
+        # if not base_dir in sys.path:
+        #     logger.debug("Adding %s to python sys.path", base_dir)
+
+        sys.path.insert(0, base_dir)
         comp_module = import_module(cname)
         comp_module.register_component(self)
+        sys.path.pop(0)
 
         # Should now have the component name in the dict:
         assert cname in self.components, f"Could not register component for {cname}"
@@ -292,6 +320,10 @@ class NVPContext(NVPObject):
             return None
 
         return self.proj
+
+    def get_project_name(self):
+        """Retrieve the canonical project name"""
+        return self.get_project()['names'][0].lower()
 
     def run(self):
         """Run this context."""
@@ -317,3 +349,20 @@ class NVPContext(NVPObject):
             comp.process_command()
         else:
             logger.warning("No component available to process '%s'", l0_cmd)
+
+    def load_plugins(self):
+        """Load the plugins from the sub-project if any"""
+        for pdesc in self.config.get("projects", []):
+            # Each project should have at least one name here:
+            proj_name = pdesc['names'][0]
+
+            proj_path = self.get_project_path(proj_name)
+
+            if self.file_exists(proj_path, "nvp_plug.py"):
+                # logger.info("Loading NVP plugin from %s...", proj_name)
+                sys.path.insert(0, proj_path)
+                plug_module = import_module("nvp_plug")
+                plug_module.register_nvp_plugin(self, pdesc)
+                sys.path.pop(0)
+                # Remove the module name from the list of loaded modules:
+                del sys.modules["nvp_plug"]
