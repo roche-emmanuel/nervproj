@@ -62,6 +62,8 @@ class NVPContext(NVPObject):
         self.sub_parsers = {}
         self.setup_parsers()
 
+        self.load_default_components()
+
         self.load_projects()
 
         self.settings = vars(self.parsers['main'].parse_args())
@@ -247,6 +249,23 @@ class NVPContext(NVPObject):
 
         return None
 
+    def load_default_components(self):
+        """Load the default components available in this project"""
+        comp_path = self.get_path(self.get_root_dir(), "nvp", "components")
+
+        # Get all .py files in that folder:
+        comp_files = self.get_all_files(comp_path, "\\.py$")
+        logger.info("Found Component files: %s", comp_files)
+
+        # load those components:
+        sys.path.insert(0, comp_path)
+
+        for comp in comp_files:
+            comp_module = import_module(comp[:-3])
+            comp_module.register_component(self)
+
+        sys.path.pop(0)
+
     def register_component(self, cname, comp):
         """Register a component with a given name"""
         self.components[cname] = comp
@@ -293,30 +312,43 @@ class NVPContext(NVPObject):
 
         return self.get_project(pname)
 
+    def get_command(self, lvl):
+        """Retrieve the command at a given level"""
+        return self.settings[f"l{lvl}_cmd"]
+
     def run(self):
         """Run this context."""
-        l0_cmd = self.settings['l0_cmd']
+        cmd = self.get_command(0)
 
-        comp = None
-        if l0_cmd == 'get_dir':
-            comp = self.get_component('gitlab')
+        proj = self.get_current_project()
+        if proj is not None and proj.process_command(cmd):
+            return
 
-        if l0_cmd == 'admin':
-            comp = self.get_component('admin')
+        for _, comp in self.components.items():
+            if comp.process_command(cmd):
+                return
 
-        if l0_cmd == 'tools':
-            comp = self.get_component('build')
+        logger.warning("No component available to process '%s'", cmd)
 
-        if l0_cmd == 'milestone':
-            comp = self.get_component('gitlab')
+        # comp = None
+        # if l0_cmd == 'get_dir':
+        #     comp = self.get_component('gitlab')
 
-        if comp is None:
-            comp = self.get_component(l0_cmd)
+        # if l0_cmd == 'admin':
+        #     comp = self.get_component('admin')
 
-        if comp is not None:
-            comp.process_command()
-        else:
-            logger.warning("No component available to process '%s'", l0_cmd)
+        # if l0_cmd == 'tools':
+        #     comp = self.get_component('build')
+
+        # if l0_cmd == 'milestone':
+        #     comp = self.get_component('gitlab')
+
+        # if comp is None:
+        #     comp = self.get_component(l0_cmd)
+
+        # if comp is not None:
+        #     comp.process_command()
+        # else:
 
     def load_projects(self):
         """Load the plugins from the sub-project if any"""

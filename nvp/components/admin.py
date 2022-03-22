@@ -8,6 +8,12 @@ from nvp.nvp_context import NVPContext
 logger = logging.getLogger(__name__)
 
 
+def register_component(ctx: NVPContext):
+    """Register this component in the given context"""
+    comp = AdminManager(ctx)
+    ctx.register_component('builder', comp)
+
+
 class AdminManager(NVPComponent):
     """Admin command manager class"""
 
@@ -15,10 +21,10 @@ class AdminManager(NVPComponent):
         """Admin commands manager constructor"""
         NVPComponent.__init__(self, ctx)
 
-        # Check the value of the sub command:
-        sub_cmd = self.settings['l1_cmd']
-        if sub_cmd == 'install-cli':
-            self.install_cli()
+        # # Check the value of the sub command:
+        # sub_cmd = self.settings['l1_cmd']
+        # if sub_cmd == 'install-cli':
+        #     self.install_cli()
 
     def install_cli(self):
         """Install a CLI script in .bashrc if application"""

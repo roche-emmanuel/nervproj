@@ -11,6 +11,12 @@ from nvp.nvp_context import NVPContext
 logger = logging.getLogger(__name__)
 
 
+def register_component(ctx: NVPContext):
+    """Register this component in the given context"""
+    comp = BuildManager(ctx)
+    ctx.register_component('builder', comp)
+
+
 class BuildManager(NVPComponent):
     """NervProj builder class"""
 
@@ -18,24 +24,24 @@ class BuildManager(NVPComponent):
         """Build manager constructor"""
         NVPComponent.__init__(self, ctx)
 
-        self.flavor = ctx.get_flavor()
-        self.platform = ctx.get_platform()
+        # self.flavor = ctx.get_flavor()
+        # self.platform = ctx.get_platform()
 
-        # Get the platform flavor:
-        self.setup_flavor()
+        # # Get the platform flavor:
+        # self.setup_flavor()
 
-        # Setup the paths:
-        self.setup_paths()
+        # # Setup the paths:
+        # self.setup_paths()
 
-        # Setup the tools:
-        self.setup_tools()
+        # # Setup the tools:
+        # self.setup_tools()
 
-        if self.settings.get('install_python_requirements', False):
-            self.install_python_requirements()
+        # if self.settings.get('install_python_requirements', False):
+        #     self.install_python_requirements()
 
-        if self.settings.get('check_deps', None) is not None:
-            dlist = self.settings['check_deps'].split(',')
-            self.check_dependencies(dlist)
+        # if self.settings.get('check_deps', None) is not None:
+        #     dlist = self.settings['check_deps'].split(',')
+        #     self.check_dependencies(dlist)
 
     def setup_flavor(self):
         """Setup the target flavor depending on the current platform we are on."""

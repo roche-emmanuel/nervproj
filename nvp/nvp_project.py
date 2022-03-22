@@ -21,6 +21,18 @@ class NVPProject(NVPObject):
 
         proj_path = self.get_root_dir()
 
+        # Load the additional project config elements:
+        self.config = {}
+        cfg_file = self.get_path(proj_path, "nvp_config.json")
+        if self.file_exists(cfg_file):
+            self.config = self.read_json(cfg_file)
+
+        # We might have some "scripts" already registered for that project from the desc:
+        self.scripts = self.desc.get("scripts", {})
+
+        # Update the scripts from what we just read from the config:
+        self.scripts.update(self.config.get("scripts", {}))
+
         if self.file_exists(proj_path, "nvp_plug.py"):
             # logger.info("Loading NVP plugin from %s...", proj_name)
             sys.path.insert(0, proj_path)
@@ -71,3 +83,33 @@ class NVPProject(NVPObject):
     def get_component(self, cname):
         """Retrieve a given component in this project"""
         return self.components[cname]
+
+    def process_command(self, cmd):
+        """Check if the components in this project can process the given command"""
+        for _, comp in self.components.items():
+            if comp.process_command(cmd):
+                return True
+
+        return False
+
+    def run_script(self, script_name):
+        """Run a given script given by name if available"""
+
+        # get the script from the config:
+        if not script_name in self.scripts:
+            logger.warning("No script named %s in project %s", script_name, self.get_name())
+            return
+
+        # otherwise we get the script command and cwd:
+        script = self.scripts[script_name]
+        cmd = script['cmd']
+        cmd = cmd.replace("${PROJECT_ROOT_DIR}", self.get_root_dir())
+
+        cwd = script.get('cwd', None)
+        if cwd is not None:
+            # Ensure that we replace the path variables:
+            cwd = cwd.replace("${PROJECT_ROOT_DIR}", self.get_root_dir())
+
+        # Execute that command:
+        logger.debug("Executing script command: %s (cwd=%s)", cmd, cwd)
+        self.execute(cmd, cwd=cwd)

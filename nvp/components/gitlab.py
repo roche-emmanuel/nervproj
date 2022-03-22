@@ -93,18 +93,27 @@ class GitlabManager(NVPComponent):
         """Send a delete request"""
         return self.send_request("DELETE", url, data, max_retries, auth)
 
-    def process_command(self):
+    def process_command(self, cmd):
         """Process a command"""
-        cmd0 = self.settings['l0_cmd']
-        cmd1 = self.settings.get('l1_cmd', None)
-        hname = f"process_{cmd0}" if cmd1 is None else f"process_{cmd0}_{cmd1}"
 
-        handler = self.get_method(hname)
-        if not handler:
-            logger.warning("No handler available with name '%s'", hname)
-            return
+        if cmd == 'get_dir':
+            self.process_get_dir()
+            return True
 
-        handler()
+        if cmd == 'milestone':
+            cmd1 = self.ctx.get_command(1)
+
+            hname = f"process_{cmd}" if cmd1 is None else f"process_{cmd}_{cmd1}"
+
+            handler = self.get_method(hname)
+            if not handler:
+                logger.warning("No handler available with name '%s'", hname)
+            else:
+                handler()
+
+            return True
+
+        return False
 
     def read_git_config(self, *parts):
         """Read the important git config elements from a given file"""

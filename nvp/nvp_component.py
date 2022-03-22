@@ -19,3 +19,8 @@ class NVPComponent(NVPObject):
     def settings(self):
         """retrieve the settings from the context."""
         return self.ctx.get_settings()
+
+    def process_command(self, _cmd):
+        """Default implementation of process_command,
+        returns False here by default."""
+        return False

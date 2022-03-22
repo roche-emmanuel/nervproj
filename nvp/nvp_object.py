@@ -6,6 +6,7 @@ import os
 import stat
 import pprint
 import time
+import re
 import subprocess
 import shutil
 import jstyleson
@@ -223,3 +224,26 @@ class NVPObject(object):
         # logger.info("Executing command: %s", cmd)
         subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
         # subprocess.check_call(cmd)
+
+    def get_all_files(self, folder, exp=".*", recursive=False):
+        """Get all the files matching a given pattern in a folder."""
+
+        # prepare a pattern:
+        p = re.compile(exp)
+        num = len(folder)+1
+        if recursive:
+            # Retrieve all files in a given folder recursively
+            res = []
+            # logDEBUG("Searching for files in %s" % folder)
+            for root, _directories, filenames in os.walk(folder):
+                # for directory in directories:
+                #         print os.path.join(root, directory)
+                for filename in filenames:
+                    fname = os.path.join(root, filename)
+                    if (os.path.isfile(fname) and p.search(fname) is not None):
+                        # logDEBUG("Found file: %s" % fname)
+                        # We should remove the foldre prefix here:
+                        res.append(fname[num:])
+            return res
+        else:
+            return [f for f in os.listdir(folder) if (os.path.isfile(os.path.join(folder, f)) and p.search(f) is not None)]
