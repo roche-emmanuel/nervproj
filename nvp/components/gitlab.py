@@ -3,6 +3,7 @@ import logging
 import sys
 import re
 import time
+import urllib
 import json
 import requests
 
@@ -57,9 +58,9 @@ class GitlabManager(NVPComponent):
                     response = requests.request(req_type, self.base_url+url, data=payload, headers=headers)
                     res = json.loads(response.text)
 
-                if 'message' in res:
+                if not response.ok:
                     # This is an error:
-                    logger.error("Error detected: %s", res['message'])
+                    logger.error("Error detected: %s", res)
                     return None
 
                 return res
@@ -176,7 +177,7 @@ class GitlabManager(NVPComponent):
         proj_dir = project.get_root_dir()
 
         git_cfg = self.read_git_config(proj_dir, ".git", "config")
-        logger.info("Read git config: %s", git_cfg)
+        logger.debug("Read git config: %s", git_cfg)
 
         if git_cfg is None:
             logger.error("Invalid git repository in %s", proj_dir)
@@ -211,7 +212,7 @@ class GitlabManager(NVPComponent):
         self.access_token = tokens[sname]
 
         # We should now URL encode the project name:
-        self.proj_id = remote_cfg['sub_path'].replace(".git", "").replace("/", "%2F")
+        self.proj_id = self.url_encode_path(remote_cfg['sub_path'].replace(".git", ""))
 
         # logger.info("Using project URL encoded path: %s", self.proj_id)
         return True
@@ -272,6 +273,54 @@ class GitlabManager(NVPComponent):
 
         res = self.put(f"/projects/{self.proj_id}/milestones/{mid}", data)
         logger.info("Closed milestone: %s", self.pretty_print(res))
+
+    def url_encode_path(self, file_path):
+        """Apply URL encoding rules to a given file path"""
+        return urllib.parse.quote(file_path, safe='')
+
+    def update_file(self, data, project=None):
+        """Send an update to a single file given the input data.
+        Data should contain the following elements at least:
+        data = {
+            'file_path': "sources/scMX/include/mx/version.h",
+            'branch': 'master',
+            'author_email': 'eroche@gmv.com',
+            'author_name': 'manu',
+            'content': content,
+            'commit_message': f"Automatic update to version v{year-2000}.{month}"
+        }
+
+        See https://docs.gitlab.com/ee/api/repository_files.html#create-new-file-in-repository
+        for more details."""
+
+        if not self.setup_gitlab_api(project):
+            return
+
+        # Ensure the file path is url-encoded:
+        src_path = data['file_path']
+        del data['file_path']
+        fpath = self.url_encode_path(src_path)
+
+        res = self.put(f"/projects/{self.proj_id}/repository/files/{fpath}", data)
+        logger.info("Update file result: %s", self.pretty_print(res))
+
+    def create_tag(self, data, project=None):
+        """Create a tag with the given data on the target project,
+        data should contain the following:
+        data = {
+            'tag_name': title,
+            'ref': 'master',
+            'message': f"Automatic tag generated for {title}"
+        }
+
+        See https://docs.gitlab.com/ee/api/tags.html#create-a-new-tag
+        for more details."""
+
+        if not self.setup_gitlab_api(project):
+            return
+
+        res = self.post(f"/projects/{self.proj_id}/repository/tags", data)
+        logger.info("Create tag result: %s", self.pretty_print(res))
 
     def process_milestone_list(self):
         """List of the milestone available in the current project"""
