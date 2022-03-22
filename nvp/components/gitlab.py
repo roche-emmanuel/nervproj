@@ -56,6 +56,12 @@ class GitlabManager(NVPComponent):
                     payload = json.dumps(data)
                     response = requests.request(req_type, self.base_url+url, data=payload, headers=headers)
                     res = json.loads(response.text)
+
+                if 'message' in res:
+                    # This is an error:
+                    logger.error("Error detected: %s", res['message'])
+                    return None
+
                 return res
             except requests.exceptions.RequestException as err:
                 logger.error("Request exception detected: %s", str(err))
@@ -210,15 +216,35 @@ class GitlabManager(NVPComponent):
         # logger.info("Using project URL encoded path: %s", self.proj_id)
         return True
 
-    def process_milestone_list(self):
-        """List of the milestone available in the current project"""
+    def find_milestone_by_title(self, title, project=None):
+        """Find a milestone by title"""
 
-        # logger.info("Should list all milestones here from %s", self.proj)
-        if not self.setup_gitlab_api():
+        if not self.setup_gitlab_api(project):
             return
 
-        res = self.get(f"/projects/{self.proj_id}/milestones")
-        logger.info("Got result: %s", self.pretty_print(res))
+        params = {}
+        assert title is not None, "Invalid milestone title"
+        params['title'] = title
+
+        res = self.get(f"/projects/{self.proj_id}/milestones", params)
+        # logger.info("Got result: %s", self.pretty_print(res))
+        if len(res) == 0:
+            return None
+
+        # Typical result:
+        # { 'created_at': '2022-03-21T15:16:22.451Z',
+        # 'description': 'Automatically generated milestone for SimCore v22.4',
+        # 'due_date': '2022-04-30',
+        # 'id': 114,
+        # 'iid': 88,
+        # 'project_id': 98,
+        # 'start_date': '2022-04-01',
+        # 'state': 'active',
+        # 'title': 'SimCore v22.4',
+        # 'updated_at': '2022-03-21T15:16:22.451Z',
+        # 'web_url': 'https://gitlab.gmv-insyen.com/core/simcore/-/milestones/88'}
+
+        return res[0]
 
     def add_milestone(self, data, project=None):
         """Add a milestone to the given project using the provided data"""
@@ -230,9 +256,36 @@ class GitlabManager(NVPComponent):
         res = self.post(f"/projects/{self.proj_id}/milestones", data)
         # res = self.post(f"/projects/10/milestones", data)
         # logger.info("Got result: %s", self.pretty_print(res))
-        mid = res['id']
-        web_url = res['web_url']
-        logger.info("Created milestone '%s': id=%s, url=%s", data['title'], mid, web_url)
+        if res is not None:
+            mid = res['id']
+            web_url = res['web_url']
+            logger.info("Created milestone '%s': id=%s, url=%s", data['title'], mid, web_url)
+
+    def close_milestone(self, mid, project=None):
+        """Close a milestone given its ID"""
+
+        if not self.setup_gitlab_api(project):
+            return
+        data = {
+            'state_event': 'close'
+        }
+
+        res = self.put(f"/projects/{self.proj_id}/milestones/{mid}", data)
+        logger.info("Closed milestone: %s", self.pretty_print(res))
+
+    def process_milestone_list(self):
+        """List of the milestone available in the current project"""
+
+        # logger.info("Should list all milestones here from %s", self.proj)
+        title = self.settings['title']
+        if title is not None:
+            res = self.find_milestone_by_title(title)
+        else:
+            if not self.setup_gitlab_api():
+                return
+            res = self.get(f"/projects/{self.proj_id}/milestones")
+
+        logger.info("Got result: %s", self.pretty_print(res))
 
     def process_milestone_add(self):
         """Add a milestone in the current project given a title, desc
@@ -257,11 +310,28 @@ class GitlabManager(NVPComponent):
 
         self.add_milestone(data)
 
+    def process_milestone_close(self):
+        """Close a milestone in the current project given a title or id"""
+
+        # logger.info("Should list all milestones here from %s", self.proj)
+        mid = self.settings['milestone_id']
+
+        if mid is None:
+            title = self.settings['title']
+            assert title is not None, "Title or id are required to close a milestone."
+            mstone = self.find_milestone_by_title(title)
+            if mstone is None:
+                logger.warning("No milestone found with title %s", title)
+                return
+            mid = mstone['id']
+
+        self.close_milestone(mid)
+
     def process_get_dir(self):
         """Retrieve the root dir for a given sub project and
         return that path on stdout"""
 
-        proj_dir = self.ctx.get_project_path()
+        proj_dir = self.ctx.get_current_project().get_root_dir()
 
         if self.ctx.is_windows():
             proj_dir = self.to_cygwin_path(proj_dir)

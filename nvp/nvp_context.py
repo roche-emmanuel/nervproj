@@ -18,7 +18,12 @@ class NVPContext(NVPObject):
         """Initialize the NVP context."""
 
         verbose = os.getenv("NVP_VERBOSE", '0')
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG if verbose == '1' else logging.INFO,
+        lvl = logging.DEBUG if verbose == '1' else logging.INFO
+        # print("Sys args: %s" % sys.argv)
+        if sys.argv[1] == "get_dir":
+            lvl = logging.ERROR
+
+        logging.basicConfig(stream=sys.stdout, level=lvl,
                             format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
                             datefmt='%Y/%m/%d %H:%M:%S')
 
@@ -117,8 +122,8 @@ class NVPContext(NVPObject):
             "admin": {
                 "install-cli": None
             },
-            "tools": {'install': {}},
-            "milestone": {"add": {}, "list": {}},
+            "tools": {'install': None},
+            "milestone": {"add": None, "list": None, "close": None},
         }
 
         self.parsers = {'main': parser}
@@ -139,6 +144,16 @@ class NVPContext(NVPObject):
                          help="Start date for the new milestone")
         psr.add_argument("-e", "--end", dest='end_date', type=str,
                          help="End date for the new milestone")
+
+        psr = self.parsers['main.milestone.list']
+        psr.add_argument("-t", "--title", dest='title', type=str,
+                         help="Title of the listed milestone")
+
+        psr = self.parsers['main.milestone.close']
+        psr.add_argument("-t", "--title", dest='title', type=str,
+                         help="Title for the milestone to close")
+        psr.add_argument("--id", dest='milestone_id', type=int,
+                         help="ID for the milestone to close")
 
     def get_parser(self, name):
         """Retrieve a parser by name"""

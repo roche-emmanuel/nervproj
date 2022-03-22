@@ -41,6 +41,9 @@ class NVPObject(object):
 
     def pretty_print(self, obj):
         """Pretty print an object"""
+        if obj is None:
+            return "None"
+
         return printer.pformat(obj)
 
     def get_method(self, method_name):
