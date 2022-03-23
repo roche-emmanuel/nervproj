@@ -286,7 +286,7 @@ class NVPContext(NVPObject):
 
     def get_command(self, lvl):
         """Retrieve the command at a given level"""
-        return self.settings[f"l{lvl}_cmd"]
+        return self.settings.get(f"l{lvl}_cmd", None)
 
     def run(self):
         """Run this context."""

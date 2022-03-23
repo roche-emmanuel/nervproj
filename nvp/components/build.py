@@ -30,7 +30,7 @@ class BuildManager(NVPComponent):
         }
         ctx.define_subparsers("main", desc)
         psr = ctx.get_parser('main.build.libs')
-        psr.add_argument("lib_names", type=str, default="all",
+        psr.add_argument("lib_names", type=str, nargs='?', default="all",
                          help="List of library names that we should build")
 
         # Setup the paths:
@@ -244,11 +244,11 @@ class BuildManager(NVPComponent):
         logger.info("Done installing python requirements.")
 
     def check_libraries(self, dep_list):
-        """Build all the dependencies for NervProj."""
+        """Build all the libraries for NervProj."""
 
         # Iterate on each dependency:
-        logger.debug("Checking dependencies:")
-        alldeps = self.config['dependencies']
+        logger.debug("Checking libraries:")
+        alldeps = self.config['libraries']
 
         doall = "all" in dep_list
         rebuild = self.settings['rebuild']
@@ -298,7 +298,7 @@ class BuildManager(NVPComponent):
 
         if self.file_exists(src_pkg_path):
             # We should simply extract that package into our target dir:
-            self.extract_package(src_pkg_path, self.libs_dir)
+            self.extract_package(src_pkg_path, self.libs_dir, rename=dep_name)
         else:
             # We really need to build the dependency from sources instead:
 
@@ -381,7 +381,7 @@ class BuildManager(NVPComponent):
         We then return the build_dir, dep_name and target install prefix"""
 
         # First we need to download the source package if missing:
-        base_build_dir = self.get_path(self.ctx.get_root_dir(), "deps", "build")
+        base_build_dir = self.libs_build_dir
 
         # get the filename from the url:
         url = desc['url']
@@ -639,6 +639,7 @@ class BuildManager(NVPComponent):
         if cmd0 == 'build':
             if cmd1 == "libs":
                 self.initialize()
+                logger.info("List of settings: %s", self.settings)
                 dlist = self.settings['lib_names'].split(',')
                 self.check_libraries(dlist)
 
