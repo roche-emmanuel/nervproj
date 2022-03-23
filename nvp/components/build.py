@@ -24,8 +24,14 @@ class BuildManager(NVPComponent):
         """Build manager constructor"""
         NVPComponent.__init__(self, ctx)
 
-        desc = {"tools": {"install": None}}
+        desc = {
+            "tools": {"install": None},
+            "build": {"libs": None},
+        }
         ctx.define_subparsers("main", desc)
+        psr = ctx.get_parser('main.build.libs')
+        psr.add_argument("lib_names", type=str, default="all",
+                         help="List of library names that we should build")
 
         # Setup the paths:
         self.setup_paths()
@@ -33,21 +39,12 @@ class BuildManager(NVPComponent):
         self.msvc_setup_path = None
         self.tool_paths = {}
 
-        # self.flavor = ctx.get_flavor()
-        # self.platform = ctx.get_platform()
-
-        # # Get the platform flavor:
-        # self.setup_flavor()
-
-        # # Setup the tools:
-        # self.setup_tools()
-
         # if self.settings.get('install_python_requirements', False):
         #     self.install_python_requirements()
 
         # if self.settings.get('check_deps', None) is not None:
         #     dlist = self.settings['check_deps'].split(',')
-        #     self.check_dependencies(dlist)
+        #     self.check_libraries(dlist)
 
     def initialize(self):
         """Initialize this component as needed before usage."""
@@ -83,9 +80,9 @@ class BuildManager(NVPComponent):
         # Store the deps folder:
         base_dir = self.ctx.get_root_dir()
         self.tools_dir = self.get_path(base_dir, "tools", self.platform)
-        self.deps_dir = self.make_folder(base_dir, "deps", self.flavor)
-        self.deps_build_dir = self.make_folder(base_dir, "deps", "build")
-        self.deps_package_dir = self.make_folder(base_dir, "deps", "packages")
+        self.libs_dir = self.make_folder(base_dir, "libraries", self.flavor)
+        self.libs_build_dir = self.make_folder(base_dir, "libraries", "build")
+        self.libs_package_dir = self.make_folder(base_dir, "libraries", self.flavor)
 
     def setup_tools(self):
         """Setup all the tools on this platform."""
@@ -246,8 +243,9 @@ class BuildManager(NVPComponent):
         self.execute(cmd)
         logger.info("Done installing python requirements.")
 
-    def check_dependencies(self, dep_list):
+    def check_libraries(self, dep_list):
         """Build all the dependencies for NervProj."""
+
         # Iterate on each dependency:
         logger.debug("Checking dependencies:")
         alldeps = self.config['dependencies']
@@ -264,14 +262,14 @@ class BuildManager(NVPComponent):
             dep_name = self.get_std_package_name(dep)
 
             # First we check if we have the dependency target folder already:
-            dep_dir = self.get_path(self.deps_dir, dep_name)
+            dep_dir = self.get_path(self.libs_dir, dep_name)
 
             if rebuild:
                 logger.debug("Removing previous build for %s", dep_name)
                 self.remove_folder(dep_dir)
 
                 # Also remove the previously built package:
-                self.remove_file(self.deps_package_dir, f"{dep_name}-{self.flavor}.7z")
+                self.remove_file(self.libs_package_dir, f"{dep_name}-{self.flavor}.7z")
 
             if not os.path.exists(dep_dir):
                 # Here we need to deploy that dependency:
@@ -287,11 +285,20 @@ class BuildManager(NVPComponent):
         src_pkg_name = f"{dep_name}-{self.flavor}.7z"
 
         # Here we should check if we already have a pre-built package for that dependency:
-        src_pkg_path = self.get_path(self.deps_package_dir, src_pkg_name)
+        src_pkg_path = self.get_path(self.libs_package_dir, src_pkg_name)
 
-        if os.path.exists(src_pkg_path):
+        # if the package is not already available locally, maybe we can retrieve it remotely:
+        if not self.file_exists(src_pkg_path):
+            pkg_urls = self.config.get("package_urls", [])
+            pkg_urls = [base_url+'libraries/'+src_pkg_name for base_url in pkg_urls]
+
+            pkg_url = self.ctx.select_first_valid_path(pkg_urls)
+            if pkg_url is not None:
+                self.download_file(pkg_url, src_pkg_path)
+
+        if self.file_exists(src_pkg_path):
             # We should simply extract that package into our target dir:
-            self.extract_package(src_pkg_path, self.deps_dir)
+            self.extract_package(src_pkg_path, self.libs_dir)
         else:
             # We really need to build the dependency from sources instead:
 
@@ -306,7 +313,7 @@ class BuildManager(NVPComponent):
 
             # Finally we should create the package from that installed dependency folder
             # so that we don't have to build it the next time:
-            self.create_package(prefix, self.deps_package_dir, f"{dep_name}-{self.flavor}.7z")
+            self.create_package(prefix, self.libs_package_dir, f"{dep_name}-{self.flavor}.7z")
 
             logger.info("Removing build folder %s", build_dir)
             self.remove_folder(build_dir)
@@ -401,7 +408,7 @@ class BuildManager(NVPComponent):
             self.extract_package(src_pkg, base_build_dir)
 
         dep_name = self.get_std_package_name(desc)
-        prefix = self.get_path(self.deps_dir, dep_name)
+        prefix = self.get_path(self.libs_dir, dep_name)
 
         return (build_dir, prefix, dep_name)
 
@@ -626,6 +633,14 @@ class BuildManager(NVPComponent):
         if cmd0 == 'tools':
             if cmd1 == "install":
                 self.initialize()
+
+            return True
+
+        if cmd0 == 'build':
+            if cmd1 == "libs":
+                self.initialize()
+                dlist = self.settings['lib_names'].split(',')
+                self.check_libraries(dlist)
 
             return True
 

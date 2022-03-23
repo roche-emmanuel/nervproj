@@ -8,3 +8,6 @@ tools/linux/*
 
 # Ignore config.user.json file:
 config.user.json
+
+# ignore everything in the libraries folder:
+libraries/*
