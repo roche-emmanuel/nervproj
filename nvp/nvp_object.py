@@ -73,6 +73,21 @@ class NVPObject(object):
         """Check if a path exists."""
         return os.path.exists(self.get_path(*parts))
 
+    def is_relative_path(self, my_path):
+        """Return true if the given path is relative"""
+        return not os.path.isabs(my_path)
+
+    def is_absolute_path(self, my_path):
+        """Return true if the given path is absolute"""
+        return os.path.isabs(my_path)
+
+    def get_cwd(self):
+        """Return the current CWD"""
+        cwd = os.getenv("PWD", os.getcwd())
+        if cwd.startswith("/cygdrive/"):
+            cwd = self.from_cygwin_path(cwd)
+        return cwd
+
     def get_path(self, *parts):
         """Create a file path from parts"""
         return os.path.join(*parts)
@@ -211,6 +226,16 @@ class NVPObject(object):
         fname = self.get_path(*parts)
         try:
             res = subprocess.check_output(["cygpath.exe", fname])
+            # Convert to string an remove trailing newlines:
+            return res.decode("utf-8").rstrip()
+        except FileNotFoundError:
+            return None
+
+    def from_cygwin_path(self, *parts):
+        """Try convert a cygwin path to windows path if applicable"""
+        fname = self.get_path(*parts)
+        try:
+            res = subprocess.check_output(["cygpath.exe", "-w", fname])
             # Convert to string an remove trailing newlines:
             return res.decode("utf-8").rstrip()
         except FileNotFoundError:

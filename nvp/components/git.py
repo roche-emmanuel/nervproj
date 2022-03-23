@@ -53,3 +53,20 @@ class GitManager(NVPComponent):
 
         if dest_folder is None:
             dest_folder = proj.get_name(False)
+
+        # check if dest_folder is relative or absolute:
+        if self.is_relative_path(dest_folder):
+            logger.info("Current CWD: %s", self.get_cwd())
+            dest_folder = self.get_path(self.get_cwd(), dest_folder)
+
+        tools = self.get_component('tools')
+
+        # get the project url:
+        url = proj.get_repository_url()
+
+        # Build the git command:
+        cmd = [tools.get_git_path(), "clone", url, dest_folder]
+
+        # Execute the command:
+        logger.info("Executing command: %s", cmd)
+        self.execute(cmd)

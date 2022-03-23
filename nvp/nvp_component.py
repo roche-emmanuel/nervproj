@@ -31,6 +31,10 @@ class NVPComponent(NVPObject):
         """retrieve the platform from the context."""
         return self.ctx.get_platform()
 
+    def get_component(self, cname, do_init=True):
+        """Retrieve a component from the context"""
+        return self.ctx.get_component(cname, do_init)
+
     def is_initialized(self):
         """Return initialization state."""
         return self.initialized

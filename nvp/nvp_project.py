@@ -70,6 +70,10 @@ class NVPProject(NVPObject):
         # Return that project path:
         return proj_path
 
+    def get_repository_url(self):
+        """Retrieve the repository URL for that project"""
+        return self.desc['repository_url']
+
     def get_name(self, to_lower=True):
         """Retrieve the canonical project name"""
         if to_lower:

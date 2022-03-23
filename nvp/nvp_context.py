@@ -236,40 +236,45 @@ class NVPContext(NVPObject):
         """Register a component with a given name"""
         self.components[cname] = comp
 
-    def get_component(self, cname):
+    def get_component(self, cname, do_init=True):
         """Retrieve a component by name or create it if missing"""
 
         proj = self.get_current_project()
         if proj.has_component(cname):
-            return proj.get_component(cname)
+            return proj.get_component(cname, do_init)
 
         if cname in self.components:
-            return self.components[cname]
+            comp = self.components[cname]
+            if do_init:
+                comp.initialize()
+            return comp
 
-        # logger.info("Component list: %s", self.components.keys())
-        # logger.info("proj_comp_name: %s", proj_comp_name)
-        # Search for that component in the component paths:
-        cpaths = [self.get_path(self.get_root_dir(), "nvp", "components")] + sys.path
-        cfiles = [self.get_path(base_dir, f"{cname}.py") for base_dir in cpaths]
+        logger.warning("Cannot find component %s", cname)
 
-        comp_path = self.select_first_valid_path(cfiles)
-        if comp_path is None:
-            # logger.warning("No path found for %s in %s", cname, cfiles)
-            return None
+        # # logger.info("Component list: %s", self.components.keys())
+        # # logger.info("proj_comp_name: %s", proj_comp_name)
+        # # Search for that component in the component paths:
+        # cpaths = [self.get_path(self.get_root_dir(), "nvp", "components")] + sys.path
+        # cfiles = [self.get_path(base_dir, f"{cname}.py") for base_dir in cpaths]
 
-        logger.info("Loading component %s from %s", cname, comp_path)
-        base_dir = os.path.dirname(comp_path)
-        # if not base_dir in sys.path:
-        #     logger.debug("Adding %s to python sys.path", base_dir)
+        # comp_path = self.select_first_valid_path(cfiles)
+        # if comp_path is None:
+        #     # logger.warning("No path found for %s in %s", cname, cfiles)
+        #     return None
 
-        sys.path.insert(0, base_dir)
-        comp_module = import_module(cname)
-        comp_module.register_component(self)
-        sys.path.pop(0)
+        # logger.info("Loading component %s from %s", cname, comp_path)
+        # base_dir = os.path.dirname(comp_path)
+        # # if not base_dir in sys.path:
+        # #     logger.debug("Adding %s to python sys.path", base_dir)
 
-        # Should now have the component name in the dict:
-        assert cname in self.components, f"Could not register component for {cname}"
-        return self.components[cname]
+        # sys.path.insert(0, base_dir)
+        # comp_module = import_module(cname)
+        # comp_module.register_component(self)
+        # sys.path.pop(0)
+
+        # # Should now have the component name in the dict:
+        # assert cname in self.components, f"Could not register component for {cname}"
+        # return self.components[cname]
 
     def get_current_project(self):
         """Retrieve the project details."""
