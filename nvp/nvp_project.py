@@ -18,29 +18,30 @@ class NVPProject(NVPObject):
         assert desc is not None, "Invalid project description."
 
         self.components = {}
-
-        proj_path = self.get_root_dir()
-
-        # Load the additional project config elements:
         self.config = {}
-        cfg_file = self.get_path(proj_path, "nvp_config.json")
-        if self.file_exists(cfg_file):
-            self.config = self.read_json(cfg_file)
 
         # We might have some "scripts" already registered for that project from the desc:
         self.scripts = self.desc.get("scripts", {})
 
-        # Update the scripts from what we just read from the config:
-        self.scripts.update(self.config.get("scripts", {}))
+        proj_path = self.get_root_dir()
 
-        if self.file_exists(proj_path, "nvp_plug.py"):
-            # logger.info("Loading NVP plugin from %s...", proj_name)
-            sys.path.insert(0, proj_path)
-            plug_module = import_module("nvp_plug")
-            plug_module.register_nvp_plugin(ctx, self)
-            sys.path.pop(0)
-            # Remove the module name from the list of loaded modules:
-            del sys.modules["nvp_plug"]
+        if proj_path is not None:
+            # Load the additional project config elements:
+            cfg_file = self.get_path(proj_path, "nvp_config.json")
+            if self.file_exists(cfg_file):
+                self.config = self.read_json(cfg_file)
+
+            # Update the scripts from what we just read from the config:
+            self.scripts.update(self.config.get("scripts", {}))
+
+            if self.file_exists(proj_path, "nvp_plug.py"):
+                # logger.info("Loading NVP plugin from %s...", proj_name)
+                sys.path.insert(0, proj_path)
+                plug_module = import_module("nvp_plug")
+                plug_module.register_nvp_plugin(ctx, self)
+                sys.path.pop(0)
+                # Remove the module name from the list of loaded modules:
+                del sys.modules["nvp_plug"]
 
     def has_name(self, pname):
         """Check if this project has the given name"""
@@ -60,8 +61,11 @@ class NVPProject(NVPObject):
 
         proj_path = self.ctx.select_first_valid_path(all_paths)
 
-        pname = self.get_name()
-        assert proj_path is not None, f"No valid path for project '{pname}'"
+        # Actually the project path might be "None" if it is not available yet:
+        # pname = self.get_name()
+        # assert proj_path is not None, f"No valid path for project '{pname}'"
+        if proj_path is None:
+            logger.debug("No valid path found for project %s", self.get_name())
 
         # Return that project path:
         return proj_path

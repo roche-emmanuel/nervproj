@@ -171,7 +171,7 @@ class BuildManager(NVPComponent):
     def get_tool_desc(self, tname):
         """Retrieve the description dic for a given tool by name"""
 
-        tools = self.config['tools'][self.platform]
+        tools = self.config[f'{self.platform}_tools']
         for desc in tools:
             if desc['name'] == tname:
                 return desc
