@@ -84,9 +84,12 @@ class NVPProject(NVPObject):
         """Check if this project has a given component"""
         return cname in self.components
 
-    def get_component(self, cname):
+    def get_component(self, cname, do_init=True):
         """Retrieve a given component in this project"""
-        return self.components[cname]
+        comp = self.components[cname]
+        if do_init:
+            comp.initialize()
+        return comp
 
     def process_command(self, cmd):
         """Check if the components in this project can process the given command"""
