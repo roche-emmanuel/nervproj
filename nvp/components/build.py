@@ -32,6 +32,8 @@ class BuildManager(NVPComponent):
         psr = ctx.get_parser('main.build.libs')
         psr.add_argument("lib_names", type=str, nargs='?', default="all",
                          help="List of library names that we should build")
+        psr.add_argument("--rebuild", dest='rebuild', action='store_true',
+                         help="Force rebuilding from sources")
 
         # Setup the paths:
         self.setup_paths()
@@ -41,10 +43,6 @@ class BuildManager(NVPComponent):
 
         # if self.settings.get('install_python_requirements', False):
         #     self.install_python_requirements()
-
-        # if self.settings.get('check_deps', None) is not None:
-        #     dlist = self.settings['check_deps'].split(',')
-        #     self.check_libraries(dlist)
 
     def initialize(self):
         """Initialize this component as needed before usage."""
@@ -232,16 +230,6 @@ class BuildManager(NVPComponent):
         env['CFLAGS'] = f"-I{inc_dir} -w -fPIC"
 
         return env
-
-    def install_python_requirements(self):
-        """Install the requirements for the main python environment using pip"""
-
-        logger.info("Installing python requirements...")
-        reqfile = self.get_path(self.ctx.get_root_dir(), "tools/requirements.txt")
-        cmd = [sys.executable, "-m", "pip", "install", "-r", reqfile]
-        # logger.info("Executing command: %s", cmd)
-        self.execute(cmd)
-        logger.info("Done installing python requirements.")
 
     def check_libraries(self, dep_list):
         """Build all the libraries for NervProj."""

@@ -116,12 +116,6 @@ class NVPContext(NVPObject):
         parser = argparse.ArgumentParser()
 
         # cf. https://stackoverflow.com/questions/15301147/python-argparse-default-value-or-specified-value
-        parser.add_argument("--check-deps", dest='check_deps', nargs='?', type=str, const="all",
-                            help="Check and build the dependencies required for NervProj")
-        parser.add_argument("--rebuild", dest='rebuild', action='store_true',
-                            help="Force rebuilding from sources")
-        parser.add_argument("--install-python-requirements", dest='install_python_requirements', action='store_true',
-                            help="Install the requirements for the python env.")
         parser.add_argument("-v", "--verbose", dest='verbose', action='store_true',
                             help="Enable display of verbose debug outputs.")
         parser.add_argument("-p", "--project", dest='project', type=str, default="none",
@@ -301,26 +295,6 @@ class NVPContext(NVPObject):
                 return
 
         logger.warning("No component available to process '%s'", cmd)
-
-        # comp = None
-        # if l0_cmd == 'get_dir':
-        #     comp = self.get_component('gitlab')
-
-        # if l0_cmd == 'admin':
-        #     comp = self.get_component('admin')
-
-        # if l0_cmd == 'tools':
-        #     comp = self.get_component('build')
-
-        # if l0_cmd == 'milestone':
-        #     comp = self.get_component('gitlab')
-
-        # if comp is None:
-        #     comp = self.get_component(l0_cmd)
-
-        # if comp is not None:
-        #     comp.process_command()
-        # else:
 
     def load_projects(self):
         """Load the plugins from the sub-project if any"""

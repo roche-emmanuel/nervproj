@@ -1,5 +1,6 @@
 """Collection of admin utility functions"""
 import os
+import sys
 import logging
 
 from nvp.nvp_component import NVPComponent
@@ -26,7 +27,11 @@ class AdminManager(NVPComponent):
         # if sub_cmd == 'install-cli':
         #     self.install_cli()
 
-        desc = {"admin": {"install-cli": None}}
+        desc = {
+            "admin": {
+                "install": {"cli": None, "reqs": None}
+            }
+        }
         ctx.define_subparsers("main", desc)
 
     def install_cli(self):
@@ -73,6 +78,16 @@ class AdminManager(NVPComponent):
         # res = pp.pformat(dict(os.environ))
         # logger.info("Current environment is: %s", res)
 
+    def install_python_requirements(self):
+        """Install the requirements for the main python environment using pip"""
+
+        logger.info("Installing python requirements...")
+        reqfile = self.get_path(self.ctx.get_root_dir(), "tools/requirements.txt")
+        cmd = [sys.executable, "-m", "pip", "install", "-r", reqfile]
+        # logger.info("Executing command: %s", cmd)
+        self.execute(cmd)
+        logger.info("Done installing python requirements.")
+
     def process_command(self, cmd0):
         """Re-implementation of the process_command method."""
 
@@ -80,7 +95,14 @@ class AdminManager(NVPComponent):
             return False
 
         cmd1 = self.ctx.get_command(1)
-        if cmd1 == 'install-cli':
-            self.install_cli()
+        cmd2 = self.ctx.get_command(2)
 
-        return True
+        if cmd1 == 'install' and cmd2 == 'cli':
+            self.install_cli()
+            return True
+
+        if cmd1 == 'install' and cmd2 == 'reqs':
+            self.install_python_requirements()
+            return True
+
+        return False
