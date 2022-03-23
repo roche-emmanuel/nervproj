@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 def register_component(ctx: NVPContext):
     """Register this component in the given context"""
     comp = AdminManager(ctx)
-    ctx.register_component('builder', comp)
+    ctx.register_component('admin', comp)
 
 
 class AdminManager(NVPComponent):
@@ -96,7 +96,6 @@ class AdminManager(NVPComponent):
 
         cmd1 = self.ctx.get_command(1)
         cmd2 = self.ctx.get_command(2)
-
         if cmd1 == 'install' and cmd2 == 'cli':
             self.install_cli()
             return True
