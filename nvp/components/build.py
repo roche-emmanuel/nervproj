@@ -24,14 +24,20 @@ class BuildManager(NVPComponent):
         """Build manager constructor"""
         NVPComponent.__init__(self, ctx)
 
+        desc = {"tools": {"install": None}}
+        ctx.define_subparsers("main", desc)
+
+        # Setup the paths:
+        self.setup_paths()
+
+        self.msvc_setup_path = None
+        self.tool_paths = {}
+
         # self.flavor = ctx.get_flavor()
         # self.platform = ctx.get_platform()
 
         # # Get the platform flavor:
         # self.setup_flavor()
-
-        # # Setup the paths:
-        # self.setup_paths()
 
         # # Setup the tools:
         # self.setup_tools()
@@ -43,10 +49,15 @@ class BuildManager(NVPComponent):
         #     dlist = self.settings['check_deps'].split(',')
         #     self.check_dependencies(dlist)
 
+    def initialize(self):
+        """Initialize this component as needed before usage."""
+        if self.initialized is False:
+            self.setup_flavor()
+            self.setup_tools()
+            self.initialized = True
+
     def setup_flavor(self):
         """Setup the target flavor depending on the current platform we are on."""
-
-        self.msvc_setup_path = None
 
         if self.flavor == "msvc64":
             # read the env variable:
@@ -81,7 +92,6 @@ class BuildManager(NVPComponent):
         # Prepare the tool paths:
         tools = self.config[f'{self.platform}_tools']
 
-        self.tool_paths = {}
         for desc in tools:
             tname = desc['name']
             if 'path' in desc:
@@ -608,3 +618,15 @@ class BuildManager(NVPComponent):
 
                 sys.stdout.write('\n')
                 sys.stdout.flush()
+
+    def process_command(self, cmd0):
+        """Re-implementation of process_command"""
+
+        cmd1 = self.ctx.get_command(1)
+        if cmd0 == 'tools':
+            if cmd1 == "install":
+                self.initialize()
+
+            return True
+
+        return False

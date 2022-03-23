@@ -58,6 +58,8 @@ class NVPContext(NVPObject):
 
         assert self.platform in ["windows", "linux"], f"Unsupported platform {pname}"
 
+        self.setup_paths()
+
         self.parsers = None
         self.sub_parsers = {}
         self.setup_parsers()
@@ -101,6 +103,13 @@ class NVPContext(NVPObject):
 
         return self.parsers
 
+    def setup_paths(self):
+        """Setup the paths that will be used during build or run process."""
+
+        # Store the deps folder:
+        base_dir = self.get_root_dir()
+        self.tools_dir = self.get_path(base_dir, "tools", self.platform)
+
     def setup_parsers(self):
         """Setup the command line parsers to use in this context"""
 
@@ -118,44 +127,7 @@ class NVPContext(NVPObject):
         parser.add_argument("-p", "--project", dest='project', type=str, default="none",
                             help="Select the current sub-project")
 
-        parser_desc = {
-            "home": None,
-            "get_dir": None,
-            "admin": {
-                "install-cli": None
-            },
-            "tools": {'install': None},
-            "milestone": {"add": None, "list": None, "close": None},
-        }
-
         self.parsers = {'main': parser}
-
-        self.define_subparsers("main", parser_desc)
-        psr = self.parsers['main.get_dir']
-        psr.add_argument("-p", "--project", dest='project', type=str, default="none",
-                         help="Select the current sub-project")
-
-        psr = self.parsers['main.milestone.add']
-        psr.add_argument("-p", "--project", dest='project', type=str, default="none",
-                         help="Select the current sub-project")
-        psr.add_argument("-t", "--title", dest='title', type=str,
-                         help="Title for the new milestone")
-        psr.add_argument("-d", "--desc", dest='description', type=str,
-                         help="Description for the new milestone")
-        psr.add_argument("-s", "--start", dest='start_date', type=str,
-                         help="Start date for the new milestone")
-        psr.add_argument("-e", "--end", dest='end_date', type=str,
-                         help="End date for the new milestone")
-
-        psr = self.parsers['main.milestone.list']
-        psr.add_argument("-t", "--title", dest='title', type=str,
-                         help="Title of the listed milestone")
-
-        psr = self.parsers['main.milestone.close']
-        psr.add_argument("-t", "--title", dest='title', type=str,
-                         help="Title for the milestone to close")
-        psr.add_argument("--id", dest='milestone_id', type=int,
-                         help="ID for the milestone to close")
 
     def get_parser(self, name):
         """Retrieve a parser by name"""
@@ -255,7 +227,7 @@ class NVPContext(NVPObject):
 
         # Get all .py files in that folder:
         comp_files = self.get_all_files(comp_path, "\\.py$")
-        logger.info("Found Component files: %s", comp_files)
+        logger.debug("Found Component files: %s", comp_files)
 
         # load those components:
         sys.path.insert(0, comp_path)

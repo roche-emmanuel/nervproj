@@ -33,6 +33,35 @@ class GitlabManager(NVPComponent):
         self.access_token = None
         self.proj_id = None
 
+        desc = {"get_dir": None, "milestone": {"add": None, "list": None, "close": None}}
+        ctx.define_subparsers("main", desc)
+
+        psr = ctx.get_parser('main.milestone.add')
+        psr.add_argument("-p", "--project", dest='project', type=str, default="none",
+                         help="Select the current sub-project")
+        psr.add_argument("-t", "--title", dest='title', type=str,
+                         help="Title for the new milestone")
+        psr.add_argument("-d", "--desc", dest='description', type=str,
+                         help="Description for the new milestone")
+        psr.add_argument("-s", "--start", dest='start_date', type=str,
+                         help="Start date for the new milestone")
+        psr.add_argument("-e", "--end", dest='end_date', type=str,
+                         help="End date for the new milestone")
+
+        psr = ctx.get_parser('main.milestone.list')
+        psr.add_argument("-t", "--title", dest='title', type=str,
+                         help="Title of the listed milestone")
+
+        psr = ctx.get_parser('main.milestone.close')
+        psr.add_argument("-t", "--title", dest='title', type=str,
+                         help="Title for the milestone to close")
+        psr.add_argument("--id", dest='milestone_id', type=int,
+                         help="ID for the milestone to close")
+
+        psr = ctx.get_parser('main.get_dir')
+        psr.add_argument("-p", "--project", dest='project', type=str, default="none",
+                         help="Select the current sub-project")
+
     def send_request(self, req_type, url, data=None, max_retries=5, auth=True):
         """Method used to send a generic request to the server."""
 
@@ -93,17 +122,17 @@ class GitlabManager(NVPComponent):
         """Send a delete request"""
         return self.send_request("DELETE", url, data, max_retries, auth)
 
-    def process_command(self, cmd):
+    def process_command(self, cmd0):
         """Process a command"""
 
-        if cmd == 'get_dir':
+        if cmd0 == 'get_dir':
             self.process_get_dir()
             return True
 
-        if cmd == 'milestone':
+        if cmd0 == 'milestone':
             cmd1 = self.ctx.get_command(1)
 
-            hname = f"process_{cmd}" if cmd1 is None else f"process_{cmd}_{cmd1}"
+            hname = f"process_{cmd0}" if cmd1 is None else f"process_{cmd0}_{cmd1}"
 
             handler = self.get_method(hname)
             if not handler:

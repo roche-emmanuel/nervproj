@@ -26,6 +26,9 @@ class AdminManager(NVPComponent):
         # if sub_cmd == 'install-cli':
         #     self.install_cli()
 
+        desc = {"admin": {"install-cli": None}}
+        ctx.define_subparsers("main", desc)
+
     def install_cli(self):
         """Install a CLI script in .bashrc if application"""
 
@@ -69,3 +72,15 @@ class AdminManager(NVPComponent):
         # pp = pprint.PrettyPrinter(indent=2)
         # res = pp.pformat(dict(os.environ))
         # logger.info("Current environment is: %s", res)
+
+    def process_command(self, cmd0):
+        """Re-implementation of the process_command method."""
+
+        if cmd0 != 'admin':
+            return False
+
+        cmd1 = self.ctx.get_command(1)
+        if cmd1 == 'install-cli':
+            self.install_cli()
+
+        return True
