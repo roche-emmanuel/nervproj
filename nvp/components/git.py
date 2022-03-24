@@ -47,11 +47,41 @@ class GitManager(NVPComponent):
 
         return self.get_cwd()
 
-    def validate_git_global_config(self, cfg_file):
-        """Validate the git global config file settings
-        mainly checking the user email and name for now."""
+    def validate_git_global_config(self, home_dir):
+        """Validate the git/ssh global setup in the given "home" folder"""
         user_email = self.config["git"]["user_email"]
         user_name = self.config["git"]["user_name"]
+
+        # Here we also need to ensure we have the required ssh key/config installed in our .ssh folder:
+        ssh_dir = self.get_path(home_dir, ".ssh")
+        self.make_folder(ssh_dir)
+        self.set_chmod(ssh_dir, "700")
+
+        ssh_cfg = self.config["ssh"]
+
+        # Install the ssh config:
+        cfg_file = self.get_path(ssh_dir, "config")
+        if not self.file_exists(cfg_file):
+            logger.info("Installing ssh config in %s", ssh_dir)
+            urls = ssh_cfg["config_urls"]
+            src = self.ctx.select_first_valid_path(urls)
+            assert src is not None, "No valid path provided as ssh config source"
+            self.copy_file(src, cfg_file)
+            self.set_chmod(ssh_dir, "600")
+
+        # Install the SSH keys:
+        ssh_keys = ssh_cfg.get('keys', {})
+
+        for kfile, urls in ssh_keys.items():
+            key_file = self.get_path(ssh_dir, kfile)
+            if not self.file_exists(key_file):
+                logger.info("Installing ssh private key %s", key_file)
+                src = self.ctx.select_first_valid_path(urls)
+                assert src is not None, f"No valid path provided for {key_file}"
+                self.copy_file(src, key_file)
+                self.set_chmod(ssh_dir, "600")
+
+        cfg_file = self.get_path(home_dir, ".gitconfig")
 
         if not self.file_exists(cfg_file):
             logger.info("Creating global gitconfig file %s", cfg_file)
@@ -91,16 +121,13 @@ class GitManager(NVPComponent):
 
     def setup_global_config(self):
         """Setup the git configration overall"""
-        cfg_file = self.get_path(self.ctx.get_home_dir(), ".gitconfig")
-        self.validate_git_global_config(cfg_file)
+        self.validate_git_global_config(self.ctx.get_home_dir())
 
         # if on windows we should also setup the gitconfig in our "windows home"
         # even if $HOME is currently pointing to cygwin home:
         if self.ctx.is_cygwin():
-            # Get the canonical windows home:
-            home_dir = self.get_win_home_dir()
-            cfg_file = self.get_path(home_dir, ".gitconfig")
-            self.validate_git_global_config(cfg_file)
+            # Get/use the canonical windows home:
+            self.validate_git_global_config(self.get_win_home_dir())
 
     def process_command(self, cmd0):
         """Re-implementation of the process_command method."""

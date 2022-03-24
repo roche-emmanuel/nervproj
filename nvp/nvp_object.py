@@ -62,6 +62,33 @@ class NVPObject(object):
             stt = os.stat(filename)
             os.chmod(filename, stt.st_mode | stat.S_IEXEC)
 
+    def set_chmod(self, my_path, modes):
+        """Set the access rights for a given path"""
+        um = int(modes[0])
+        gm = int(modes[1])
+        om = int(modes[2])
+        mode = 0
+        if um & 1:
+            mode |= stat.S_IXUSR
+        if um & 2:
+            mode |= stat.S_IWUSR
+        if um & 4:
+            mode |= stat.S_IRUSR
+        if gm & 1:
+            mode |= stat.S_IXGRP
+        if gm & 2:
+            mode |= stat.S_IWGRP
+        if gm & 4:
+            mode |= stat.S_IRGRP
+        if om & 1:
+            mode |= stat.S_IXOTH
+        if om & 2:
+            mode |= stat.S_IWOTH
+        if om & 4:
+            mode |= stat.S_IROTH
+
+        os.chmod(my_path, mode)
+
     def dir_exists(self, *parts):
         """Check if a directory exists."""
         return os.path.isdir(self.get_path(*parts))
