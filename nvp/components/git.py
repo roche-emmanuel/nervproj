@@ -28,6 +28,7 @@ class GitManager(NVPComponent):
                 "diff": None,
                 "setup": None,
                 "push": None,
+                "pull": None,
             }
         }
         ctx.define_subparsers("main", desc)
@@ -157,6 +158,11 @@ class GitManager(NVPComponent):
             self.git_push(cwd)
             return True
 
+        if cmd1 == 'pull':
+            cwd = self.get_canonical_cwd()
+            self.git_pull(cwd)
+            return True
+
         if cmd1 == 'setup':
             # Setup the git configuration
             self.setup_global_config()
@@ -211,3 +217,7 @@ class GitManager(NVPComponent):
     def git_push(self, folder):
         """perform git push from a given folder"""
         self.execute_git(["push"], cwd=folder)
+
+    def git_pull(self, folder):
+        """perform git pull from a given folder"""
+        self.execute_git(["pull"], cwd=folder)
