@@ -99,7 +99,7 @@ class AdminManager(NVPComponent):
         # We need to bootstrap in a temp folder:
         git = self.get_component('git')
 
-        url = self.settings["repository_url"]
+        url = self.config["repository_url"]
 
         dest_dir = self.get_path(base_dir, "temp", "nervproj")
         logger.info("Cloning NervProj folder into %s...", dest_dir)

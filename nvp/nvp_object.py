@@ -1,5 +1,6 @@
 """NVP base object class"""
 from asyncio.subprocess import DEVNULL
+import configparser
 
 import logging
 import os
@@ -166,6 +167,19 @@ class NVPObject(object):
         content = jstyleson.dumps(data)
         self.write_text_file(content, *parts)
 
+    def read_ini(self, *parts):
+        """Read a configparser object from a given file"""
+        fname = self.get_path(*parts)
+        config = configparser.ConfigParser()
+        config.read(fname)
+        return config
+
+    def write_ini(self, config, *parts, newline=None):
+        """Write a config parser object as ini file"""
+        fname = self.get_path(*parts)
+        with open(fname, "w", encoding="utf-8", newline=newline) as file:
+            config.write(file)
+
     def replace_in_file(self, filename, src, repl):
         """Replace a given statement with another in a given file, and then
         re-write that file in place."""
@@ -245,6 +259,13 @@ class NVPObject(object):
             return res.decode("utf-8").rstrip()
         except FileNotFoundError:
             return None
+
+    def get_win_home_dir(self):
+        """Retrieve the canonical home directory on windows."""
+        home_drive = os.getenv("HOMEDRIVE")
+        home_path = os.getenv("HOMEPATH")
+        assert home_drive is not None and home_path is not None, "Invalid windows home drive or path"
+        return home_drive+home_path
 
     def execute(self, cmd, verbose=True, cwd=None, env=None):
         """Execute a command optionally displaying the outputs."""

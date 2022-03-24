@@ -257,3 +257,7 @@ class ToolsManager(NVPComponent):
 
         # Finally we remove the script file:
         self.remove_file(sfile)
+
+        # here we should also ensure that we have a global .gitconfig file registered for our user:
+        git = self.get_component('git')
+        git.setup_global_config()

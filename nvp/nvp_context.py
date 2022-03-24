@@ -34,10 +34,7 @@ class NVPContext(NVPObject):
         self.home_dir = os.getenv("HOME")
         if self.home_dir is None:
             # We could be in a windows batch environment here:
-            home_drive = os.getenv("HOMEDRIVE")
-            home_path = os.getenv("HOMEPATH")
-            assert home_drive is not None and home_path is not None, "Invalid home drive or path"
-            self.home_dir = home_drive+home_path
+            self.home_dir = self.get_win_home_dir()
 
         # Load the manager config:
         self.load_config()
@@ -57,6 +54,14 @@ class NVPContext(NVPObject):
             self.platform = "linux"
 
         assert self.platform in ["windows", "linux"], f"Unsupported platform {pname}"
+
+        # Check if we are in a cygwin env:
+        self.cyg_home_dir = None
+        if self.platform == "windows":
+            self.cyg_home_dir = self.to_cygwin_path(self.home_dir)
+
+        if self.cyg_home_dir is not None:
+            logger.debug("Cygwin home dir is: %s", self.cyg_home_dir)
 
         self.setup_paths()
 
@@ -167,6 +172,10 @@ class NVPContext(NVPObject):
         """Return true if this is a windows platform"""
         return self.platform == "windows"
 
+    def is_cygwin(self):
+        """Check if we are running from cygwin environment."""
+        return self.cyg_home_dir is not None
+
     def is_linux(self):
         """Return true if this is a linux platform"""
         return self.platform == "linux"
@@ -240,7 +249,7 @@ class NVPContext(NVPObject):
         """Retrieve a component by name or create it if missing"""
 
         proj = self.get_current_project()
-        if proj.has_component(cname):
+        if proj is not None and proj.has_component(cname):
             return proj.get_component(cname, do_init)
 
         if cname in self.components:

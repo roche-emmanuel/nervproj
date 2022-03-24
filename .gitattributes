@@ -1,0 +1,8 @@
+# All files are checked into the repo with LF
+* text=auto
+
+# These files are checked out using CRLF locally
+*.bat text eol=crlf
+*.sh text eol=lf
+
+* text eol=lf
