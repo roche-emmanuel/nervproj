@@ -192,7 +192,8 @@ class AdminManager(NVPComponent):
         """Setup global Visual studio code user settings"""
 
         if config_dir is None:
-            # * on windows: in C:/Users/kenshin/AppData/Roaming/Code/User/settings.json  => should use os.getenv('APPDATA')
+            # * on windows: in C:/Users/kenshin/AppData/Roaming/Code/User/settings.json
+            # => should use os.getenv('APPDATA')
             # * on linux: in /home/kenshin/.config/Code/User/settings.json
             if self.ctx.is_windows():
                 base_dir = os.getenv("APPDATA")
@@ -219,7 +220,6 @@ class AdminManager(NVPComponent):
         tools = self.get_component('tools')
 
         config["git.path"] = tools.get_git_path()
-        config["nvp.platform"] = self.platform
         config["python.linting.pylintEnabled"] = True
         config["python.linting.enabled"] = True
         config["python.linting.pylintPath"] = tools.get_tool_path('pylint')
