@@ -189,9 +189,9 @@ class NVPObject(object):
         content = self.read_text_file(*parts)
         return jstyleson.loads(content)
 
-    def write_json(self, data, *parts):
+    def write_json(self, data, *parts, indent=2):
         """Write a structure as JSON file"""
-        content = jstyleson.dumps(data)
+        content = jstyleson.dumps(data, indent=indent)
         self.write_text_file(content, *parts)
 
     def read_ini(self, *parts):

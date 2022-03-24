@@ -17,6 +17,15 @@
   // Tools that can be used on windows:
   "windows_tools": [
     {
+      "name": "python",
+      "sub_path": "python.exe",
+      "version": "3.10.1",
+      "sub_tools": {
+        "autopep8": "Scripts/autopep8.exe",
+        "pylint": "Scripts/pylint.exe"
+      }
+    },
+    {
       "name": "7zip",
       "sub_path": "7za.exe",
       "version": "9.20"
@@ -39,6 +48,15 @@
     }
   ],
   "linux_tools": [
+    {
+      "name": "python",
+      "sub_path": "bin/python3",
+      "version": "3.10.2",
+      "sub_tools": {
+        "autopep8": "bin/autopep8",
+        "pylint": "bin/pylint"
+      }
+    },
     {
       "name": "7zip",
       "sub_path": "7zzs",

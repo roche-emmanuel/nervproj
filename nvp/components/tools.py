@@ -26,7 +26,7 @@ class ToolsManager(NVPComponent):
         base_dir = self.ctx.get_root_dir()
         self.tools_dir = self.get_path(base_dir, "tools", self.platform)
 
-        self.tool_paths = {}
+        self.tools = {}
 
         desc = {
             "tools": {"install": None},
@@ -44,11 +44,18 @@ class ToolsManager(NVPComponent):
         # Prepare the tool paths:
         tools = self.config[f'{self.platform}_tools']
 
+        sep = "\\" if self.ctx.is_windows() else "/"
+
         for desc in tools:
             tname = desc['name']
             if 'path' in desc:
                 # logger.debug("Using system path '%s' for %s tool", desc['path'], tname)
-                self.tool_paths[tname] = desc['path']
+                self.tools[tname] = {
+                    'name': tname,
+                    'path': desc['path'],
+                }
+
+                assert 'sub_tools' not in desc, f"Cannot add sub tools from system tool desc {tname}"
             else:
                 full_name = f"{tname}-{desc['version']}"
                 install_path = self.get_path(self.tools_dir, full_name)
@@ -75,10 +82,27 @@ class ToolsManager(NVPComponent):
                 assert self.file_exists(tpath), f"No valid package provided for {full_name}"
 
                 # Store the tool path:
-                self.tool_paths[tname] = tpath
+                tdesc = {
+                    'base_path': install_path,
+                    'path': tpath.replace("/", sep),
+                    'name': tname,
+                    'version': desc['version'],
+                }
+                self.tools[tname] = tdesc
 
                 # Ensure the execution permission is set:
-                self.add_execute_permission(self.tool_paths[tname])
+                self.add_execute_permission(tdesc['path'])
+
+                # Check if we have sub_tools inside this tool folder:
+                subs = desc.get('sub_tools', {})
+                for sub_name, sub_path in subs.items():
+                    sdesc = {
+                        'base_path': install_path,
+                        'name': sub_name,
+                        'path': self.get_path(install_path, sub_path).replace("/", sep)
+                    }
+                    self.tools[sub_name] = sdesc
+                    self.add_execute_permission(sdesc['path'])
 
     def retrieve_tool_package(self, desc):
         """Retrieve the most appropriate package for a given tool and
@@ -126,17 +150,13 @@ class ToolsManager(NVPComponent):
     def get_tool_desc(self, tname):
         """Retrieve the description dic for a given tool by name"""
 
-        tools = self.config[f'{self.platform}_tools']
-        for desc in tools:
-            if desc['name'] == tname:
-                return desc
-
-        logger.warning("Cannot find tool desc for %s", tname)
-        return None
+        assert tname in self.tools, f"No tool desc available for '{tname}'."
+        return self.tools[tname]
 
     def get_tool_path(self, tname):
         """Retrieve the path for a given tool"""
-        return self.tool_paths[tname]
+        desc = self.get_tool_desc(tname)
+        return desc['path']
 
     def get_tools_dir(self):
         """Retrieve the base tools directory"""
