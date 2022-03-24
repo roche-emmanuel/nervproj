@@ -27,6 +27,7 @@ class GitManager(NVPComponent):
                 "status": None,
                 "diff": None,
                 "setup": None,
+                "push": None,
             }
         }
         ctx.define_subparsers("main", desc)
@@ -143,12 +144,17 @@ class GitManager(NVPComponent):
 
         if cmd1 == 'status':
             cwd = self.get_canonical_cwd()
-            self.get_status(cwd)
+            self.git_status(cwd)
             return True
 
         if cmd1 == 'diff':
             cwd = self.get_canonical_cwd()
-            self.get_diff(cwd)
+            self.git_diff(cwd)
+            return True
+
+        if cmd1 == 'push':
+            cwd = self.get_canonical_cwd()
+            self.git_push(cwd)
             return True
 
         if cmd1 == 'setup':
@@ -194,10 +200,14 @@ class GitManager(NVPComponent):
 
         self.clone_repository(url, dest_folder)
 
-    def get_status(self, folder):
+    def git_status(self, folder):
         """Retrieve the git status from a given folder"""
         self.execute_git(["status"], cwd=folder)
 
-    def get_diff(self, folder):
+    def git_diff(self, folder):
         """Retrieve the git diff from a given folder"""
         self.execute_git(["diff"], cwd=folder)
+
+    def git_push(self, folder):
+        """perform git push from a given folder"""
+        self.execute_git(["push"], cwd=folder)
