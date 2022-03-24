@@ -99,7 +99,7 @@ class GitManager(NVPComponent):
             config = self.read_ini(cfg_file)
             save_needed = False
 
-            if not 'user' in config:
+            if 'user' not in config:
                 logger.info("Adding user section in git config.")
                 config['user'] = {
                     "email": user_email,
