@@ -97,5 +97,8 @@
     "D:\\Seafile\\Perso\\Admin\\nervproj.config.json",
     "D:\\Documents\\Perso\\Admin\\nervproj.config.json",
     "${HOME}/seafile/Perso/Admin/nervproj.config.json"
-  ]
+  ],
+
+  // Repository url for the NervProj project itself:
+  "repository_url": "git@github.com:roche-emmanuel/nervproj.git"
 }

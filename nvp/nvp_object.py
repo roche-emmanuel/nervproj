@@ -81,6 +81,11 @@ class NVPObject(object):
         """Return true if the given path is absolute"""
         return os.path.isabs(my_path)
 
+    def get_parent_folder(self, *parts):
+        """Retrieve the parent folder from any path."""
+        my_path = self.get_path(*parts)
+        return os.path.dirname(my_path)
+
     def get_cwd(self):
         """Return the current CWD"""
         cwd = os.getenv("PWD", os.getcwd())

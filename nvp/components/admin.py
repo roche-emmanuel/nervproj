@@ -29,7 +29,7 @@ class AdminManager(NVPComponent):
 
         desc = {
             "admin": {
-                "install": {"cli": None, "reqs": None}
+                "install": {"cli": None, "reqs": None, "repo": None},
             }
         }
         ctx.define_subparsers("main", desc)
@@ -88,6 +88,31 @@ class AdminManager(NVPComponent):
         self.execute(cmd)
         logger.info("Done installing python requirements.")
 
+    def install_repository_bootstrap(self):
+        """Install the bootstraped repository for this NervProj folder if not present already."""
+
+        base_dir = self.ctx.get_root_dir()
+        if self.dir_exists(base_dir, ".git"):
+            logger.info(".git folder already exists, bootstrapping ignored.")
+            return
+
+        # We need to bootstrap in a temp folder:
+        git = self.get_component('git')
+
+        url = self.settings["repository_url"]
+
+        dest_dir = self.get_path(base_dir, "temp", "nervproj")
+        logger.info("Cloning NervProj folder into %s...", dest_dir)
+        git.clone_repository(url, dest_dir)
+
+        # When cloning is done we should move the .git folder from the clone location into our root
+        self.move_path(self.get_path(dest_dir, ".git"), self.get_path(base_dir, ".git"))
+
+        # And finally we remove the remaining files:
+        self.remove_folder(dest_dir)
+
+        logger.info("Done bootstrapping NervProj project.")
+
     def process_command(self, cmd0):
         """Re-implementation of the process_command method."""
 
@@ -102,6 +127,10 @@ class AdminManager(NVPComponent):
 
         if cmd1 == 'install' and cmd2 == 'reqs':
             self.install_python_requirements()
+            return True
+
+        if cmd1 == 'install' and cmd2 == 'repo':
+            self.install_repository_bootstrap()
             return True
 
         return False

@@ -41,12 +41,28 @@ class GitManager(NVPComponent):
         cmd1 = self.ctx.get_command(1)
         # cmd2 = self.ctx.get_command(2)
         if cmd1 == 'clone':
-            self.clone_repository(self.settings['dest_folder'])
+            self.clone_project_repository(self.settings['dest_folder'])
             return True
 
         return False
 
-    def clone_repository(self, dest_folder=None, proj=None):
+    def clone_repository(self, url, dest_folder):
+        """Clone a given url into a given folder"""
+
+        # Ensure the parent folder exists:
+        base_dir = self.get_parent_folder(dest_folder)
+        self.make_folder(base_dir)
+
+        tools = self.get_component('tools')
+
+        # Build the git command:
+        cmd = [tools.get_git_path(), "clone", url, dest_folder]
+
+        # Execute the command:
+        logger.info("Executing command: %s", cmd)
+        self.execute(cmd)
+
+    def clone_project_repository(self, dest_folder=None, proj=None):
         """Checkout the repository for the given project into the given local folder"""
         if proj is None:
             proj = self.ctx.get_current_project()
@@ -59,14 +75,7 @@ class GitManager(NVPComponent):
             logger.info("Current CWD: %s", self.get_cwd())
             dest_folder = self.get_path(self.get_cwd(), dest_folder)
 
-        tools = self.get_component('tools')
-
         # get the project url:
         url = proj.get_repository_url()
 
-        # Build the git command:
-        cmd = [tools.get_git_path(), "clone", url, dest_folder]
-
-        # Execute the command:
-        logger.info("Executing command: %s", cmd)
-        self.execute(cmd)
+        self.clone_repository(url, dest_folder)
