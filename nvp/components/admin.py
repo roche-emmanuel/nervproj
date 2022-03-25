@@ -229,6 +229,7 @@ class AdminManager(NVPComponent):
         config["python.formatting.provider"] = "autopep8"
         config["python.formatting.autopep8Args"] = ["--max-line-length=120", "--experimental"]
         config["editor.formatOnSave"] = True
+        config["cmakeFormat.exePath"] = tools.get_tool_path("cmake_format")
 
         if ref_config is None or config != ref_config:
             logger.info("Wrtting updated vscode settings in %s", cfg_file)

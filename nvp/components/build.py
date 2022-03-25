@@ -34,6 +34,8 @@ class BuildManager(NVPComponent):
         psr.add_argument("--rebuild", dest='rebuild', action='store_true',
                          help="Force rebuilding from sources")
 
+        psr = ctx.get_parser('main.build')
+
         # Setup the paths:
         self.setup_paths()
 
@@ -83,6 +85,10 @@ class BuildManager(NVPComponent):
         self.libs_dir = self.make_folder(base_dir, "libraries", self.flavor)
         self.libs_build_dir = self.make_folder(base_dir, "libraries", "build")
         self.libs_package_dir = self.make_folder(base_dir, "libraries", self.flavor)
+
+    def get_msvc_setup_path(self):
+        """Return the msvc setup file path."""
+        return self.msvc_setup_path
 
     def get_compiler_config(self):
         """Get compiler config as a dict"""
@@ -159,6 +165,8 @@ class BuildManager(NVPComponent):
                 self.deploy_dependency(dep)
             else:
                 logger.debug("- %s: OK", dep_name)
+
+        logger.info("All libraries OK.")
 
     def deploy_dependency(self, desc):
         """Build a given dependency given its description dict and the target
@@ -429,6 +437,11 @@ class BuildManager(NVPComponent):
                 dlist = self.settings['lib_names'].split(',')
                 self.check_libraries(dlist)
 
+            if cmd1 is None:
+                proj = self.ctx.get_current_project()
+                if proj is not None:
+                    logger.info("Should build project %s here", proj.get_name())
+                    self.get_component('project').build_project(proj)
             return True
 
         return False

@@ -22,7 +22,8 @@
       "version": "3.10.1",
       "sub_tools": {
         "autopep8": "Scripts/autopep8.exe",
-        "pylint": "Scripts/pylint.exe"
+        "pylint": "Scripts/pylint.exe",
+        "cmake_format": "Scripts/cmake-format.exe"
       }
     },
     {
