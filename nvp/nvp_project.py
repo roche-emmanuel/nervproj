@@ -103,6 +103,10 @@ class NVPProject(NVPObject):
 
         return False
 
+    def get_dependencies(self):
+        """Retrieve the list of dependencies declared for this project."""
+        return self.config.get("dependencies", [])
+
     def run_script(self, script_name):
         """Run a given script given by name if available"""
 

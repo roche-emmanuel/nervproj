@@ -41,14 +41,6 @@ class BuildManager(NVPComponent):
 
         self.msvc_setup_path = None
 
-        # if self.settings.get('install_python_requirements', False):
-        #     self.install_python_requirements()
-
-    # @property
-    # def tools(self):
-    #     """retrieve the tools component from the context."""
-    #     return self.ctx.get_component('tools')
-
     def initialize(self):
         """Initialize this component as needed before usage."""
         if self.initialized is False:
@@ -89,6 +81,24 @@ class BuildManager(NVPComponent):
     def get_msvc_setup_path(self):
         """Return the msvc setup file path."""
         return self.msvc_setup_path
+
+    def get_library_root_dir(self, lib_name):
+        """Retrieve the root dir for a given library"""
+
+        # Iterate on all the available libraries:
+        for ldesc in self.config['libraries']:
+            dep_name = self.get_std_package_name(ldesc)
+
+            # First we check if we have the dependency target folder already:
+
+            if ldesc['name'] == lib_name or dep_name == lib_name:
+                dep_dir = self.get_path(self.libs_dir, dep_name)
+
+                # That folder should exist:
+                assert self.dir_exists(dep_dir), f"Library folder {dep_dir} doesn't exist yet."
+                return dep_dir
+
+        return None
 
     def get_compiler_config(self):
         """Get compiler config as a dict"""
@@ -178,8 +188,10 @@ class BuildManager(NVPComponent):
         # Here we should check if we already have a pre-built package for that dependency:
         src_pkg_path = self.get_path(self.libs_package_dir, src_pkg_name)
 
+        rebuild = self.settings['rebuild']
+
         # if the package is not already available locally, maybe we can retrieve it remotely:
-        if not self.file_exists(src_pkg_path):
+        if not self.file_exists(src_pkg_path) and not rebuild:
             pkg_urls = self.config.get("package_urls", [])
             pkg_urls = [base_url+'libraries/'+src_pkg_name for base_url in pkg_urls]
 
@@ -280,9 +292,10 @@ class BuildManager(NVPComponent):
         logger.info("Executing bootstrap command: %s", bs_cmd)
         self.execute(bs_cmd, cwd=build_dir)
 
+        # Note: updated below to use runtime-link=shared instead of runtime-link=static
         bjam_cmd = [build_dir+'/b2.exe', "--prefix="+prefix, "--without-mpi",
                     "-sNO_BZIP2=1", "toolset=msvc-14.3", "architecture=x86", "address-model=64", "variant=release",
-                    "link=static", "threading=multi", "runtime-link=static", "install"]
+                    "link=static", "threading=multi", "runtime-link=shared", "install"]
 
         logger.info("Executing bjam command: %s", bjam_cmd)
         self.execute(bjam_cmd, cwd=build_dir)

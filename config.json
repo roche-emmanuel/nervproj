@@ -32,6 +32,11 @@
       "version": "9.20"
     },
     {
+      "name": "ninja",
+      "sub_path": "ninja.exe",
+      "version": "1.10.2"
+    },
+    {
       "name": "cmake",
       "sub_path": "bin/cmake.exe",
       "version": "3.22.3",
@@ -62,6 +67,11 @@
       "name": "7zip",
       "sub_path": "7zzs",
       "version": "21.07"
+    },
+    {
+      "name": "ninja",
+      "sub_path": "ninja",
+      "version": "1.10.2"
     },
     {
       "name": "cmake",

@@ -167,8 +167,12 @@ class ToolsManager(NVPComponent):
         return self.get_tool_path('7zip')
 
     def get_cmake_path(self):
-        """Retrieve xmake tool path."""
+        """Retrieve cmake tool path."""
         return self.get_tool_path('cmake')
+
+    def get_ninja_path(self):
+        """Retrieve ninja tool path."""
+        return self.get_tool_path('ninja')
 
     def get_git_path(self):
         """Retrieve git tool path."""
