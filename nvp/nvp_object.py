@@ -1,5 +1,4 @@
 """NVP base object class"""
-from asyncio.subprocess import DEVNULL
 import configparser
 
 import logging
@@ -297,8 +296,8 @@ class NVPObject(object):
     def execute(self, cmd, verbose=True, cwd=None, env=None):
         """Execute a command optionally displaying the outputs."""
 
-        stdout = None if verbose else DEVNULL
-        stderr = None if verbose else DEVNULL
+        stdout = None if verbose else subprocess.DEVNULL
+        stderr = None if verbose else subprocess.DEVNULL
         # logger.info("Executing command: %s", cmd)
         subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
         # subprocess.check_call(cmd)

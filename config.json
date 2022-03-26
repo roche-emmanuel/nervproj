@@ -99,6 +99,12 @@
   // List of libraries that we can build:
   "libraries": [
     {
+      "name": "LLVM",
+      "version": "14.0.0",
+      "url": "https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.0.zip",
+      "extracted_dir": "llvm-project-llvmorg-14.0.0"
+    },
+    {
       "name": "boost",
       "version": "1.78.0",
       "url": "https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.7z"

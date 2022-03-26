@@ -1,7 +1,4 @@
 """Collection of admin utility functions"""
-import os
-import sys
-import time
 import logging
 
 from nvp.nvp_component import NVPComponent
@@ -76,6 +73,7 @@ class ProjectManager(NVPComponent):
         builder = self.get_component("builder")
         tools = self.get_component("tools")
         # generator = "NMake Makefiles JOM"
+
         generator = "Ninja"
         build_type = "Release"
         prefix = self.get_path(proj_dir, "dist", "bin", self.flavor)
@@ -100,7 +98,10 @@ class ProjectManager(NVPComponent):
             bfile.write(" ".join(cmd))
 
             # Then run ninja:
-            bfile.write(f"{tools.get_ninja_path()}\n")
+            # bfile.write(f"{tools.get_ninja_path()}\n")
+
+            # Then run ninja and install:
+            bfile.write(f"{tools.get_ninja_path()} install\n")
 
         # Call the script:
         cmd = [build_file]

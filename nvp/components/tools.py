@@ -1,6 +1,7 @@
 """Collection of tools utility functions"""
 import os
 import sys
+import time
 import logging
 import requests
 
@@ -66,7 +67,7 @@ class ToolsManager(NVPComponent):
                     pkg_file = self.retrieve_tool_package(desc)
 
                     # Extract the package:
-                    self.extract_package(pkg_file, self.tools_dir, rename=full_name)
+                    self.extract_package(pkg_file, self.tools_dir, target_dir=full_name)
 
                     # CHeck if we have a post install command:
                     fname = f"_post_install_{desc['name']}_{self.platform}"
@@ -158,6 +159,11 @@ class ToolsManager(NVPComponent):
         desc = self.get_tool_desc(tname)
         return desc['path']
 
+    def get_tool_dir(self, tname):
+        """Retrieve the parent directory for a given tool"""
+        tpath = self.get_tool_path(tname)
+        return self.get_parent_folder(tpath)
+
     def get_tools_dir(self):
         """Retrieve the base tools directory"""
         return self.tools_dir
@@ -207,27 +213,44 @@ class ToolsManager(NVPComponent):
             return
 
         logger.info("Downloading file from %s...", url)
+        dlsize = 0
         with open(dest_file, "wb") as fdd:
-            response = requests.get(url, stream=True)
-            total_length = response.headers.get('content-length')
+            while True:
+                logger.debug("Sending request...")
+                response = requests.get(url, stream=True, timeout=6)
 
-            if total_length is None:  # no content length header
-                fdd.write(response.content)
-            else:
-                dlsize = 0
-                total_length = int(total_length)
-                for data in response.iter_content(chunk_size=4096):
-                    dlsize += len(data)
-                    fdd.write(data)
-                    frac = dlsize / total_length
-                    done = int(50 * frac)
-                    sys.stdout.write(f"\r[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}%")
-                    sys.stdout.flush()
+                logger.debug("Retrieving content-length.")
+                total_length = response.headers.get('content-length')
+                if total_length is not None:
+                    break
+                else:
+                    logger.info("Detected invalid stream size, retrying...")
+                    time.sleep(1.0)
 
-                sys.stdout.write('\n')
+            # if total_length is None:  # no content length header
+            #     logger.info("Downloading file of unknown size.")
+            #     dlsize += len(response.content)
+            #     logger.info("Got %d bytes", dlsize)
+            #     fdd.write(response.content)
+
+            #     sys.stdout.write(f"\r Downloaded {dlsize} bytes (unknown total size)")
+            #     sys.stdout.flush()
+            # else:
+
+            logger.debug("Total file length is: %s", total_length)
+            total_length = int(total_length)
+            for data in response.iter_content(chunk_size=4096):
+                dlsize += len(data)
+                fdd.write(data)
+                frac = dlsize / total_length
+                done = int(50 * frac)
+                sys.stdout.write(f"\r[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}%")
                 sys.stdout.flush()
 
-    def extract_package(self, src_pkg_path, dest_dir, rename=None):
+            sys.stdout.write('\n')
+            sys.stdout.flush()
+
+    def extract_package(self, src_pkg_path, dest_dir, target_dir=None, extracted_dir=None):
         """Extract source package into the target dir folder."""
 
         logger.info("Extracting %s...", src_pkg_path)
@@ -235,9 +258,10 @@ class ToolsManager(NVPComponent):
         # check what is our expected extracted name:
         cur_name = self.remove_file_extension(os.path.basename(src_pkg_path))
 
-        expected_name = cur_name if rename is None else rename
-        dst_dir = self.get_path(dest_dir, expected_name)
-        src_dir = self.get_path(dest_dir, cur_name)
+        target_name = cur_name if target_dir is None else target_dir
+        src_name = cur_name if extracted_dir is None else extracted_dir
+        dst_dir = self.get_path(dest_dir, target_name)
+        src_dir = self.get_path(dest_dir, src_name)
 
         # Ensure that the destination/source folders do not exists:
         assert not self.path_exists(dst_dir), f"Unexpected existing path: {dst_dir}"
@@ -249,15 +273,16 @@ class ToolsManager(NVPComponent):
         elif src_pkg_path.endswith(".tar.gz") or src_pkg_path.endswith(".tgz"):
             cmd = ["tar", "-xvzf", src_pkg_path, "-C", dest_dir]
         elif src_pkg_path.endswith(".7z.exe"):
-            cmd = [self.get_unzip_path(), "x", "-o"+dest_dir+"/"+expected_name, src_pkg_path]
+            cmd = [self.get_unzip_path(), "x", "-o"+dest_dir+"/"+target_name, src_pkg_path]
         else:
             cmd = [self.get_unzip_path(), "x", "-o"+dest_dir, src_pkg_path]
         self.execute(cmd, self.settings['verbose'])
+        # self.execute(cmd, True)
 
         # Check if renaming is necessary:
         if not self.path_exists(dst_dir):
             assert self.path_exists(src_dir), f"Missing extracted path {src_dir}"
-            logger.debug("Renaming folder %s to %s", cur_name, rename)
+            logger.debug("Renaming folder %s to %s", src_name, target_name)
             self.rename_folder(src_dir, dst_dir)
 
         logger.debug("Done extracting package.")

@@ -201,7 +201,7 @@ class BuildManager(NVPComponent):
 
         if self.file_exists(src_pkg_path):
             # We should simply extract that package into our target dir:
-            self.tools.extract_package(src_pkg_path, self.libs_dir, rename=dep_name)
+            self.tools.extract_package(src_pkg_path, self.libs_dir, target_dir=dep_name)
         else:
             # We really need to build the dependency from sources instead:
 
@@ -239,7 +239,8 @@ class BuildManager(NVPComponent):
 
         cmd = [self.tools.get_unzip_path(), "a", "-t7z", self.get_path(dest_folder, package_name), src_path,
                "-m0=lzma2", "-mx=9", "-aoa", "-mfb=64",
-               "-md=32m", "-ms=on", "-r"]
+               "-ms=on", "-mmt=2", "-r"]
+        # "-md=32m",
         self.execute(cmd, self.settings['verbose'])
         logger.debug("Done generating package %s", package_name)
         return True
@@ -261,7 +262,10 @@ class BuildManager(NVPComponent):
 
         from_git = url.startswith("git@")
         # once the source file is downloaded we should extract it:
-        build_dir = src_pkg if from_git else os.path.splitext(src_pkg)[0]
+        # build_dir = src_pkg if from_git else self.remove_file_extension(src_pkg)
+        tgt_dir = self.get_std_package_name(desc)
+        # build_dir = src_pkg if from_git else self.remove_file_extension(src_pkg)
+        build_dir = src_pkg if from_git else self.get_path(base_build_dir, tgt_dir)
 
         # remove the previous source content if any:
         logger.info("Removing previous source folder %s", build_dir)
@@ -273,7 +277,9 @@ class BuildManager(NVPComponent):
 
         # Now extract the source folder:
         if not from_git:
-            self.tools.extract_package(src_pkg, base_build_dir)
+            # use the extracted folder name here if any:
+            extracted_dir = desc.get("extracted_dir", None)
+            self.tools.extract_package(src_pkg, base_build_dir, target_dir=tgt_dir, extracted_dir=extracted_dir)
 
         dep_name = self.get_std_package_name(desc)
         prefix = self.get_path(self.libs_dir, dep_name)
@@ -283,6 +289,72 @@ class BuildManager(NVPComponent):
     #############################################################################################
     # Builder functions:
     #############################################################################################
+
+    def _build_llvm_msvc64(self, build_dir, prefix, _desc):
+        """Build method for LLVM with msvc64 compiler."""
+
+        # Create a sub build folder:
+        build_dir = self.get_path(build_dir, "build")
+        self.make_folder(build_dir)
+
+        tools = self.get_component('tools')
+        python_dir = tools.get_tool_dir('python')
+
+        # We write the temp.bat file:
+        build_file = build_dir+"/build.bat"
+        with open(build_file, 'w', encoding="utf-8") as bfile:
+            bfile.write(f"call {self.msvc_setup_path} amd64\n")
+            # Add python to the path:
+            bfile.write(f"set PATH={python_dir};%PATH%\n")
+            # bfile.write(f"{self.tools.get_cmake_path()} -G \"NMake Makefiles\" -DCMAKE_BUILD_TYPE=Release ")
+            bfile.write(f"{self.tools.get_cmake_path()} -G \"Ninja\" -DCMAKE_BUILD_TYPE=Release ")
+            bfile.write(f"-DCMAKE_INSTALL_PREFIX=\"{prefix}\" -DLLVM_TARGETS_TO_BUILD=X86 ")
+            # not including cross-project-tests
+            bfile.write("-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;libc;libclc;lld;lldb;openmp;polly;pstl ")
+            bfile.write("-DLLVM_ENABLE_EH=ON -DLLVM_ENABLE_RTTI=ON ")
+            bfile.write("..\\llvm\n")
+            bfile.write(f"{tools.get_ninja_path()}\n")
+            bfile.write(f"{tools.get_ninja_path()} install\n")
+            # bfile.write("nmake\n")
+            # bfile.write("nmake install\n")
+
+        # other possible options:
+        # -DLLVM_BUILD_TOOLS=ON -DLLVM_INCLUDE_TOOLS=ON
+        # -DLLVM_BUILD_EXAMPLES=ON   -DLLVM_ENABLE_IDE=OFF  ..\llvm
+
+        cmd = [build_file]
+
+        logger.info("Executing LLVM build command: %s", cmd)
+        self.execute(cmd, cwd=build_dir)
+
+    def _build_llvm_linux64(self, build_dir, prefix, _desc):
+        """Build method for llvm on linux"""
+
+        build_env = self.setup_compiler_env()
+        tools = self.get_component('tools')
+
+        # Add python to the path:
+        build_env['PATH'] = tools.get_tool_dir('python')+":"+build_env['PATH']
+
+        logger.info("Using CXXFLAGS: %s", build_env['CXXFLAGS'])
+
+        cmd = [self.tools.get_cmake_path(), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
+               f"-DCMAKE_INSTALL_PREFIX={prefix}", "-DLLVM_TARGETS_TO_BUILD=X86",
+               "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;libc;libclc;lld;lldb;openmp;polly;pstl",
+               "-DLLVM_ENABLE_EH=ON", "-DLLVM_ENABLE_RTTI=ON",
+               "../llvm"]
+
+        build_dir = self.get_path(build_dir, "build")
+        self.make_folder(build_dir)
+
+        logger.info("Executing LLVM build command: %s", cmd)
+        self.execute(cmd, cwd=build_dir, env=build_env)
+
+        # Build command:
+        self.execute([tools.get_ninja_path()], cwd=build_dir, env=build_env)
+
+        # Install command:
+        self.execute([tools.get_ninja_path(), "install"], cwd=build_dir, env=build_env)
 
     def _build_boost_msvc64(self, build_dir, prefix, desc):
         """Build method for boost with msvc64 compiler."""
