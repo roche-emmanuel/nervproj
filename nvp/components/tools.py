@@ -276,8 +276,8 @@ class ToolsManager(NVPComponent):
             cmd = [self.get_unzip_path(), "x", "-o"+dest_dir+"/"+target_name, src_pkg_path]
         else:
             cmd = [self.get_unzip_path(), "x", "-o"+dest_dir, src_pkg_path]
-        self.execute(cmd, self.settings['verbose'])
-        # self.execute(cmd, True)
+        # self.execute(cmd, self.settings['verbose'])
+        self.execute(cmd, True)
 
         # Check if renaming is necessary:
         if not self.path_exists(dst_dir):

@@ -101,7 +101,8 @@
     {
       "name": "LLVM",
       "version": "14.0.0",
-      "url": "https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.0.zip",
+      "windows_url": "https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.0.zip",
+      "linux_url": "https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.0.tar.gz",
       "extracted_dir": "llvm-project-llvmorg-14.0.0"
     },
     {

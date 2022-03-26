@@ -139,6 +139,9 @@ class BuildManager(NVPComponent):
         env['CXX'] = comp['dir']+'/clang++'
         env['CXXFLAGS'] = f"-I{inc_dir} {comp['cxxflags']} -fPIC"
         env['CFLAGS'] = f"-I{inc_dir} -w -fPIC"
+        
+        if self.ctx.is_linux():
+            env['LD_LIBRARY_PATH'] = f"{comp['base_path']}/lib"
 
         return env
 
@@ -253,7 +256,9 @@ class BuildManager(NVPComponent):
         base_build_dir = self.libs_build_dir
 
         # get the filename from the url:
-        url = desc['url']
+        url = desc.get(f"{self.platform}_url", desc.get('url',None))
+        assert url is not None, f"Invalid source url for {desc['name']}"
+
         filename = os.path.basename(url)
 
         # Note that at this point the url may be a git path.
@@ -335,6 +340,8 @@ class BuildManager(NVPComponent):
 
         # Add python to the path:
         build_env['PATH'] = tools.get_tool_dir('python')+":"+build_env['PATH']
+        # Add ninja to the path:
+        build_env['PATH'] = tools.get_tool_dir('ninja')+":"+build_env['PATH']
 
         logger.info("Using CXXFLAGS: %s", build_env['CXXFLAGS'])
 
