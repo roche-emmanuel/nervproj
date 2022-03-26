@@ -5,8 +5,8 @@
   // is the default on windows:
   // Note that the first valid path in this list will be used here.
   "msvc_install_paths": [
-    "D:\\Softs\\VisualStudio\\VS2017",
-    "D:\\Softs\\VisualStudio2022CE"
+    "D:\\Softs\\VisualStudio2022CE",
+    "D:\\Softs\\VisualStudio\\VS2017"
   ],
 
   // list of location where we should search for packages:

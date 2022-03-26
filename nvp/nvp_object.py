@@ -7,6 +7,7 @@ import stat
 import pprint
 import time
 import re
+import sys
 import subprocess
 import shutil
 import jstyleson
@@ -39,6 +40,16 @@ def onerror(func, path, _exc_info):
 
 class NVPObject(object):
     """Base NVP object class"""
+
+    @property
+    def is_windows(self):
+        """chekc if we are on windows"""
+        return sys.platform.startswith('win32')
+
+    @property
+    def is_linux(self):
+        """chekc if we are on linux"""
+        return sys.platform.startswith('linux')
 
     def pretty_print(self, obj):
         """Pretty print an object"""

@@ -1,7 +1,9 @@
 """Module for build management system"""
 
 import os
+import sys
 import logging
+from nvp.nvp_compiler import NVPCompiler
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -38,36 +40,59 @@ class BuildManager(NVPComponent):
 
         # Setup the paths:
         self.setup_paths()
-
-        self.msvc_setup_path = None
+        self.compilers = []
 
     def initialize(self):
         """Initialize this component as needed before usage."""
         if self.initialized is False:
             self.initialized = True
-            self.setup_flavor()
+            self.load_compilers()
             self.tools = self.ctx.get_component('tools')
 
-    def setup_flavor(self):
-        """Setup the target flavor depending on the current platform we are on."""
+    def load_compilers(self):
+        """Find the available compilers on the current platform"""
+        if self.is_windows:
+            # Check if we have MSVC paths to use:
 
-        if self.flavor == "msvc64":
-            # read the env variable:
-            self.msvc_setup_path = os.getenv('NVL_MSVC_SETUP')
+            msvc_setup_path = os.getenv('NVL_MSVC_SETUP')
 
-            # get the list of paths from the build_config:
-            if self.msvc_setup_path is None:
-                potential_paths = self.config.get('msvc_install_paths', [])
-                for vc_path in potential_paths:
-                    setup_path = self.get_path(vc_path, "VC/Auxiliary/Build/vcvarsall.bat")
+            if msvc_setup_path is None:
+                msvc_paths = self.config.get('msvc_install_paths', [])
+                msvc_paths = [self.get_path(bdir, "VC/Auxiliary/Build/vcvarsall.bat")
+                              for bdir in msvc_paths]
+                msvc_setup_path = self.ctx.select_first_valid_path(msvc_paths)
 
-                    if os.path.exists(setup_path):
-                        logger.info("Using MSVC setup path %s", setup_path)
-                        self.msvc_setup_path = setup_path
-                        break
+            if msvc_setup_path is not None:
+                comp = NVPCompiler({"type": "msvc", "setup_path": msvc_setup_path})
+                self.compilers.append(comp)
 
-            if self.msvc_setup_path is None:
-                raise RuntimeError("MSVC setup path not found.")
+        # check if we have a library providing clang:
+        all_libs = self.config['libraries']
+        for lib in all_libs:
+            if lib['name'] == 'LLVM':
+                comp = NVPCompiler({'type': 'clang', "root_dir": self.get_path(
+                    self.libs_dir, f"{lib['name']}-{lib['version']}")})
+                self.compilers.append(comp)
+
+        # Check if we have tools providing compilers:
+        all_tools = self.config[f"{sys.platform}_tools"]
+        tools_dir = self.get_component('tools').get_tools_dir()
+
+        for tdesc in all_tools:
+            if tdesc['name'] == "clang":
+                comp = NVPCompiler({'type': 'clang', "root_dir": self.get_path(
+                    tools_dir, f"{tdesc['name']}-{tdesc['version']}")})
+                self.compilers.append(comp)
+
+        # Sort the compilers:
+        self.sort_compilers()
+
+    def sort_compilers(self):
+        """Sort the available compilers based on weight and user selected type."""
+        selected_type = self.settings.get("compiler_type", None)
+        assert len(self.compilers) > 0, "No compiler available"
+
+        self.compilers.sort(key=lambda x: x.get_weight(selected_type), reverse=True)
 
     def setup_paths(self):
         """Setup the paths that will be used during build or run process."""
@@ -77,10 +102,6 @@ class BuildManager(NVPComponent):
         self.libs_dir = self.make_folder(base_dir, "libraries", self.flavor)
         self.libs_build_dir = self.make_folder(base_dir, "libraries", "build")
         self.libs_package_dir = self.make_folder(base_dir, "libraries", self.flavor)
-
-    def get_msvc_setup_path(self):
-        """Return the msvc setup file path."""
-        return self.msvc_setup_path
 
     def get_library_root_dir(self, lib_name):
         """Retrieve the root dir for a given library"""
@@ -99,51 +120,6 @@ class BuildManager(NVPComponent):
                 return dep_dir
 
         return None
-
-    def get_compiler_config(self):
-        """Get compiler config as a dict"""
-
-        if self.platform == "windows":
-            return {
-                "name": "msvc"
-            }
-
-        desc = self.tools.get_tool_desc("clang")
-        fpath = self.tools.get_tool_path('clang')
-        bpath = self.get_path(self.tools.get_tools_dir(), f"{desc['name']}-{desc['version']}")
-        return {
-            "name": "clang",
-            "file": "clang++",
-            "path": fpath,
-            "dir": os.path.dirname(fpath),
-            "base_path": bpath,
-            "library_path": self.get_path(bpath, "lib"),
-            # "cxxflags": "-stdlib=libc++ -nodefaultlibs -lc++ -lc++abi -lm -lc -lgcc_s -lpthread"
-            "cxxflags": "-stdlib=libc++ -w",
-            "linkflags": "-stdlib=libc++ -nodefaultlibs -lc++ -lc++abi -lm -lc -lgcc_s -lpthread"
-        }
-
-    def setup_compiler_env(self, env=None):
-        """Setup an environment using the current compiler config."""
-
-        if env is None:
-            env = os.environ.copy()
-
-        comp = self.get_compiler_config()
-
-        env['PATH'] = comp['dir']+":"+env['PATH']
-
-        inc_dir = f"{comp['base_path']}/include/c++/v1"
-
-        env['CC'] = comp['dir']+'/clang'
-        env['CXX'] = comp['dir']+'/clang++'
-        env['CXXFLAGS'] = f"-I{inc_dir} {comp['cxxflags']} -fPIC"
-        env['CFLAGS'] = f"-I{inc_dir} -w -fPIC"
-        
-        if self.ctx.is_linux():
-            env['LD_LIBRARY_PATH'] = f"{comp['base_path']}/lib"
-
-        return env
 
     def check_libraries(self, dep_list):
         """Build all the libraries for NervProj."""
@@ -256,7 +232,7 @@ class BuildManager(NVPComponent):
         base_build_dir = self.libs_build_dir
 
         # get the filename from the url:
-        url = desc.get(f"{self.platform}_url", desc.get('url',None))
+        url = desc.get(f"{self.platform}_url", desc.get('url', None))
         assert url is not None, f"Invalid source url for {desc['name']}"
 
         filename = os.path.basename(url)
@@ -291,12 +267,18 @@ class BuildManager(NVPComponent):
 
         return (build_dir, prefix, dep_name)
 
+    def get_current_compiler(self):
+        """Retrieve the current compiler to use"""
+        return self.compilers[0]
+
     #############################################################################################
     # Builder functions:
     #############################################################################################
 
     def _build_llvm_msvc64(self, build_dir, prefix, _desc):
         """Build method for LLVM with msvc64 compiler."""
+
+        compiler = self.get_current_compiler()
 
         # Create a sub build folder:
         build_dir = self.get_path(build_dir, "build")
@@ -308,7 +290,7 @@ class BuildManager(NVPComponent):
         # We write the temp.bat file:
         build_file = build_dir+"/build.bat"
         with open(build_file, 'w', encoding="utf-8") as bfile:
-            bfile.write(f"call {self.msvc_setup_path} amd64\n")
+            bfile.write(compiler.get_init_script())
             # Add python to the path:
             bfile.write(f"set PATH={python_dir};%PATH%\n")
             # bfile.write(f"{self.tools.get_cmake_path()} -G \"NMake Makefiles\" -DCMAKE_BUILD_TYPE=Release ")
@@ -335,7 +317,7 @@ class BuildManager(NVPComponent):
     def _build_llvm_linux64(self, build_dir, prefix, _desc):
         """Build method for llvm on linux"""
 
-        build_env = self.setup_compiler_env()
+        build_env = self.get_current_compiler().get_env()
         tools = self.get_component('tools')
 
         # Add python to the path:
@@ -363,72 +345,73 @@ class BuildManager(NVPComponent):
         # Install command:
         self.execute([tools.get_ninja_path(), "install"], cwd=build_dir, env=build_env)
 
-    def _build_boost_msvc64(self, build_dir, prefix, desc):
-        """Build method for boost with msvc64 compiler."""
+    # def _build_boost_msvc64(self, build_dir, prefix, desc):
+    #     """Build method for boost with msvc64 compiler."""
 
-        bs_cmd = ['bootstrap.bat', '--without-icu']
-        bs_cmd = ['cmd', '/c', " ".join(bs_cmd)]
-        logger.info("Executing bootstrap command: %s", bs_cmd)
-        self.execute(bs_cmd, cwd=build_dir)
+    #     bs_cmd = ['bootstrap.bat', '--without-icu']
+    #     bs_cmd = ['cmd', '/c', " ".join(bs_cmd)]
+    #     logger.info("Executing bootstrap command: %s", bs_cmd)
+    #     self.execute(bs_cmd, cwd=build_dir)
 
-        # Note: updated below to use runtime-link=shared instead of runtime-link=static
-        bjam_cmd = [build_dir+'/b2.exe', "--prefix="+prefix, "--without-mpi",
-                    "-sNO_BZIP2=1", "toolset=msvc-14.3", "architecture=x86", "address-model=64", "variant=release",
-                    "link=static", "threading=multi", "runtime-link=shared", "install"]
+    #     # Note: updated below to use runtime-link=shared instead of runtime-link=static
+    #     bjam_cmd = [build_dir+'/b2.exe', "--prefix="+prefix, "--without-mpi",
+    #                 "-sNO_BZIP2=1", "toolset=msvc-14.3", "architecture=x86", "address-model=64", "variant=release",
+    #                 "link=static", "threading=multi", "runtime-link=shared", "install"]
 
-        logger.info("Executing bjam command: %s", bjam_cmd)
-        self.execute(bjam_cmd, cwd=build_dir)
+    #     logger.info("Executing bjam command: %s", bjam_cmd)
+    #     self.execute(bjam_cmd, cwd=build_dir)
 
-        # Next we need some cleaning in the installed boost folder, fixing the include path:
-        # include/boost-1_78/boost -> include/boost
-        vers = desc['version'].split('.')
-        bfolder = f"boost-{vers[0]}_{vers[1]}"
-        src_inc_dir = self.get_path(prefix, "include", bfolder, "boost")
-        dst_inc_dir = self.get_path(prefix, "include", "boost")
-        self.move_path(src_inc_dir, dst_inc_dir)
-        self.remove_folder(self.get_path(prefix, "include", bfolder))
+    #     # Next we need some cleaning in the installed boost folder, fixing the include path:
+    #     # include/boost-1_78/boost -> include/boost
+    #     vers = desc['version'].split('.')
+    #     bfolder = f"boost-{vers[0]}_{vers[1]}"
+    #     src_inc_dir = self.get_path(prefix, "include", bfolder, "boost")
+    #     dst_inc_dir = self.get_path(prefix, "include", "boost")
+    #     self.move_path(src_inc_dir, dst_inc_dir)
+    #     self.remove_folder(self.get_path(prefix, "include", bfolder))
 
-    def _build_boost_linux64(self, build_dir, prefix, _desc):
-        """Build method for boost with linux64 compiler."""
+    # def _build_boost_linux64(self, build_dir, prefix, _desc):
+    #     """Build method for boost with linux64 compiler."""
 
-        comp = self.get_compiler_config()
-        # cf. https://gist.github.com/Shauren/5c28f646bf7a28b470a8
+    #     comp = self.get_compiler_config()
+    #     # cf. https://gist.github.com/Shauren/5c28f646bf7a28b470a8
 
-        # Note: the bootstrap.sh script above is crap, so instead we build b2 manually ourself here:
-        bs_cmd = ["./tools/build/src/engine/build.sh", "clang",
-                  f"--cxx={comp['path']}", f"--cxxflags={comp['cxxflags']}"]
-        logger.info("Building B2 command: %s", bs_cmd)
-        self.execute(bs_cmd, cwd=build_dir)
-        bjam_file = self.get_path(build_dir, "bjam")
-        self.copy_file(self.get_path(build_dir, "tools/build/src/engine/b2"), bjam_file)
-        self.add_execute_permission(bjam_file)
+    #     # Note: the bootstrap.sh script above is crap, so instead we build b2 manually ourself here:
+    #     bs_cmd = ["./tools/build/src/engine/build.sh", "clang",
+    #               f"--cxx={comp['path']}", f"--cxxflags={comp['cxxflags']}"]
+    #     logger.info("Building B2 command: %s", bs_cmd)
+    #     self.execute(bs_cmd, cwd=build_dir)
+    #     bjam_file = self.get_path(build_dir, "bjam")
+    #     self.copy_file(self.get_path(build_dir, "tools/build/src/engine/b2"), bjam_file)
+    #     self.add_execute_permission(bjam_file)
 
-        with open(os.path.join(build_dir, "user-config.jam"), "w", encoding="utf-8") as file:
-            # Note: Should not add the -std=c++11 flag below as this will lead to an error with C files:
-            file.write(f"using clang : : {comp['path']} : ")
-            file.write(f"<compileflags>\"{comp['cxxflags']} -fPIC\" ")
-            file.write(f"<linkflags>\"{comp['linkflags']}\" ;\n")
+    #     with open(os.path.join(build_dir, "user-config.jam"), "w", encoding="utf-8") as file:
+    #         # Note: Should not add the -std=c++11 flag below as this will lead to an error with C files:
+    #         file.write(f"using clang : : {comp['path']} : ")
+    #         file.write(f"<compileflags>\"{comp['cxxflags']} -fPIC\" ")
+    #         file.write(f"<linkflags>\"{comp['linkflags']}\" ;\n")
 
-        # Note: below we need to run bjam with links to the clang libraries:
-        build_env = os.environ.copy()
-        build_env['LD_LIBRARY_PATH'] = comp['library_path']
+    #     # Note: below we need to run bjam with links to the clang libraries:
+    #     build_env = os.environ.copy()
+    #     build_env['LD_LIBRARY_PATH'] = comp['library_path']
 
-        bjam_cmd = ['./bjam', "--user-config=user-config.jam",
-                    "--buildid=clang", "-j", "8", "toolset=clang",
-                    "--prefix="+prefix, "--without-mpi", "-sNO_BZIP2=1",
-                    "architecture=x86", "variant=release", "link=static", "threading=multi",
-                    "target-os=linux", "address-model=64", "install"]
+    #     bjam_cmd = ['./bjam', "--user-config=user-config.jam",
+    #                 "--buildid=clang", "-j", "8", "toolset=clang",
+    #                 "--prefix="+prefix, "--without-mpi", "-sNO_BZIP2=1",
+    #                 "architecture=x86", "variant=release", "link=static", "threading=multi",
+    #                 "target-os=linux", "address-model=64", "install"]
 
-        logger.info("Executing bjam command: %s", bjam_cmd)
-        self.execute(bjam_cmd, cwd=build_dir, env=build_env)
+    #     logger.info("Executing bjam command: %s", bjam_cmd)
+    #     self.execute(bjam_cmd, cwd=build_dir, env=build_env)
 
     def _build_sdl2_msvc64(self, build_dir, prefix, _desc):
         """Build method for SDL2 with msvc64 compiler."""
 
+        comp = self.get_current_compiler()
         # We write the temp.bat file:
         build_file = build_dir+"/src/build.bat"
         with open(build_file, 'w', encoding="utf-8") as bfile:
-            bfile.write(f"call {self.msvc_setup_path} amd64\n")
+            bfile.write(comp.get_init_script())
             bfile.write(f"{self.tools.get_cmake_path()} -G \"NMake Makefiles\" -DCMAKE_BUILD_TYPE=Release ")
             bfile.write(f"-DCMAKE_CXX_FLAGS_RELEASE=/MT -DSDL_STATIC=ON -DCMAKE_INSTALL_PREFIX=\"{prefix}\" ..\n")
             bfile.write("nmake\n")
@@ -442,7 +425,8 @@ class BuildManager(NVPComponent):
     def _build_sdl2_linux64(self, build_dir, prefix, _desc):
         """Build method for sdl2 with linux64 compiler."""
 
-        build_env = self.setup_compiler_env()
+        comp = self.get_current_compiler()
+        build_env = comp.get_env()
 
         logger.info("Using CXXFLAGS: %s", build_env['CXXFLAGS'])
 
@@ -472,10 +456,12 @@ class BuildManager(NVPComponent):
         self.replace_in_file(build_dir+"/src/msvcbuild.bat", "%LJCOMPILE% /MD /DLUA_BUILD_AS_DLL",
                              "%LJCOMPILE% /MT /DLUA_BUILD_AS_DLL")
 
+        comp = self.get_current_compiler()
+
         # We write the temp.bat file:
         build_file = build_dir+"/src/build.bat"
         with open(build_file, 'w', encoding="utf-8") as bfile:
-            bfile.write(f"call {self.msvc_setup_path} amd64\n")
+            bfile.write(comp.get_init_script())
             bfile.write("msvcbuild.bat static\n")
 
         cmd = [build_file]
@@ -488,7 +474,7 @@ class BuildManager(NVPComponent):
 
         # Now we build the shared library:
         with open(build_file, 'w', encoding="utf-8") as bfile:
-            bfile.write(f"call {self.msvc_setup_path} amd64\n")
+            bfile.write(comp.get_init_script())
             bfile.write("msvcbuild.bat amalg\n")
 
         cmd = [build_file]
@@ -509,8 +495,10 @@ class BuildManager(NVPComponent):
     def _build_luajit_linux64(self, build_dir, prefix, desc):
         """Build method for luajit with linux64 compiler."""
 
+        comp = self.get_current_compiler()
+
         # End finally make install:
-        build_env = self.setup_compiler_env()
+        build_env = comp.get_env()
         self.execute(["make", "install", f"PREFIX={prefix}", "HOST_CC=clang"], cwd=build_dir, env=build_env)
 
         # We should rename the include sub folder: "luajit-2.1" -> "luajit"
