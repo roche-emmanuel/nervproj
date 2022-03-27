@@ -22,11 +22,6 @@ class NVPComponent(NVPObject):
         return self.ctx.get_settings()
 
     @property
-    def flavor(self):
-        """retrieve the flavor from the context."""
-        return self.ctx.get_flavor()
-
-    @property
     def platform(self):
         """retrieve the platform from the context."""
         return self.ctx.get_platform()

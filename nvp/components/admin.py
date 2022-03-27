@@ -130,7 +130,7 @@ class AdminManager(NVPComponent):
 
         # If we are on windows, we may want to convert this path to a cygwin path
         # if we are in a cygwin environment (but running the native python executable):
-        if self.ctx.is_windows():
+        if self.is_windows:
             script_path = self.to_cygwin_path(script_path)
             assert script_path is not None, "Invalid cygwin environment."
 
@@ -195,7 +195,7 @@ class AdminManager(NVPComponent):
             # * on windows: in C:/Users/kenshin/AppData/Roaming/Code/User/settings.json
             # => should use os.getenv('APPDATA')
             # * on linux: in /home/kenshin/.config/Code/User/settings.json
-            if self.ctx.is_windows():
+            if self.is_windows:
                 base_dir = os.getenv("APPDATA")
             else:
                 base_dir = self.get_path(self.ctx.get_home_dir(), ".config")
@@ -267,7 +267,7 @@ class AdminManager(NVPComponent):
             logger.info("Writting python env file %s", dest_file)
             content = DEFAULT_PYTHONENV_CONTENT
             content = content.replace("${NVP_ROOT_DIR}", self.ctx.get_root_dir())
-            content = content.replace("${SEP}", ";" if self.ctx.is_windows() else ":")
+            content = content.replace("${SEP}", ";" if self.is_windows else ":")
             self.write_text_file(content, dest_file)
 
         # and write a .editorconfig file:

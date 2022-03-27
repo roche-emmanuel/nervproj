@@ -41,19 +41,21 @@ class BuildManager(NVPComponent):
         psr = ctx.get_parser('main.build')
 
         # Setup the paths:
-        self.setup_paths()
-        self.compilers = []
+        self.compiler = None
         self.builders = None
 
     def initialize(self):
         """Initialize this component as needed before usage."""
         if self.initialized is False:
             self.initialized = True
-            self.load_compilers()
+            self.select_compiler()
+            self.setup_paths()
             self.tools = self.ctx.get_component('tools')
 
-    def load_compilers(self):
+    def select_compiler(self):
         """Find the available compilers on the current platform"""
+        compilers = []
+
         if self.is_windows:
             # Check if we have MSVC paths to use:
 
@@ -67,15 +69,16 @@ class BuildManager(NVPComponent):
 
             if msvc_setup_path is not None:
                 comp = NVPCompiler({"type": "msvc", "setup_path": msvc_setup_path})
-                self.compilers.append(comp)
+                compilers.append(comp)
 
         # check if we have a library providing clang:
-        all_libs = self.config['libraries']
-        for lib in all_libs:
-            if lib['name'] == 'LLVM':
-                comp = NVPCompiler({'type': 'clang', "root_dir": self.get_path(
-                    self.libs_dir, f"{lib['name']}-{lib['version']}")})
-                self.compilers.append(comp)
+        # No: library dir depends on the selected compiler so this is not available yet here.
+        # all_libs = self.config['libraries']
+        # for lib in all_libs:
+        #     if lib['name'] == 'LLVM':
+        #         comp = NVPCompiler({'type': 'clang', "root_dir": self.get_path(
+        #             self.libs_dir, f"{lib['name']}-{lib['version']}")})
+        #         compilers.append(comp)
 
         # Check if we have tools providing compilers:
         all_tools = self.config[f"{self.platform}_tools"]
@@ -85,10 +88,15 @@ class BuildManager(NVPComponent):
             if tdesc['name'] == "clang":
                 comp = NVPCompiler({'type': 'clang', "root_dir": self.get_path(
                     tools_dir, f"{tdesc['name']}-{tdesc['version']}")})
-                self.compilers.append(comp)
+                compilers.append(comp)
 
-        # Sort the compilers:
-        self.sort_compilers()
+        selected_type = self.settings.get("compiler_type", None)
+        assert len(compilers) > 0, "No compiler available"
+
+        compilers.sort(key=lambda x: x.get_weight(selected_type), reverse=True)
+        # select the first compiler
+        self.compiler = compilers[0]
+        logger.info("Selecting compiler %s", self.compiler.get_name())
 
     def load_builders(self):
         """Load the builder functions"""
@@ -114,21 +122,16 @@ class BuildManager(NVPComponent):
         """Register a builder function"""
         self.builders[bname] = handler
 
-    def sort_compilers(self):
-        """Sort the available compilers based on weight and user selected type."""
-        selected_type = self.settings.get("compiler_type", None)
-        assert len(self.compilers) > 0, "No compiler available"
-
-        self.compilers.sort(key=lambda x: x.get_weight(selected_type), reverse=True)
-
     def setup_paths(self):
         """Setup the paths that will be used during build or run process."""
 
         # Store the deps folder:
         base_dir = self.ctx.get_root_dir()
-        self.libs_dir = self.make_folder(base_dir, "libraries", self.flavor)
+        self.libs_dir = self.make_folder(base_dir, "libraries", f"{self.platform}_{self.compiler.get_type()}")
         self.libs_build_dir = self.make_folder(base_dir, "libraries", "build")
-        self.libs_package_dir = self.make_folder(base_dir, "libraries", self.flavor)
+
+        # Store the packages in the destination library folder:
+        self.libs_package_dir = self.libs_dir
 
     def get_library_root_dir(self, lib_name):
         """Retrieve the root dir for a given library"""
@@ -174,7 +177,7 @@ class BuildManager(NVPComponent):
                 self.remove_folder(dep_dir)
 
                 # Also remove the previously built package:
-                self.remove_file(self.libs_package_dir, f"{dep_name}-{self.flavor}.7z")
+                self.remove_file(self.libs_package_dir, f"{dep_name}-{self.platform}-{self.compiler.get_type()}.7z")
 
             if not os.path.exists(dep_dir):
                 # Here we need to deploy that dependency:
@@ -189,7 +192,8 @@ class BuildManager(NVPComponent):
         directory where it should be installed."""
 
         dep_name = self.get_std_package_name(desc)
-        src_pkg_name = f"{dep_name}-{self.flavor}.7z"
+        compiler = self.compiler
+        src_pkg_name = f"{dep_name}-{self.platform}-{compiler.get_type()}.7z"
 
         # Here we should check if we already have a pre-built package for that dependency:
         src_pkg_path = self.get_path(self.libs_package_dir, src_pkg_name)
@@ -218,7 +222,6 @@ class BuildManager(NVPComponent):
             # We should now have the builder for that library available:
             assert lib_name in self.builders, f"No builder available for library '{lib_name}'"
 
-            compiler = self.get_current_compiler()
             # build_env = compiler.get_env()
             # logger.info("Compiler build env is: %s", self.pretty_print(build_env))
 
@@ -234,7 +237,7 @@ class BuildManager(NVPComponent):
 
             # Finally we should create the package from that installed dependency folder
             # so that we don't have to build it the next time:
-            self.create_package(prefix, self.libs_package_dir, f"{dep_name}-{self.flavor}.7z")
+            self.create_package(prefix, self.libs_package_dir, src_pkg_name)
 
             logger.info("Removing build folder %s", build_dir)
             self.remove_folder(build_dir)
@@ -306,9 +309,14 @@ class BuildManager(NVPComponent):
 
         return (build_dir, prefix, dep_name)
 
-    def get_current_compiler(self):
+    def get_compiler(self):
         """Retrieve the current compiler to use"""
-        return self.compilers[0]
+        assert self.compiler is not None, "Current compiler not configured yet."
+        return self.compiler
+
+    def get_flavor(self):
+        """Retrieve the current flavor"""
+        return f"{self.platform}_{self.compiler.get_type()}"
 
     #############################################################################################
     # Builder functions:
@@ -317,7 +325,7 @@ class BuildManager(NVPComponent):
     def _build_llvm_msvc64(self, build_dir, prefix, _desc):
         """Build method for LLVM with msvc64 compiler."""
 
-        compiler = self.get_current_compiler()
+        compiler = self.compiler
 
         # Create a sub build folder:
         build_dir = self.get_path(build_dir, "build")
@@ -356,7 +364,7 @@ class BuildManager(NVPComponent):
     def _build_llvm_linux64(self, build_dir, prefix, _desc):
         """Build method for llvm on linux"""
 
-        build_env = self.get_current_compiler().get_env()
+        build_env = self.compiler.get_env()
         tools = self.get_component('tools')
 
         # Add python to the path:
@@ -446,7 +454,7 @@ class BuildManager(NVPComponent):
     def _build_sdl2_msvc64(self, build_dir, prefix, _desc):
         """Build method for SDL2 with msvc64 compiler."""
 
-        comp = self.get_current_compiler()
+        comp = self.compiler
         # We write the temp.bat file:
         build_file = build_dir+"/src/build.bat"
         with open(build_file, 'w', encoding="utf-8") as bfile:
@@ -464,7 +472,7 @@ class BuildManager(NVPComponent):
     def _build_sdl2_linux64(self, build_dir, prefix, _desc):
         """Build method for sdl2 with linux64 compiler."""
 
-        comp = self.get_current_compiler()
+        comp = self.compiler
         build_env = comp.get_env()
 
         logger.info("Using CXXFLAGS: %s", build_env['CXXFLAGS'])
@@ -495,7 +503,7 @@ class BuildManager(NVPComponent):
         self.replace_in_file(build_dir+"/src/msvcbuild.bat", "%LJCOMPILE% /MD /DLUA_BUILD_AS_DLL",
                              "%LJCOMPILE% /MT /DLUA_BUILD_AS_DLL")
 
-        comp = self.get_current_compiler()
+        comp = self.compiler
 
         # We write the temp.bat file:
         build_file = build_dir+"/src/build.bat"
@@ -534,7 +542,7 @@ class BuildManager(NVPComponent):
     def _build_luajit_linux64(self, build_dir, prefix, desc):
         """Build method for luajit with linux64 compiler."""
 
-        comp = self.get_current_compiler()
+        comp = self.compiler
 
         # End finally make install:
         build_env = comp.get_env()

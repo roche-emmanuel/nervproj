@@ -42,15 +42,12 @@ class NVPContext(NVPObject):
         self.components = {}
         self.projects = []
 
-        self.flavor = None
         self.platform = None
 
         pname = sys.platform
         if pname.startswith('win32'):
-            self.flavor = "msvc64"
             self.platform = "windows"
         elif pname.startswith('linux'):
-            self.flavor = 'linux64'
             self.platform = "linux"
 
         assert self.platform in ["windows", "linux"], f"Unsupported platform {pname}"
@@ -74,9 +71,6 @@ class NVPContext(NVPObject):
         self.load_projects()
 
         self.settings = vars(self.parsers['main'].parse_args())
-
-        self.flavor = self.settings.get("flavor", self.flavor)
-        logger.debug("Using flavor %s", self.flavor)
 
     def define_subparsers(self, pname, desc):
         """define subparsers recursively."""
@@ -168,21 +162,9 @@ class NVPContext(NVPObject):
 
         return None
 
-    def is_windows(self):
-        """Return true if this is a windows platform"""
-        return self.platform == "windows"
-
     def is_cygwin(self):
         """Check if we are running from cygwin environment."""
         return self.cyg_home_dir is not None
-
-    def is_linux(self):
-        """Return true if this is a linux platform"""
-        return self.platform == "linux"
-
-    def get_flavor(self):
-        """Retrieve the current flavor"""
-        return self.flavor
 
     def get_platform(self):
         """Retrieve the current platform"""

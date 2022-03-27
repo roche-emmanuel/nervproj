@@ -45,7 +45,7 @@ class ToolsManager(NVPComponent):
         # Prepare the tool paths:
         tools = self.config[f'{self.platform}_tools']
 
-        sep = "\\" if self.ctx.is_windows() else "/"
+        sep = "\\" if self.is_windows else "/"
 
         for desc in tools:
             tname = desc['name']

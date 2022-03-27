@@ -65,18 +65,22 @@ class ProjectManager(NVPComponent):
 
         proj_dir = proj.get_root_dir()
 
-        build_dir = self.get_path(proj_dir, "build", self.flavor)
+        builder = self.get_component("builder")
+
+        flavor = builder.get_flavor()
+
+        build_dir = self.get_path(proj_dir, "build", flavor)
         self.make_folder(build_dir)
 
-        build_file = self.get_path(proj_dir, "build", f"build_{self.flavor}.bat")
+        # build_file = self.get_path(proj_dir, "build", f"build_{flavor}.bat")
+        build_file = None  # TO DO: refactor this.
 
-        builder = self.get_component("builder")
         tools = self.get_component("tools")
         # generator = "NMake Makefiles JOM"
 
         generator = "Ninja"
         build_type = "Release"
-        prefix = self.get_path(proj_dir, "dist", "bin", self.flavor)
+        prefix = self.get_path(proj_dir, "dist", "bin", flavor)
         self.make_folder(prefix)
 
         with open(build_file, 'w', encoding="utf-8") as bfile:

@@ -420,7 +420,7 @@ class GitlabManager(NVPComponent):
 
         proj_dir = self.ctx.get_current_project().get_root_dir()
 
-        if self.ctx.is_windows():
+        if self.is_windows:
             proj_dir = self.to_cygwin_path(proj_dir)
 
         sys.stdout.write(proj_dir)
