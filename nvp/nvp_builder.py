@@ -21,6 +21,10 @@ class NVPBuilder(NVPObject):
     def build(self, build_dir, prefix, desc):
         """Run the build process either on the proper target platform"""
         self.env = self.compiler.get_env()
+
+        # Add ninja to the path:
+        self.env = self.prepend_env_path(self.tools.get_tool_dir('ninja'), self.env)
+        
         if self.is_windows:
             return self.build_on_windows(build_dir, prefix, desc)
         if self.is_linux:

@@ -335,3 +335,41 @@ class NVPObject(object):
             return res
         else:
             return [f for f in os.listdir(folder) if (os.path.isfile(os.path.join(folder, f)) and p.search(f) is not None)]
+
+    def prepend_env_path(self, paths, env):
+        """Add a list of paths to the environment PATH variable."""
+        sep = ";" if self.is_windows else ":"
+        all_paths = set()
+
+        if isinstance(paths, str):
+            paths = [paths]
+
+        for elem in paths:
+            all_paths = all_paths.union(set(elem.split(sep)))
+
+        if "PATH" in env:
+            plist = set(env['PATH'].split(sep))
+            all_paths = all_paths.union(plist)
+        
+        logger.info("All paths in prepend_env_path: %s", all_paths)
+        env['PATH'] = sep.join(all_paths)
+        return env
+
+    def append_env_path(self, paths, env):
+        """Add a list of paths to the environment PATH variable."""
+        sep = ";" if self.is_windows else ":"
+        all_paths = set()
+
+        if isinstance(paths, str):
+            paths = [paths]
+
+        for elem in paths:
+            all_paths = all_paths.union(set(elem.split(sep)))
+
+        if "PATH" in env:
+            plist = set(env['PATH'].split(sep))
+            all_paths = plist.union(all_paths)
+        
+        logger.info("All paths in append_env_path: %s", all_paths)
+        env['PATH'] = sep.join(all_paths)
+        return env

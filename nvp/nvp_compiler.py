@@ -221,7 +221,7 @@ class NVPCompiler(NVPObject):
 
         if self.is_clang():
             env = {}
-            env['PATH'] = self.get_cxx_dir()+":"+env['PATH']
+            env['PATH'] = self.get_cxx_dir()
 
             inc_dir = f"{self.root_dir}/include/c++/v1"
 
@@ -241,7 +241,11 @@ class NVPCompiler(NVPObject):
         if env is None:
             env = os.environ.copy()
             # We don't want to keep any default PATH:
-            del env['PATH']
+            if self.is_windows:
+                del env['PATH']
+            if self.is_linux:
+                # use a minimal path:
+                env['PATH'] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
         if self.comp_env is None:
             self.init_compiler_env()
@@ -253,8 +257,9 @@ class NVPCompiler(NVPObject):
         env.update(self.comp_env)
 
         if prev_path is not None:
-            sep = ";" if self.is_windows else ":"
-            env['PATH'] = env['PATH'] + sep + prev_path
+            env = self.append_env_path(prev_path, env)
+            # sep = ";" if self.is_windows else ":"
+            # env['PATH'] = env['PATH'] + sep + prev_path
 
         return env
 

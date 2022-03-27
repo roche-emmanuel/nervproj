@@ -31,31 +31,19 @@ class SDL2Builder(NVPBuilder):
         self.execute([self.tools.get_ninja_path()], cwd=build_dir, env=self.env)
         self.execute([self.tools.get_ninja_path(), "install"], cwd=build_dir, env=self.env)
 
-        # build_file = build_dir+"/src/build.bat"
-        # with open(build_file, 'w', encoding="utf-8") as bfile:
-        #     bfile.write(comp.get_init_script())
-        #     bfile.write(f"{} -G \"NMake Makefiles\" -DCMAKE_BUILD_TYPE=Release ")
-        #     bfile.write(f"-DCMAKE_CXX_FLAGS_RELEASE=/MT -DSDL_STATIC=ON -DCMAKE_INSTALL_PREFIX=\"{prefix}\" ..\n")
-        #     bfile.write("nmake\n")
-        #     bfile.write("nmake install\n")
-
-        # cmd = [build_file]
-
-        # logger.info("Executing SDL2 build command: %s", cmd)
-        # self.execute(cmd, cwd=build_dir+"/src")
-
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for sdl2 on linux"""
 
         build_dir = self.get_path(build_dir, "src")
 
-        logger.info("Using CXXFLAGS: %s", self.env['CXXFLAGS'])
+        # logger.info("Using CXXFLAGS: %s", self.env['CXXFLAGS'])
+        logger.info("Using build env: %s", self.pretty_print(self.env))
 
         cmd = [self.tools.get_cmake_path(), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
                "-DSDL_STATIC=ON", "-DSDL_STATIC_PIC=ON", f"-DCMAKE_INSTALL_PREFIX={prefix}", ".."]
 
         logger.info("Executing SDL2 build command: %s", cmd)
-        self.execute(cmd, cwd=build_dir+"/src", env=self.env)
+        self.execute(cmd, cwd=build_dir, env=self.env)
 
         self.execute([self.tools.get_ninja_path()], cwd=build_dir, env=self.env)
         self.execute([self.tools.get_ninja_path(), "install"], cwd=build_dir, env=self.env)
