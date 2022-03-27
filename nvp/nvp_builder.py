@@ -18,6 +18,7 @@ class NVPBuilder(NVPObject):
         self.compiler = bman.compiler
         self.env = None
         self.tools = self.ctx.get_component('tools')
+        desc = desc or {}
         self.tool_envs = desc.get('tool_envs', ['ninja'])
 
     def build(self, build_dir, prefix, desc):
