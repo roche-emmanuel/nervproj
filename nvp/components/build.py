@@ -222,6 +222,9 @@ class BuildManager(NVPComponent):
             # build_env = compiler.get_env()
             # logger.info("Compiler build env is: %s", self.pretty_print(build_env))
 
+            # env = os.environ.copy()
+            # logger.info("Current environment: %s", self.pretty_print(env))
+
             # Prepare the build context:
             build_dir, prefix, dep_name = self.setup_dependency_build_context(desc)
 

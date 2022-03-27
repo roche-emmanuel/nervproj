@@ -238,13 +238,10 @@ class NVPCompiler(NVPObject):
     def get_env(self, env=None):
         """Setup an environment using the current compiler config."""
 
-        if env == "current":
+        if env is None:
             env = os.environ.copy()
             # We don't want to keep any default PATH:
             del env['PATH']
-
-        if env is None:
-            env = {}
 
         if self.comp_env is None:
             self.init_compiler_env()
