@@ -28,8 +28,7 @@ class SDL2Builder(NVPBuilder):
         logger.info("SDL2 build command: %s", cmd)
         self.execute(cmd, cwd=build_dir, env=self.env)
 
-        self.execute([self.tools.get_ninja_path()], cwd=build_dir, env=self.env)
-        self.execute([self.tools.get_ninja_path(), "install"], cwd=build_dir, env=self.env)
+        self.run_ninja(build_dir)
 
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for sdl2 on linux"""
@@ -45,5 +44,4 @@ class SDL2Builder(NVPBuilder):
         logger.info("Executing SDL2 build command: %s", cmd)
         self.execute(cmd, cwd=build_dir, env=self.env)
 
-        self.execute([self.tools.get_ninja_path()], cwd=build_dir, env=self.env)
-        self.execute([self.tools.get_ninja_path(), "install"], cwd=build_dir, env=self.env)
+        self.run_ninja(build_dir)
