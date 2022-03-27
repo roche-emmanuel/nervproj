@@ -3,34 +3,38 @@
 import logging
 
 from nvp.components.build import BuildManager
+from nvp.nvp_compiler import NVPCompiler
 
 logger = logging.getLogger(__name__)
 
 
 def register_builder(bman: BuildManager):
     """Register the build function"""
-    bman.register_builder()
+
+    bman.register_builder('boost', build_library)
 
 
-def build_library(bman: BuildManager, compiler, build_dir, prefix, desc):
+def build_library(bman: BuildManager, compiler: NVPCompiler, build_dir, prefix, desc):
     """Build the boost library"""
 
-    benv = compiler.get_env()
+    logger.info("Building boost library...")
 
-    if bman.is_windows:
+    build_env = compiler.get_env()
+    logger.info("Using build env: %s", bman.pretty_print(build_env))
+
+    if bman.is_windows and compiler.is_msvc():
         bs_cmd = ['bootstrap.bat', '--without-icu']
-        bs_cmd = ['cmd', '/c', " ".join(bs_cmd)]
+        bs_cmd = ['cmd.exe', '/c', " ".join(bs_cmd)]
         logger.info("Executing bootstrap command: %s", bs_cmd)
-        bman.execute(bs_cmd, cwd=build_dir, env=benv)
+        bman.execute(bs_cmd, cwd=build_dir, env=build_env)
 
         # Note: updated below to use runtime-link=shared instead of runtime-link=static
-        # toolset should be msvc-14.3
         bjam_cmd = [build_dir + '/b2.exe', "--prefix=" + prefix, "--without-mpi", "-sNO_BZIP2=1",
-                    f"toolset={compiler.get_code_name()}", "architecture=x86", "address-model=64", "variant=release",
+                    "toolset=msvc", "architecture=x86", "address-model=64", "variant=release",
                     "link=static", "threading=multi", "runtime-link=shared", "install"]
 
         logger.info("Executing bjam command: %s", bjam_cmd)
-        bman.execute(bjam_cmd, cwd=build_dir)
+        bman.execute(bjam_cmd, cwd=build_dir, env=build_env)
 
         # Next we need some cleaning in the installed boost folder, fixing the include path:
         # include/boost-1_78/boost -> include/boost
@@ -73,4 +77,4 @@ def build_library(bman: BuildManager, compiler, build_dir, prefix, desc):
                     "target-os=linux", "address-model=64", "install"]
 
         logger.info("Executing bjam command: %s", bjam_cmd)
-        bman.execute(bjam_cmd, cwd=build_dir, env=benv)
+        bman.execute(bjam_cmd, cwd=build_dir, env=build_env)

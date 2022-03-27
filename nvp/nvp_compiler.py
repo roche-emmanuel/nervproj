@@ -1,10 +1,61 @@
 """This module contains a definition of a compiler class for NVP"""
+# from __future__ import print_function
 import logging
 import os
+import subprocess
 
 from nvp.nvp_object import NVPObject
 
 logger = logging.getLogger(__name__)
+
+# cf. https://stackoverflow.com/questions/1214496/how-to-get-environment-from-a-subprocess
+
+
+def get_environment_from_batch_command(env_cmd, initial=None):
+    """
+    Take a command (either a single command or list of arguments)
+    and return the environment created after running that command.
+    Note that if the command must be a batch file or .cmd file, or the
+    changes to the environment will not be captured.
+
+    If initial is supplied, it is used as the initial environment passed
+    to the child process.
+    """
+    if not isinstance(env_cmd, (list, tuple)):
+        env_cmd = [env_cmd]
+    # construct the command that will alter the environment
+    env_cmd = subprocess.list2cmdline(env_cmd)
+    # create a tag so we can tell in the output when the proc is done
+    tag = '------------- ENV VARS -------------'
+    # construct a cmd.exe command to do accomplish this
+    cmd = f'cmd.exe /s /c "{env_cmd} && echo {tag} && set"'
+    # cmd = ["cmd.exe", "/s", "/s", f'\"{env_cmd} && echo "{tag}" && set\"']
+
+    # launch the process
+    # logger.info("Executing command: %s", cmd)
+    # out = subprocess.check_output(cmd)
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, env=initial)
+    out = proc.communicate()[0].decode("utf-8")
+    # logger.info("Retrieved whole outputs: %s", out)
+
+    # Split the outputs on the lines:
+    lines = out.splitlines()
+    while lines[0].rstrip() != tag:
+        # logger.info("Dropping line %s", lines[0])
+        lines.pop(0)
+
+    # Drop the tag line:
+    lines.pop(0)
+
+    # Now parse each line into an environment KEY=VALUE pair:
+    result = {}
+    for line in lines:
+        parts = line.split("=")
+        assert len(parts) == 2, f"Cannot parse environment variable line '{line}'"
+        result[parts[0]] = parts[1]
+
+    # logger.info("Collected MSVC full environment: %s", result)
+    return result
 
 
 class NVPCompiler(NVPObject):
@@ -23,6 +74,7 @@ class NVPCompiler(NVPObject):
         self.version_minor = None
         self.cxx_path = None
         self.cc_path = None
+        self.comp_env = None
 
         ext = ".exe" if self.is_windows else ""
 
@@ -32,6 +84,11 @@ class NVPCompiler(NVPObject):
             assert self.file_exists(setup_file), f"Invalid MSVC setup path: {setup_file}"
             # setup is: VC/Auxiliary/Build/vcvarsall.bat
             self.root_dir = self.get_parent_folder(setup_file)  # Build dir
+            # We read the VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt file to get the version number
+            vers_file = self.get_path(self.root_dir, "Microsoft.VCToolsVersion.default.txt")
+            assert self.file_exists(vers_file), f"Invalid MSVC version file: {vers_file}"
+            self.version = self.read_text_file(vers_file).rstrip()
+
             self.root_dir = self.get_parent_folder(self.root_dir)  # Aux dir
             self.root_dir = self.get_parent_folder(self.root_dir)  # VC dir
             self.root_dir = self.get_parent_folder(self.root_dir)  # root dir
@@ -53,10 +110,13 @@ class NVPCompiler(NVPObject):
             parts = self.root_dir.split('-')
             assert len(parts) >= 2, f"Invalid root dir format for compiler {self.root_dir}"
             self.version = parts[-1]
-            parts = self.version.split(".")
-            assert len(parts) >= 2, f"Invalid compiler version {self.version}"
-            self.version_major = int(parts[0])
-            self.version_minor = int(parts[1])
+
+        parts = self.version.split(".")
+        assert len(parts) == 3, f"Invalid compiler version {self.version}"
+        self.version_major = int(parts[0])
+        self.version_minor = int(parts[1])
+        self.version_release = int(parts[2]) if len(parts) >= 3 else 0
+        logger.info("Found %s-%s", self.type, self.version)
 
     def get_type(self):
         """Return this compiler type"""
@@ -121,25 +181,83 @@ class NVPCompiler(NVPObject):
         """Retrieve full path to the c compiler"""
         return self.cc_path
 
+    def get_name(self):
+        """Retrieve the full name of this compiler"""
+        return f"{self.type}-{self.version}"
+
+    def init_compiler_env(self):
+        """Initialize the compiler specific environment."""
+        assert self.comp_env is None, "Compiler environment already initialized."
+
+        if self.is_msvc():
+            # Get a copy of the original ENV:
+            logger.info("Initializing MSVC compiler environment...")
+            orig_env = os.environ.copy()
+
+            # We should keep only a very minimal PATH here:
+            drive = os.getenv("HOMEDRIVE")
+            assert drive is not None, "Invalid HOMEDRIVE variable."
+            orig_env['PATH'] = f"{drive}\\Windows\\System32;{drive}\\Windows"
+
+            # remove everything from our path:
+            # del orig_env['PATH']
+
+            cmd = [self.desc['setup_path'], "amd64"]
+            result_env = get_environment_from_batch_command(cmd, orig_env)
+            # logger.info("Collected updated MSVC environemt: %s", result_env)
+
+            # Now we check what are the updated keys in that environment:
+            self.comp_env = {}
+            for key, value in result_env.items():
+                if key not in orig_env:
+                    self.comp_env[key] = value
+                elif orig_env[key] != value:
+                    logger.debug("Updating variable %s: %s -> %s", key, orig_env[key], value)
+                    self.comp_env[key] = value
+
+            # Add Windows\System32 and Windows to the path
+
+            # logger.info("MSVC compiler environemt: %s", self.pretty_print(self.comp_env))
+
+        if self.is_clang():
+            env = {}
+            env['PATH'] = self.get_cxx_dir()+":"+env['PATH']
+
+            inc_dir = f"{self.root_dir}/include/c++/v1"
+
+            env['CC'] = self.get_cc_path()
+            env['CXX'] = self.get_cxx_path()
+            env['CXXFLAGS'] = f"-I{inc_dir} {self.cxxflags} -fPIC"
+            env['CFLAGS'] = f"-I{inc_dir} -w -fPIC"
+
+            env['LD_LIBRARY_PATH'] = f"{self.libs_path}"
+            self.comp_env = env
+
+        assert self.comp_env is not None, "Cannot init compiler environment"
+
     def get_env(self, env=None):
         """Setup an environment using the current compiler config."""
 
-        if env is None:
+        if env == "current":
             env = os.environ.copy()
+            # We don't want to keep any default PATH:
+            del env['PATH']
 
-        if self.is_msvc():
-            return env
+        if env is None:
+            env = {}
 
-        env['PATH'] = self.get_cxx_dir()+":"+env['PATH']
+        if self.comp_env is None:
+            self.init_compiler_env()
 
-        inc_dir = f"{self.root_dir}/include/c++/v1"
+        # keep the previous PATH elements:
+        prev_path = env.get("PATH", None)
 
-        env['CC'] = self.get_cc_path()
-        env['CXX'] = self.get_cxx_path()
-        env['CXXFLAGS'] = f"-I{inc_dir} {self.cxxflags} -fPIC"
-        env['CFLAGS'] = f"-I{inc_dir} -w -fPIC"
+        # update the env:
+        env.update(self.comp_env)
 
-        env['LD_LIBRARY_PATH'] = f"{self.libs_path}"
+        if prev_path is not None:
+            sep = ";" if self.is_windows else ":"
+            env['PATH'] = env['PATH'] + sep + prev_path
 
         return env
 

@@ -3,6 +3,8 @@
 import os
 import sys
 import logging
+from importlib import import_module
+
 from nvp.nvp_compiler import NVPCompiler
 
 from nvp.nvp_component import NVPComponent
@@ -41,6 +43,7 @@ class BuildManager(NVPComponent):
         # Setup the paths:
         self.setup_paths()
         self.compilers = []
+        self.builders = None
 
     def initialize(self):
         """Initialize this component as needed before usage."""
@@ -75,7 +78,7 @@ class BuildManager(NVPComponent):
                 self.compilers.append(comp)
 
         # Check if we have tools providing compilers:
-        all_tools = self.config[f"{sys.platform}_tools"]
+        all_tools = self.config[f"{self.platform}_tools"]
         tools_dir = self.get_component('tools').get_tools_dir()
 
         for tdesc in all_tools:
@@ -86,6 +89,30 @@ class BuildManager(NVPComponent):
 
         # Sort the compilers:
         self.sort_compilers()
+
+    def load_builders(self):
+        """Load the builder functions"""
+        self.builders = {}
+        bld_path = self.get_path(self.ctx.get_root_dir(), "nvp", "builders")
+
+        # Get all .py files in that folder:
+        bld_files = self.get_all_files(bld_path, "\\.py$")
+        logger.debug("Found builder files: %s", bld_files)
+
+        # load those components:
+        sys.path.insert(0, bld_path)
+
+        for comp in bld_files:
+            bld_name = comp[:-3]
+            bld_module = import_module(bld_name)
+            bld_module.register_builder(self)
+            del sys.modules[bld_name]
+
+        sys.path.pop(0)
+
+    def register_builder(self, bname, handler):
+        """Register a builder function"""
+        self.builders[bname] = handler
 
     def sort_compilers(self):
         """Sort the available compilers based on weight and user selected type."""
@@ -183,15 +210,24 @@ class BuildManager(NVPComponent):
             self.tools.extract_package(src_pkg_path, self.libs_dir, target_dir=dep_name)
         else:
             # We really need to build the dependency from sources instead:
+            lib_name = desc['name']
+
+            if self.builders is None:
+                self.load_builders()
+
+            # We should now have the builder for that library available:
+            assert lib_name in self.builders, f"No builder available for library '{lib_name}'"
+
+            compiler = self.get_current_compiler()
+            # build_env = compiler.get_env()
+            # logger.info("Compiler build env is: %s", self.pretty_print(build_env))
 
             # Prepare the build context:
             build_dir, prefix, dep_name = self.setup_dependency_build_context(desc)
 
-            # Find the build method that should be used for that dependency
-            # and execute it:
-            fname = f"_build_{desc['name']}_{self.flavor}"
-            builder = self.get_method(fname.lower())
-            builder(build_dir, prefix, desc)
+            # Execute the builder function:
+            builder = self.builders[lib_name]
+            builder(self, compiler, build_dir, prefix, desc)
 
             # Finally we should create the package from that installed dependency folder
             # so that we don't have to build it the next time:
