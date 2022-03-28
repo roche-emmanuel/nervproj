@@ -22,8 +22,11 @@ end_of_line = lf
 DEFAULT_GITIGNORE_CONTENT = """# Ignore python compiled files:
 *.pyc
 
-# ignore .vs_env file:
+# Ignore .vs_env file:
 .vs_env
+
+# Ignore log files:
+*.log
 """
 
 # Default python .env content:
