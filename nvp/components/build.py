@@ -151,6 +151,11 @@ class BuildManager(NVPComponent):
 
         return None
 
+    def get_library_package_name(self, dep_name):
+        """Retrieve the library pacakge name that should be used for a given library"""
+        ext = ".7z" if self.is_windows else ".tar.xz"
+        return f"{dep_name}-{self.platform}-{self.compiler.get_type()}{ext}"
+
     def check_libraries(self, dep_list):
         """Build all the libraries for NervProj."""
 
@@ -177,7 +182,7 @@ class BuildManager(NVPComponent):
                 self.remove_folder(dep_dir)
 
                 # Also remove the previously built package:
-                self.remove_file(self.libs_package_dir, f"{dep_name}-{self.platform}-{self.compiler.get_type()}.7z")
+                self.remove_file(self.libs_package_dir, self.get_library_package_name(dep_name))
 
             if not os.path.exists(dep_dir):
                 # Here we need to deploy that dependency:
@@ -192,8 +197,7 @@ class BuildManager(NVPComponent):
         directory where it should be installed."""
 
         dep_name = self.get_std_package_name(desc)
-        compiler = self.compiler
-        src_pkg_name = f"{dep_name}-{self.platform}-{compiler.get_type()}.7z"
+        src_pkg_name = self.get_library_package_name(dep_name)
 
         # Here we should check if we already have a pre-built package for that dependency:
         src_pkg_path = self.get_path(self.libs_package_dir, src_pkg_name)
@@ -258,10 +262,20 @@ class BuildManager(NVPComponent):
             logger.warning("Cannot create package: invalid source path: %s", src_path)
             return False
 
-        cmd = [self.tools.get_unzip_path(), "a", "-t7z", self.get_path(dest_folder, package_name), src_path,
-               "-m0=lzma2", "-mx=9", "-aoa", "-mfb=64",
-               "-ms=on", "-mmt=2", "-r"]
-        # "-md=32m",
+        dest_file = self.get_path(dest_folder, package_name)
+
+        # Check if we should create a tar.xz here:
+        if package_name.endswith(".tar.xz"):
+            # Generate a tar.xz:
+            cmd = ["tar", "cJf", dest_file, 
+                  "-C", self.get_parent_folder(src_path), self.get_filename(src_path)]
+        else:
+            # Generate a 7zip package:
+            cmd = [self.tools.get_unzip_path(), "a", "-t7z", dest_file, src_path,
+                "-m0=lzma2", "-mx=9", "-aoa", "-mfb=64",
+                "-ms=on", "-mmt=2", "-r"]
+            # "-md=32m",
+
         self.execute(cmd, self.settings['verbose'])
         logger.debug("Done generating package %s", package_name)
         return True

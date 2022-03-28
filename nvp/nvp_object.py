@@ -124,6 +124,11 @@ class NVPObject(object):
         my_path = self.get_path(*parts)
         return os.path.dirname(my_path)
 
+    def get_filename(self, *parts):
+        """Retrieve the filename from a given full path"""
+        my_path = self.get_path(*parts)
+        return os.path.basename(my_path)
+
     def get_cwd(self):
         """Return the current CWD"""
         cwd = os.getenv("PWD", os.getcwd())
