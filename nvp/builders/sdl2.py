@@ -22,11 +22,9 @@ class SDL2Builder(NVPBuilder):
 
         build_dir = self.get_path(build_dir, "src")
 
-        cmd = [self.tools.get_cmake_path(), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
-               "-DCMAKE_CXX_FLAGS_RELEASE=/MT", "-DSDL_STATIC=ON",
-               f"-DCMAKE_INSTALL_PREFIX={prefix}", ".."]
-        logger.info("SDL2 build command: %s", cmd)
-        self.execute(cmd, cwd=build_dir, env=self.env)
+        flags = ["-DCMAKE_CXX_FLAGS_RELEASE=/MT", "-DSDL_STATIC=ON"]
+
+        self.run_cmake(build_dir, prefix, "..", flags)
 
         self.run_ninja(build_dir)
 
@@ -36,12 +34,10 @@ class SDL2Builder(NVPBuilder):
         build_dir = self.get_path(build_dir, "src")
 
         # logger.info("Using CXXFLAGS: %s", self.env['CXXFLAGS'])
-        logger.info("Using build env: %s", self.pretty_print(self.env))
+        # logger.info("Using build env: %s", self.pretty_print(self.env))
 
-        cmd = [self.tools.get_cmake_path(), "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
-               "-DSDL_STATIC=ON", "-DSDL_STATIC_PIC=ON", f"-DCMAKE_INSTALL_PREFIX={prefix}", ".."]
+        flags = ["-DSDL_STATIC=ON", "-DSDL_STATIC_PIC=ON"]
 
-        logger.info("Executing SDL2 build command: %s", cmd)
-        self.execute(cmd, cwd=build_dir, env=self.env)
+        self.run_cmake(build_dir, prefix, "..", flags)
 
         self.run_ninja(build_dir)

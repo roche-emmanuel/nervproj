@@ -355,8 +355,8 @@ class NVPObject(object):
         if "PATH" in env:
             plist = set(env['PATH'].split(sep))
             all_paths = all_paths.union(plist)
-        
-        logger.info("All paths in prepend_env_path: %s", all_paths)
+
+        # logger.info("All paths in prepend_env_path: %s", all_paths)
         env['PATH'] = sep.join(all_paths)
         return env
 
@@ -374,7 +374,7 @@ class NVPObject(object):
         if "PATH" in env:
             plist = set(env['PATH'].split(sep))
             all_paths = plist.union(all_paths)
-        
-        logger.info("All paths in append_env_path: %s", all_paths)
+
+        # logger.info("All paths in append_env_path: %s", all_paths)
         env['PATH'] = sep.join(all_paths)
         return env

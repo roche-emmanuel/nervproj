@@ -49,3 +49,16 @@ class NVPBuilder(NVPObject):
         ninja_path = self.tools.get_ninja_path()
         self.execute([ninja_path], cwd=build_dir, env=self.env)
         self.execute([ninja_path, "install"], cwd=build_dir, env=self.env)
+
+    def run_cmake(self, build_dir, prefix, src_dir, flags=None, generator="Ninja"):
+        """Execute Standard cmake configuration command"""
+        cmd = [self.tools.get_cmake_path(), "-G", generator, "-DCMAKE_BUILD_TYPE=Release",
+               f"-DCMAKE_INSTALL_PREFIX={prefix}"]
+        if flags is not None:
+            cmd += flags
+
+        # Add the source directory:
+        cmd.append(src_dir)
+
+        logger.info("Cmake command: %s", cmd)
+        self.execute(cmd, cwd=build_dir, env=self.env)

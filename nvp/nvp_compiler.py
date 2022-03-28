@@ -223,8 +223,10 @@ class NVPCompiler(NVPObject):
 
             env['CC'] = self.get_cc_path()
             env['CXX'] = self.get_cxx_path()
-            env['CXXFLAGS'] = f"-I{inc_dir} {self.cxxflags} -fPIC"
-            env['CFLAGS'] = f"-I{inc_dir} -w -fPIC"
+            # Do not use fPIC on windows:
+            fpic = " -fPIC" if self.is_linux else ""
+            env['CXXFLAGS'] = f"-I{inc_dir} {self.cxxflags}{fpic}"
+            env['CFLAGS'] = f"-I{inc_dir} -w{fpic}"
 
             env['LD_LIBRARY_PATH'] = f"{self.libs_path}"
             self.comp_env = env
