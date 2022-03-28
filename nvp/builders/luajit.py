@@ -20,7 +20,7 @@ class LuaJITBuilder(NVPBuilder):
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build method for LuaJIT on windows"""
 
-        assert self.compiler.is_msvc(), "Only MSVC compiler is support on windows for LuaJIT compilation."
+        # assert self.compiler.is_msvc(), "Only MSVC compiler is support on windows for LuaJIT compilation."
 
         # First we build the static library, and we install it,
         # and then we will build the shader library and install it
@@ -33,18 +33,18 @@ class LuaJITBuilder(NVPBuilder):
         self.replace_in_file(build_dir+"/src/msvcbuild.bat", "%LJCOMPILE% /MD /DLUA_BUILD_AS_DLL",
                              "%LJCOMPILE% /MT /DLUA_BUILD_AS_DLL")
 
-        # # We write the temp.bat file:
-        # build_file = build_dir+"/src/build.bat"
-        # with open(build_file, 'w', encoding="utf-8") as bfile:
-        #     bfile.write(comp.get_init_script())
-        #     bfile.write(" static\n")
+        # change the compiler to clang if needed:
+        build_file = self.get_path(build_dir, "src", "msvcbuild.bat")
 
-        # cmd = [build_file]
+        if self.compiler.is_clang():
+            self.replace_in_file(build_file, "@if not defined INCLUDE goto :FAIL", "")
+            self.replace_in_file(build_file, "@set LJCOMPILE=cl /nologo /c", "@set LJCOMPILE=clang-cl /nologo /c")
+            self.replace_in_file(build_file, "@set LJLINK=link /nologo", "@set LJLINK=lld-link /nologo")
+            self.replace_in_file(build_file, "@set LJLIB=lib /nologo", "@set LJLIB=llvm-lib /nologo")
+            self.replace_in_file(build_file, "@set LJLINK=%LJLINK% /%BUILDTYPE%", "")
+            self.replace_in_file(build_file, "/nodefaultlib", "")
 
         logger.debug("Building LuaJIT static version...")
-        build_file = self.get_path(build_dir, "src", "msvcbuild.bat")
-        # assert self.file_exists(), "Invalid msvcbuild.bat file"
-        # self.add_execute_permission(self.get_path(build_dir, "src", "msvcbuild.bat"))
 
         self.execute([build_file, "static"], cwd=build_dir+"/src", env=self.env)
 
@@ -52,15 +52,7 @@ class LuaJITBuilder(NVPBuilder):
         self.copy_file(build_dir+"/src/lua51.lib", prefix+"/lib/lua51_s.lib")
         self.copy_file(build_dir+"/src/luajit.exe", prefix+"/bin/luajit.exe")
 
-        # Now we build the shared library:
-        # with open(build_file, 'w', encoding="utf-8") as bfile:
-        #     bfile.write(comp.get_init_script())
-        #     bfile.write("msvcbuild.bat amalg\n")
-
-        # cmd = [build_file]
-
         logger.debug("Building LuaJIT shared version...")
-        # self.execute(cmd, cwd=build_dir+"/src")
         self.execute([build_file, "amalg"], cwd=build_dir+"/src", env=self.env)
 
         # Perform the installation manually:

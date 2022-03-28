@@ -2,6 +2,7 @@
 
 import os
 import sys
+import time
 import logging
 from importlib import import_module
 
@@ -27,6 +28,9 @@ class BuildManager(NVPComponent):
         NVPComponent.__init__(self, ctx)
 
         self.tools = None
+        self.libs_dir = None
+        self.libs_package_dir = None
+        self.libs_build_dir = self.make_folder(ctx.get_root_dir(), "libraries", "build")
 
         desc = {
             "build": {"libs": None},
@@ -40,11 +44,14 @@ class BuildManager(NVPComponent):
                          help="List of library names that we should build")
         psr.add_argument("--rebuild", dest='rebuild', action='store_true',
                          help="Force rebuilding from sources")
+        psr.add_argument("-k", "--keep-build", dest='keep_build', action='store_true',
+                         help="Keep the build folder after build")
 
         psr = ctx.get_parser('main.build')
 
         # Setup the paths:
         self.compiler = None
+        self.compilers = None
         self.builders = None
 
     def initialize(self):
@@ -68,9 +75,9 @@ class BuildManager(NVPComponent):
             supported_compilers = self.config.get("linux_supported_compilers", ["clang"])
             comp_type = comp_type or self.config.get("linux_default_compiler_type", "clang")
 
-        compilers = []
+        self.compilers = []
 
-        if comp_type == "msvc":
+        if self.is_windows:
             # Check if we have MSVC paths to use:
 
             msvc_setup_path = os.getenv('NVL_MSVC_SETUP')
@@ -81,9 +88,11 @@ class BuildManager(NVPComponent):
                               for bdir in msvc_paths]
                 msvc_setup_path = self.ctx.select_first_valid_path(msvc_paths)
 
+            assert msvc_setup_path is not None, "No MSVC compiler found."
+
             if msvc_setup_path is not None:
-                comp = NVPCompiler({"type": "msvc", "setup_path": msvc_setup_path})
-                compilers.append(comp)
+                comp = NVPCompiler(self.ctx, {"type": "msvc", "setup_path": msvc_setup_path})
+                self.compilers.append(comp)
 
         if comp_type == "clang":
             # check if we have a library providing clang:
@@ -99,8 +108,8 @@ class BuildManager(NVPComponent):
                     for flavor in flavors:
                         comp_dir = self.get_path(base_lib_dir, flavor, f"{lib['name']}-{lib['version']}")
                         if self.path_exists(comp_dir):
-                            comp = NVPCompiler({'type': 'clang', "root_dir": comp_dir})
-                            compilers.append(comp)
+                            comp = NVPCompiler(self.ctx, {'type': 'clang', "root_dir": comp_dir})
+                            self.compilers.append(comp)
 
             # Check if we have tools providing compilers:
             all_tools = self.config[f"{self.platform}_tools"]
@@ -108,15 +117,20 @@ class BuildManager(NVPComponent):
 
             for tdesc in all_tools:
                 if tdesc['name'] == "clang":
-                    comp = NVPCompiler({'type': 'clang', "root_dir": self.get_path(
+                    comp = NVPCompiler(self.ctx, {'type': 'clang', "root_dir": self.get_path(
                         tools_dir, f"{tdesc['name']}-{tdesc['version']}")})
-                    compilers.append(comp)
+                    self.compilers.append(comp)
 
-        assert len(compilers) > 0, "No compiler available"
+        assert len(self.compilers) > 0, "No compiler available"
 
-        compilers.sort(key=lambda x: x.get_weight(), reverse=True)
-        # select the first compiler
-        self.compiler = compilers[0]
+        self.compilers.sort(key=lambda x: x.get_weight(), reverse=True)
+        # select the first compiler of the current type:
+        for comp in self.compilers:
+            if comp.get_type() == comp_type:
+                self.compiler = comp
+                break
+
+        assert self.compiler is not None, f"Cannot find compiler of type {comp_type}"
         logger.info("Selecting compiler %s", self.compiler.get_name())
 
     def load_builders(self):
@@ -148,8 +162,8 @@ class BuildManager(NVPComponent):
 
         # Store the deps folder:
         base_dir = self.ctx.get_root_dir()
+
         self.libs_dir = self.make_folder(base_dir, "libraries", f"{self.platform}_{self.compiler.get_type()}")
-        self.libs_build_dir = self.make_folder(base_dir, "libraries", "build")
 
         # Store the packages in the destination library folder:
         self.libs_package_dir = self.libs_dir
@@ -199,7 +213,7 @@ class BuildManager(NVPComponent):
             dep_dir = self.get_path(self.libs_dir, dep_name)
 
             if rebuild:
-                logger.debug("Removing previous build for %s", dep_name)
+                logger.info("Removing previous build for %s", dep_name)
                 self.remove_folder(dep_dir)
 
                 # Also remove the previously built package:
@@ -257,17 +271,20 @@ class BuildManager(NVPComponent):
             build_dir, prefix, dep_name = self.setup_dependency_build_context(desc)
 
             # Execute the builder function:
+            start_time = time.time()
             builder = self.builders[lib_name]
             builder.build(build_dir, prefix, desc)
+            elapsed = time.time() - start_time
 
             # Finally we should create the package from that installed dependency folder
             # so that we don't have to build it the next time:
             self.create_package(prefix, self.libs_package_dir, src_pkg_name)
 
-            logger.info("Removing build folder %s", build_dir)
-            self.remove_folder(build_dir)
+            if not self.settings.get("keep_build", False):
+                logger.info("Removing build folder %s", build_dir)
+                self.remove_folder(build_dir)
 
-            logger.info("Done building %s", dep_name)
+            logger.info("Done building %s (build time: %.2f seconds)", dep_name, elapsed)
 
     def get_std_package_name(self, desc):
         """Return a standard package naem from base name and version"""
@@ -344,10 +361,17 @@ class BuildManager(NVPComponent):
 
         return (build_dir, prefix, dep_name)
 
-    def get_compiler(self):
+    def get_compiler(self, ctype=None):
         """Retrieve the current compiler to use"""
         assert self.compiler is not None, "Current compiler not configured yet."
-        return self.compiler
+        if ctype is None:
+            return self.compiler
+
+        for comp in self.compilers:
+            if comp.get_type() == ctype:
+                return comp
+
+        assert False, f"No compiler found with type {ctype}"
 
     def get_flavor(self):
         """Retrieve the current flavor"""
