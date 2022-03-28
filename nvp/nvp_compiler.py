@@ -137,17 +137,13 @@ class NVPCompiler(NVPObject):
 
         return self.file_exists(self.get_cxx_path())
 
-    def get_weight(self, selected_type):
+    def get_weight(self):
         """Retrive the weight of this compiler."""
         if not self.is_available():
             return 0
 
         # Compiler is available:
-        weight = self.get_major_version()*100 + self.get_minor_version()
-        if selected_type == self.type:
-            weight += 1000000
-
-        return weight
+        return self.get_major_version()*1000 + self.get_minor_version()
 
     def get_cxxflags(self):
         """Retrieve the cxxflags"""

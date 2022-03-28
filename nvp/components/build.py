@@ -32,6 +32,9 @@ class BuildManager(NVPComponent):
             "build": {"libs": None},
         }
         ctx.define_subparsers("main", desc)
+        psr = ctx.get_parser('main.build')
+        psr.add_argument("-c", "--compiler", dest='compiler_type', type=str,
+                         help="Specify which type of compiler should be selected")
         psr = ctx.get_parser('main.build.libs')
         psr.add_argument("lib_names", type=str, nargs='?', default="all",
                          help="List of library names that we should build")
@@ -54,9 +57,20 @@ class BuildManager(NVPComponent):
 
     def select_compiler(self):
         """Find the available compilers on the current platform"""
-        compilers = []
+
+        # Figure out what type of compiler should be used:
+        comp_type = self.settings.get("compiler_type", None)
 
         if self.is_windows:
+            supported_compilers = self.config.get("windows_supported_compilers", ["msvc", "clang"])
+            comp_type = comp_type or self.config.get("windows_default_compiler_type", "msvc")
+        if self.is_linux:
+            supported_compilers = self.config.get("linux_supported_compilers", ["clang"])
+            comp_type = comp_type or self.config.get("linux_default_compiler_type", "clang")
+
+        compilers = []
+
+        if comp_type == "msvc":
             # Check if we have MSVC paths to use:
 
             msvc_setup_path = os.getenv('NVL_MSVC_SETUP')
@@ -71,29 +85,36 @@ class BuildManager(NVPComponent):
                 comp = NVPCompiler({"type": "msvc", "setup_path": msvc_setup_path})
                 compilers.append(comp)
 
-        # check if we have a library providing clang:
-        # No: library dir depends on the selected compiler so this is not available yet here.
-        # all_libs = self.config['libraries']
-        # for lib in all_libs:
-        #     if lib['name'] == 'LLVM':
-        #         comp = NVPCompiler({'type': 'clang', "root_dir": self.get_path(
-        #             self.libs_dir, f"{lib['name']}-{lib['version']}")})
-        #         compilers.append(comp)
+        if comp_type == "clang":
+            # check if we have a library providing clang:
+            flavors = [f"{self.platform}_{ctype}" for ctype in supported_compilers]
 
-        # Check if we have tools providing compilers:
-        all_tools = self.config[f"{self.platform}_tools"]
-        tools_dir = self.get_component('tools').get_tools_dir()
+            base_lib_dir = self.get_path(self.ctx.get_root_dir(), "libraries")
 
-        for tdesc in all_tools:
-            if tdesc['name'] == "clang":
-                comp = NVPCompiler({'type': 'clang', "root_dir": self.get_path(
-                    tools_dir, f"{tdesc['name']}-{tdesc['version']}")})
-                compilers.append(comp)
+            all_libs = self.config['libraries']
+            for lib in all_libs:
+                if lib['name'] == 'LLVM':
+                    # Here we need to figure out if we already have that library built/installed
+                    # for a given flavor
+                    for flavor in flavors:
+                        comp_dir = self.get_path(base_lib_dir, flavor, f"{lib['name']}-{lib['version']}")
+                        if self.path_exists(comp_dir):
+                            comp = NVPCompiler({'type': 'clang', "root_dir": comp_dir})
+                            compilers.append(comp)
 
-        selected_type = self.settings.get("compiler_type", None)
+            # Check if we have tools providing compilers:
+            all_tools = self.config[f"{self.platform}_tools"]
+            tools_dir = self.get_component('tools').get_tools_dir()
+
+            for tdesc in all_tools:
+                if tdesc['name'] == "clang":
+                    comp = NVPCompiler({'type': 'clang', "root_dir": self.get_path(
+                        tools_dir, f"{tdesc['name']}-{tdesc['version']}")})
+                    compilers.append(comp)
+
         assert len(compilers) > 0, "No compiler available"
 
-        compilers.sort(key=lambda x: x.get_weight(selected_type), reverse=True)
+        compilers.sort(key=lambda x: x.get_weight(), reverse=True)
         # select the first compiler
         self.compiler = compilers[0]
         logger.info("Selecting compiler %s", self.compiler.get_name())
@@ -267,13 +288,13 @@ class BuildManager(NVPComponent):
         # Check if we should create a tar.xz here:
         if package_name.endswith(".tar.xz"):
             # Generate a tar.xz:
-            cmd = ["tar", "cJf", dest_file, 
-                  "-C", self.get_parent_folder(src_path), self.get_filename(src_path)]
+            cmd = ["tar", "cJf", dest_file,
+                   "-C", self.get_parent_folder(src_path), self.get_filename(src_path)]
         else:
             # Generate a 7zip package:
             cmd = [self.tools.get_unzip_path(), "a", "-t7z", dest_file, src_path,
-                "-m0=lzma2", "-mx=9", "-aoa", "-mfb=64",
-                "-ms=on", "-mmt=2", "-r"]
+                   "-m0=lzma2", "-mx=9", "-aoa", "-mfb=64",
+                   "-ms=on", "-mmt=2", "-r"]
             # "-md=32m",
 
         self.execute(cmd, self.settings['verbose'])
