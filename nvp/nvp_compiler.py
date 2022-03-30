@@ -61,9 +61,10 @@ def get_environment_from_batch_command(env_cmd, initial=None):
 class NVPCompiler(NVPObject):
     """A class representing a compiler"""
 
-    def __init__(self, desc):
+    def __init__(self, ctx, desc):
         """Compiler class constructor"""
         assert 'type' in desc, "Invalid compiler type"
+        self.ctx = ctx
         self.desc = desc
         self.type = desc['type']
         self.cxxflags = None
@@ -229,6 +230,14 @@ class NVPCompiler(NVPObject):
             env['CFLAGS'] = f"-I{inc_dir} -w{fpic}"
 
             env['LD_LIBRARY_PATH'] = f"{self.libs_path}"
+
+            # If we are on windows, we also need the library path from the MSVC compiler:
+            if self.is_windows:
+                bman = self.ctx.get_component('builder')
+                msvc_comp = bman.get_compiler('msvc')
+                msvc_env = msvc_comp.get_env()
+                # logger.info("MSVC compiler env: %s", self.pretty_print(msvc_env))
+                env = self.prepend_env_list(msvc_env['LIB'], env, 'LIB')
             self.comp_env = env
 
         assert self.comp_env is not None, "Cannot init compiler environment"
@@ -255,7 +264,7 @@ class NVPCompiler(NVPObject):
         env.update(self.comp_env)
 
         if prev_path is not None:
-            env = self.append_env_path(prev_path, env)
+            env = self.append_env_list(prev_path, env)
             # sep = ";" if self.is_windows else ":"
             # env['PATH'] = env['PATH'] + sep + prev_path
 

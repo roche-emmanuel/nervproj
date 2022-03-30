@@ -20,6 +20,12 @@ class BoostBuilder(NVPBuilder):
     def build_on_windows(self, build_dir, prefix, desc):
         """Build the boost library on windows"""
 
+        if self.compiler.is_clang():
+            self.build_with_clang(build_dir, prefix)
+            return
+
+        # build with msvc:
+        assert self.compiler.is_msvc(), "Expected MSVC compiler here."
         logger.info("Building boost library...")
 
         build_env = self.compiler.get_env()
@@ -32,7 +38,7 @@ class BoostBuilder(NVPBuilder):
 
         # Note: updated below to use runtime-link=shared instead of runtime-link=static
         bjam_cmd = [build_dir + '/b2.exe', "--prefix=" + prefix, "--without-mpi", "-sNO_BZIP2=1",
-                    "toolset=msvc", "architecture=x86", "address-model=64", "variant=release",
+                    f"toolset=msvc", "architecture=x86", "address-model=64", "variant=release",
                     "link=static", "threading=multi", "runtime-link=shared", "install"]
 
         logger.info("Executing bjam command: %s", bjam_cmd)
@@ -50,26 +56,33 @@ class BoostBuilder(NVPBuilder):
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build the boost library on linux"""
 
+        # compiler should be clang for now:
+        assert self.compiler.is_clang(), "Only clang is supported on linux to build boost."
+        self.build_with_clang(build_dir, prefix)
+
+    def build_with_clang(self, build_dir, prefix):
+        """Build with the clang compiler"""
+
         logger.info("Building boost library...")
 
         build_env = self.compiler.get_env()
         # logger.info("Using build env: %s", self.pretty_print(build_env))
-
-        # compiler should be clang for now:
-        assert self.compiler.is_clang(), "Only clang is supported on linux to build boost."
 
         comp_path = self.compiler.get_cxx_path()
         cxxflags = self.compiler.get_cxxflags()
         linkflags = self.compiler.get_linkflags()
 
         # Note: the bootstrap.sh script above is crap, so instead we build b2 manually ourself here:
-        bs_cmd = ["./tools/build/src/engine/build.sh", "clang",
+        sh_ext = "bat" if self.is_windows else "sh"
+        ext = ".exe" if self.is_windows else ""
+        script_file = self.get_path(build_dir, f"./tools/build/src/engine/build.{sh_ext}")
+        bs_cmd = [script_file, "clang",
                   f"--cxx={comp_path}", f"--cxxflags={cxxflags}"]
 
         logger.info("Building B2 command: %s", bs_cmd)
         self.execute(bs_cmd, cwd=build_dir)
-        bjam_file = self.get_path(build_dir, "bjam")
-        self.copy_file(self.get_path(build_dir, "tools/build/src/engine/b2"), bjam_file)
+        bjam_file = self.get_path(build_dir, f"bjam{ext}")
+        self.copy_file(self.get_path(build_dir, f"tools/build/src/engine/b2{ext}"), bjam_file)
         self.add_execute_permission(bjam_file)
 
         with open(self.get_path(build_dir, "user-config.jam"), "w", encoding="utf-8") as file:
@@ -79,7 +92,8 @@ class BoostBuilder(NVPBuilder):
             file.write(f"<linkflags>\"{linkflags}\" ;\n")
 
         # Note: below we need to run bjam with links to the clang libraries:
-        bjam_cmd = ['./bjam', "--user-config=user-config.jam",
+        bjam = self.get_path(build_dir, f'./bjam{ext}')
+        bjam_cmd = [bjam, "--user-config=user-config.jam",
                     "--buildid=clang", "-j", "8", "toolset=clang",
                     "--prefix="+prefix, "--without-mpi", "-sNO_BZIP2=1",
                     "architecture=x86", "variant=release", "link=static", "threading=multi",

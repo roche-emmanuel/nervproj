@@ -27,14 +27,14 @@ class NVPBuilder(NVPObject):
 
         # Add the tools to the path:
         tdirs = [self.tools.get_tool_dir(tname) for tname in self.tool_envs]
-        self.env = self.prepend_env_path(tdirs, self.env)
+        self.env = self.prepend_env_list(tdirs, self.env)
 
         if self.is_windows:
-            return self.build_on_windows(build_dir, prefix, desc)
-        if self.is_linux:
-            return self.build_on_linux(build_dir, prefix, desc)
-
-        raise NotImplementedError
+            self.build_on_windows(build_dir, prefix, desc)
+        elif self.is_linux:
+            self.build_on_linux(build_dir, prefix, desc)
+        else:
+            raise NotImplementedError
 
     def build_on_windows(self, build_dir, prefix, desc):
         """Run the build operation. Should be re-implemented."""
