@@ -19,6 +19,7 @@ class NVPProject(NVPObject):
 
         self.components = {}
         self.config = {}
+        self.root_dir = None
 
         # We might have some "scripts" already registered for that project from the desc:
         self.scripts = self.desc.get("scripts", {})
@@ -49,16 +50,21 @@ class NVPProject(NVPObject):
 
     def get_root_dir(self):
         """Search for the location of a project given its name"""
+        if self.root_dir is not None:
+            return self.root_dir
 
         proj_path = None
         def_paths = self.ctx.get_config().get("project_paths", [])
+        
 
-        all_paths = [self.get_path(base_path, proj_name) for base_path in def_paths
-                     for proj_name in self.desc['names']]
+        # all_paths = [self.get_path(base_path, proj_name) for base_path in def_paths
+        #              for proj_name in self.desc['names']]
+        all_paths = [self.get_path(base_path, self.get_name(False)) for base_path in def_paths]
 
         if 'paths' in self.desc:
             all_paths = self.desc['paths'] + all_paths
 
+        # logger.info("Checking all project paths: %s", all_paths)
         proj_path = self.ctx.select_first_valid_path(all_paths)
 
         # Actually the project path might be "None" if it is not available yet:
@@ -66,6 +72,8 @@ class NVPProject(NVPObject):
         # assert proj_path is not None, f"No valid path for project '{pname}'"
         if proj_path is None:
             logger.debug("No valid path found for project %s", self.get_name())
+
+        self.root_dir = proj_path
 
         # Return that project path:
         return proj_path
@@ -98,7 +106,7 @@ class NVPProject(NVPObject):
     def process_command(self, cmd):
         """Check if the components in this project can process the given command"""
         for _, comp in self.components.items():
-            if comp.process_command(cmd):
+            if comp.process_command(cmd) is not False:
                 return True
 
         return False
