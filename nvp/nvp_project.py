@@ -55,7 +55,6 @@ class NVPProject(NVPObject):
 
         proj_path = None
         def_paths = self.ctx.get_config().get("project_paths", [])
-        
 
         # all_paths = [self.get_path(base_path, proj_name) for base_path in def_paths
         #              for proj_name in self.desc['names']]
@@ -81,6 +80,10 @@ class NVPProject(NVPObject):
     def get_repository_url(self):
         """Retrieve the repository URL for that project"""
         return self.desc['repository_url']
+
+    def get_config(self):
+        """Retrieve the configuration for this project"""
+        return self.config
 
     def get_name(self, to_lower=True):
         """Retrieve the canonical project name"""
