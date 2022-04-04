@@ -80,6 +80,11 @@ class MyComponent(NVPComponent):
 
 # Default .gitattributes content:
 # cf. https://rehansaeed.com/gitattributes-best-practices/
+###############################
+# Git Large File System (LFS) #
+###############################
+# Could use 'filter=lfs diff=lfs merge=lfs ' below but not clear yet how to do that
+# properly
 DEFAULT_GITATTRIBUTES_CONTENT = """###############################
 # Git Line Endings            #
 ###############################
@@ -96,34 +101,30 @@ DEFAULT_GITATTRIBUTES_CONTENT = """###############################
 # in Unix via a file share from Windows, the scripts will work.
 *.sh text eol=lf
 
-###############################
-# Git Large File System (LFS) #
-###############################
-
 # Archives
-*.7z filter=lfs diff=lfs merge=lfs -text
-*.br filter=lfs diff=lfs merge=lfs -text
-*.gz filter=lfs diff=lfs merge=lfs -text
-*.tar filter=lfs diff=lfs merge=lfs -text
-*.zip filter=lfs diff=lfs merge=lfs -text
+*.7z -text
+*.br -text
+*.gz -text
+*.tar -text
+*.zip -text
 
 # Documents
-*.pdf filter=lfs diff=lfs merge=lfs -text
+*.pdf -text
 
 # Images
-*.gif filter=lfs diff=lfs merge=lfs -text
-*.ico filter=lfs diff=lfs merge=lfs -text
-*.jpg filter=lfs diff=lfs merge=lfs -text
-*.pdf filter=lfs diff=lfs merge=lfs -text
-*.png filter=lfs diff=lfs merge=lfs -text
-*.psd filter=lfs diff=lfs merge=lfs -text
-*.webp filter=lfs diff=lfs merge=lfs -text
+*.gif -text
+*.ico -text
+*.jpg -text
+*.pdf -text
+*.png -text
+*.psd -text
+*.webp -text
 
 # Fonts
-*.woff2 filter=lfs diff=lfs merge=lfs -text
+*.woff2 -text
 
 # Other
-*.exe filter=lfs diff=lfs merge=lfs -text
+*.exe -text
 
 """
 
