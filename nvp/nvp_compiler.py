@@ -104,8 +104,10 @@ class NVPCompiler(NVPObject):
             self.libs_path = self.get_path(self.root_dir, "lib")
 
             # self.cxxflags = "-stdlib=libc++ -nodefaultlibs -lc++ -lc++abi -lm -lc -lgcc_s -lpthread"
-            self.cxxflags = "-stdlib=libc++ -w"
-            self.linkflags = "-stdlib=libc++ -nodefaultlibs -lc++ -lc++abi -lm -lc -lgcc_s -lpthread"
+            self.cxxflags = ""
+            self.linkflags = ""
+            # self.cxxflags = "-stdlib=libc++ -w"
+            # self.linkflags = "-stdlib=libc++ -nodefaultlibs -lc++ -lc++abi -lm -lc -lgcc_s -lpthread"
 
             # extract the version number from the root_dir:
             parts = self.root_dir.split('-')
@@ -224,10 +226,11 @@ class NVPCompiler(NVPObject):
 
             env['CC'] = self.get_cc_path()
             env['CXX'] = self.get_cxx_path()
+            
             # Do not use fPIC on windows:
-            fpic = " -fPIC" if self.is_linux else ""
-            env['CXXFLAGS'] = f"-I{inc_dir} {self.cxxflags}{fpic}"
-            env['CFLAGS'] = f"-I{inc_dir} -w{fpic}"
+            # fpic = " -fPIC" if self.is_linux else ""
+            # env['CXXFLAGS'] = f"-I{inc_dir} {self.cxxflags}{fpic}"
+            # env['CFLAGS'] = f"-I{inc_dir} -w{fpic}"
 
             env['LD_LIBRARY_PATH'] = f"{self.libs_path}"
 
