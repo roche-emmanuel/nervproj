@@ -38,13 +38,29 @@ class LLVMBuilder(NVPBuilder):
     def get_cmake_flags(self, prefix):
         """Retrive the applicable cmake flags for the build"""
 
-        # return self.common_flags + [f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib", 
-        #                             f"-DLIBCXX_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
-        #                             f"-DLIBCXX_INSTALL_INCLUDE_TARGET_DIR={prefix}/include/c++/v1"]
-        return self.common_flags
+        return self.common_flags + [f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib", 
+                                    f"-DLIBCXX_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
+                                    f"-DLIBCXX_INSTALL_INCLUDE_TARGET_DIR={prefix}/include/c++/v1",
+                                    f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
+                                    f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
+                                    f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
+                                    f"-DLIBC_INSTALL_LIBRARY_DIR={prefix}/lib"]
+
+    def apply_patches(self, build_dir):
+        """Apply the required patches for the build"""
+        
+        # Fix the libc installation folder:
+        libc_file = self.get_path(build_dir, "libc", "lib", "CMakeLists.txt")
+        self.replace_in_file(libc_file, "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX}/${LLVM_DEFAULT_TARGET_TRIPLE})", 
+                             "set(LIBC_INSTALL_LIBRARY_DIR lib)")
+        self.replace_in_file(libc_file, "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX})", 
+                             "set(LIBC_INSTALL_LIBRARY_DIR lib)")
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build method for LLVM on windows"""
+
+        # Apply the patches:
+        self.apply_patches(build_dir)
 
         # Create a sub build folder:
         build_dir = self.get_path(build_dir, "build")
@@ -60,6 +76,9 @@ class LLVMBuilder(NVPBuilder):
 
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for LLVM on linux"""
+
+        # Apply the patches:
+        self.apply_patches(build_dir)
 
         build_dir = self.get_path(build_dir, "build")
         self.make_folder(build_dir)
