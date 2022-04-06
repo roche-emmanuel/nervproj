@@ -26,19 +26,19 @@ class LLVMBuilder(NVPBuilder):
         # "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;libc;libclc;lld;lldb;openmp;polly;pstl",
         # "-DBUILD_SHARED_LIBS=OFF",
         # "-DLLVM_ENABLE_RUNTIMES=all"
-        # 
+        #
         # "-DLLVM_ENABLE_RUNTIMES='libcxx;libcxxabi'"
         self.common_flags = ["-DLLVM_TARGETS_TO_BUILD=X86",
-                "-DLLVM_ENABLE_EH=ON", "-DLLVM_ENABLE_RTTI=ON", 
-                "-DLLVM_BUILD_TOOLS=ON", "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp", 
-                "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;libclc;lld;lldb;polly;pstl",
-                "-DLLVM_STATIC_LINK_CXX_STDLIB=OFF", "-DLLVM_INCLUDE_TOOLS=ON",
-                "-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF"]
+                             "-DLLVM_ENABLE_EH=ON", "-DLLVM_ENABLE_RTTI=ON",
+                             "-DLLVM_BUILD_TOOLS=ON", "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp",
+                             "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;libclc;lld;lldb;polly;pstl",
+                             "-DLLVM_STATIC_LINK_CXX_STDLIB=OFF", "-DLLVM_INCLUDE_TOOLS=ON",
+                             "-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF"]
 
     def get_cmake_flags(self, prefix):
         """Retrive the applicable cmake flags for the build"""
 
-        return self.common_flags + [f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib", 
+        return self.common_flags + [f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib",
                                     f"-DLIBCXX_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
                                     f"-DLIBCXX_INSTALL_INCLUDE_TARGET_DIR={prefix}/include/c++/v1",
                                     f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
@@ -48,12 +48,14 @@ class LLVMBuilder(NVPBuilder):
 
     def apply_patches(self, build_dir):
         """Apply the required patches for the build"""
-        
+
         # Fix the libc installation folder:
         libc_file = self.get_path(build_dir, "libc", "lib", "CMakeLists.txt")
-        self.replace_in_file(libc_file, "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX}/${LLVM_DEFAULT_TARGET_TRIPLE})", 
+        self.replace_in_file(libc_file,
+                             "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX}/${LLVM_DEFAULT_TARGET_TRIPLE})",
                              "set(LIBC_INSTALL_LIBRARY_DIR lib)")
-        self.replace_in_file(libc_file, "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX})", 
+        self.replace_in_file(libc_file,
+                             "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX})",
                              "set(LIBC_INSTALL_LIBRARY_DIR lib)")
 
     def build_on_windows(self, build_dir, prefix, _desc):
