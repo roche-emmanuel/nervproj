@@ -32,6 +32,11 @@ class NVPBuilder(NVPObject):
         if self.is_windows:
             self.build_on_windows(build_dir, prefix, desc)
         elif self.is_linux:
+            # We should add the -fPIC flag to the CXXFLAGS:
+            if "CXXFLAGS" in self.env:
+                self.env["CXXFLAGS"] = self.env["CXXFLAGS"] +" -fPIC"
+            else:
+                self.env["CXXFLAGS"] = "-fPIC"
             self.build_on_linux(build_dir, prefix, desc)
         else:
             raise NotImplementedError
