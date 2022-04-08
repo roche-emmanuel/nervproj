@@ -309,14 +309,16 @@ class NVPObject(object):
         assert home_drive is not None and home_path is not None, "Invalid windows home drive or path"
         return home_drive+home_path
 
-    def execute(self, cmd, verbose=True, cwd=None, env=None):
+    def execute(self, cmd, verbose=True, cwd=None, env=None, check=True):
         """Execute a command optionally displaying the outputs."""
 
         stdout = None if verbose else subprocess.DEVNULL
         stderr = None if verbose else subprocess.DEVNULL
         # logger.info("Executing command: %s", cmd)
-        subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
-        # subprocess.check_call(cmd)
+        if check:
+            subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
+        else:
+            subprocess.run(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, check=False)
 
     def get_all_files(self, folder, exp=".*", recursive=False):
         """Get all the files matching a given pattern in a folder."""

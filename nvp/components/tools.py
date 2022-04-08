@@ -164,6 +164,11 @@ class ToolsManager(NVPComponent):
         tpath = self.get_tool_path(tname)
         return self.get_parent_folder(tpath)
 
+    def get_tool_root_dir(self, tname):
+        """Retrieve the root directory where a given tool is installed."""
+        desc = self.get_tool_desc(tname)
+        return desc['base_path']
+
     def get_tools_dir(self):
         """Retrieve the base tools directory"""
         return self.tools_dir

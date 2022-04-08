@@ -1,5 +1,7 @@
 """Collection of admin utility functions"""
 import logging
+import os
+# import re
 import configparser
 
 from nvp.nvp_component import NVPComponent
@@ -51,6 +53,8 @@ class GitManager(NVPComponent):
 
     def validate_git_global_config(self, home_dir):
         """Validate the git/ssh global setup in the given "home" folder"""
+
+        logger.info("Validating git setup in home dir '%s'", home_dir)
         user_email = self.config["git"]["user_email"]
         user_name = self.config["git"]["user_name"]
 
@@ -74,11 +78,18 @@ class GitManager(NVPComponent):
         # Install the SSH keys:
         ssh_keys = ssh_cfg.get('keys', {})
 
-        # keep known hosts values:
-        # known_hosts = []
-        # tools = self.get_component("tools")
-        # git_dir = tools.get_git_path()
-        # keyscan
+        # add support to call ssh app here:
+        ssh = "ssh"
+        if self.is_windows:
+            tools = self.get_component("tools")
+            git_dir = tools.get_tool_root_dir('git')
+            ssh = self.get_path(git_dir, "usr", "bin", "ssh.exe")
+
+        # prepare an environment with the desired home:
+        env = os.environ.copy()
+        env['HOME'] = home_dir
+
+        ports = ssh_cfg.get("ports", {})
 
         for kfile, urls in ssh_keys.items():
             key_file = self.get_path(ssh_dir, kfile)
@@ -90,11 +101,15 @@ class GitManager(NVPComponent):
                 self.set_chmod(ssh_dir, "600")
 
                 # Get the server name from the key:
-                # sname = kfile.replace("id_rsa_", "").replace("_git")
-                # logger.info("Adding %s to known_hosts...")
-                # # cmd = ["ssh.exe", "-o", "StrictHostKeyChecking=no",  sname,  "ls"]
-                # keyscan = self.get_path()
-                # cmd = ["ssh-keyscan.exe", "-o", "StrictHostKeyChecking=no",  sname,  "ls"]
+                if kfile.startswith("id_rsa_") and kfile.endswith("_git"):
+                    sname = kfile[7: -4]
+                    # sname = re.sub('^id_rsa_', '', kfile)
+                    # sname = re.sub('_git$', '', sname)
+                    logger.info("Adding %s to known_hosts...", sname)
+                    port = ports.get(sname, 22)
+                    cmd = [ssh, "-q", "-o", "StrictHostKeyChecking=no",  f"git@{sname}", "-p", str(port)]
+                    logger.debug("Executing command %s", cmd)
+                    self.execute(cmd, env=env, check=False)
 
         cfg_file = self.get_path(home_dir, ".gitconfig")
 
