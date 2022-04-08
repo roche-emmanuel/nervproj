@@ -52,7 +52,7 @@ class LLVMBuilder(NVPBuilder):
                                     f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
                                     f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
                                     f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
-                                    f"-DLIBC_INSTALL_LIBRARY_DIR={prefix}/lib"
+                                    f"-DLIBC_INSTALL_LIBRARY_DIR={prefix}/lib",
                                     f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
                                     f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
                                     f"-DLIBXML2_LIBRARY={xml2_dir}/lib/{xml2_lib}",
