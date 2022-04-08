@@ -102,7 +102,8 @@
     {
       "name": "zlib",
       "version": "1.2.12",
-      "url": "https://www.zlib.net/zlib-1.2.12.tar.gz"
+      "windows_url": "https://www.zlib.net/zlib1212.zip",
+      "linux_url": "https://www.zlib.net/zlib-1.2.12.tar.gz"
     },
     {
       "name": "LLVM",
