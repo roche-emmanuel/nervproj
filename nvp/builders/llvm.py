@@ -40,11 +40,14 @@ class LLVMBuilder(NVPBuilder):
 
         # Also add the zlib/libxml2 paths here:
         # note libxml2 seems to be required to get llvm-mt to work on windows (?)
-        zlib_dir = self.man.get_library_root_dir("zlib")
-        xml2_dir = self.man.get_library_root_dir("libxml2")
+        zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
+        xml2_dir = self.man.get_library_root_dir("libxml2").replace("\\", "/")
 
         z_lib = "zlibstatic.lib" if self.is_windows else "libz.a"
         xml2_lib = "libxml2s.lib" if self.is_windows else "libxml2.a"
+
+        # This is not needed/not working: using the patch below instead:
+        # f"-DLIBC_INSTALL_LIBRARY_DIR={prefix}/lib",
 
         return self.common_flags + [f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib",
                                     f"-DLIBCXX_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
@@ -52,11 +55,10 @@ class LLVMBuilder(NVPBuilder):
                                     f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
                                     f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
                                     f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
-                                    f"-DLIBC_INSTALL_LIBRARY_DIR={prefix}/lib",
                                     f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
                                     f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
                                     f"-DLIBXML2_LIBRARY={xml2_dir}/lib/{xml2_lib}",
-                                    f"-DLIBXML2_INCLUDE_DIR={xml2_dir}/include",
+                                    f"-DLIBXML2_INCLUDE_DIR={xml2_dir}/include/libxml2",
                                     ]
 
     def apply_patches(self, build_dir):
