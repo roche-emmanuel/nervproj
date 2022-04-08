@@ -17,14 +17,35 @@ def register_builder(bman: BuildManager):
 class Builder(NVPBuilder):
     """libxml2 builder class."""
 
+    def get_cmake_flags(self):
+        """Retrive the applicable cmake flags for the build"""
+
+        # get the iconv library dir:
+        iconv_dir = self.man.get_library_root_dir("libiconv")
+        zlib_dir = self.man.get_library_root_dir("zlib")
+
+        z_lib = "zlibstatic.lib" if self.is_windows else "libz.a"
+        iconv_lib = "libiconvStatic.lib" if self.is_windows else "libiconv.a"
+
+        return [f"-DIconv_LIBRARY={iconv_dir}/lib/{iconv_lib}",
+                f"-DIconv_INCLUDE_DIR={iconv_dir}/include",
+                f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
+                f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
+                "-DLIBXML2_WITH_LZMA=OFF",
+                "-DLIBXML2_WITH_PYTHON=OFF"]
+
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build on windows method"""
-        self.run_cmake(build_dir, prefix, ".")
+
+        flags = self.get_cmake_flags()
+        self.run_cmake(build_dir, prefix, ".", flags)
 
         self.run_ninja(build_dir)
 
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
-        self.run_cmake(build_dir, prefix, ".")
+
+        flags = self.get_cmake_flags()
+        self.run_cmake(build_dir, prefix, ".", flags)
 
         self.run_ninja(build_dir)

@@ -23,5 +23,5 @@ class Builder(NVPBuilder):
 
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build on linux method"""
-        self.run_configure(build_dir, prefix)
+        self.run_configure(build_dir, prefix, ["--enable-static=yes"])
         self.run_make(build_dir)

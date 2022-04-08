@@ -107,7 +107,8 @@
     },
     {
       "name": "libiconv",
-      "windows_version": "1.9.2",
+      // "windows_version": "1.9.2",
+      "windows_version": "1.16",
       "linux_version": "1.16",
       "url": "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.16.tar.gz"
     },
