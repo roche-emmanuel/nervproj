@@ -50,6 +50,11 @@ class NVPBuilder(NVPObject):
         self.execute([ninja_path], cwd=build_dir, env=self.env)
         self.execute([ninja_path, "install"], cwd=build_dir, env=self.env)
 
+    def run_make(self, build_dir):
+        """Execute the standard make build/install commands"""
+        self.execute(["make"], cwd=build_dir, env=self.env)
+        self.execute(["make", "install"], cwd=build_dir, env=self.env)
+
     def run_cmake(self, build_dir, prefix, src_dir, flags=None, generator="Ninja"):
         """Execute Standard cmake configuration command"""
         cmd = [self.tools.get_cmake_path(), "-G", generator, "-DCMAKE_BUILD_TYPE=Release",
@@ -61,4 +66,16 @@ class NVPBuilder(NVPObject):
         cmd.append(src_dir)
 
         logger.info("Cmake command: %s", cmd)
+        self.execute(cmd, cwd=build_dir, env=self.env)
+
+    def run_configure(self, build_dir, prefix, flags=None, src_dir=None):
+        """Execute Standard configure command"""
+        if src_dir is None:
+            src_dir = build_dir
+
+        cmd = ["sh", self.get_path(src_dir, "configure"), f"--prefix={prefix}"]
+        if flags is not None:
+            cmd += flags
+
+        logger.info("configure command: %s", cmd)
         self.execute(cmd, cwd=build_dir, env=self.env)

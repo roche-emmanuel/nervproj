@@ -1,4 +1,4 @@
-"""This module provide the builder for the zlib library."""
+"""This module provide the builder for the libiconv library."""
 
 import logging
 
@@ -11,20 +11,17 @@ logger = logging.getLogger(__name__)
 def register_builder(bman: BuildManager):
     """Register the build function"""
 
-    bman.register_builder('zlib', Builder(bman))
+    bman.register_builder('libiconv', Builder(bman))
 
 
 class Builder(NVPBuilder):
-    """zlib builder class."""
+    """libiconv builder class."""
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build on windows method"""
-        self.run_cmake(build_dir, prefix, ".")
+        raise NotImplementedError()
 
-        self.run_ninja(build_dir)
-
-    def build_on_linux(self, build_dir, prefix, desc):
+    def build_on_linux(self, build_dir, prefix, _desc):
         """Build on linux method"""
-        self.run_cmake(build_dir, prefix, ".")
-
-        self.run_ninja(build_dir)
+        self.run_configure(build_dir, prefix)
+        self.run_make(build_dir)

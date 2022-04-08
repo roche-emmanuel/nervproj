@@ -106,7 +106,8 @@ class BuildManager(NVPComponent):
                     # Here we need to figure out if we already have that library built/installed
                     # for a given flavor
                     for flavor in flavors:
-                        comp_dir = self.get_path(base_lib_dir, flavor, f"{lib['name']}-{lib['version']}")
+                        vers = self.get_package_version(lib)
+                        comp_dir = self.get_path(base_lib_dir, flavor, f"{lib['name']}-{vers}")
                         if self.path_exists(comp_dir):
                             comp = NVPCompiler(self.ctx, {'type': 'clang', "root_dir": comp_dir})
                             self.compilers.append(comp)
@@ -117,8 +118,9 @@ class BuildManager(NVPComponent):
 
             for tdesc in all_tools:
                 if tdesc['name'] == "clang":
+                    vers = self.get_package_version(tdesc)
                     comp = NVPCompiler(self.ctx, {'type': 'clang', "root_dir": self.get_path(
-                        tools_dir, f"{tdesc['name']}-{tdesc['version']}")})
+                        tools_dir, f"{tdesc['name']}-{vers}")})
                     self.compilers.append(comp)
 
         assert len(self.compilers) > 0, "No compiler available"
@@ -287,9 +289,18 @@ class BuildManager(NVPComponent):
 
             logger.info("Done building %s (build time: %.2f seconds)", dep_name, elapsed)
 
+    def get_package_version(self, desc):
+        """Retrieve the version to use for a given package"""
+        sp_vers = f"{self.platform}_version"
+        if sp_vers in desc:
+            return desc[sp_vers]
+
+        # Return default version number:
+        return desc['version']
+
     def get_std_package_name(self, desc):
         """Return a standard package naem from base name and version"""
-        return f"{desc['name']}-{desc['version']}"
+        return f"{desc['name']}-{self.get_package_version(desc)}"
 
     def create_package(self, src_path, dest_folder, package_name):
         """Create an archive package given a source folder, destination folder

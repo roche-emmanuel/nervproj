@@ -1,4 +1,4 @@
-"""This module provide the builder for the zlib library."""
+"""This module provide the builder for the libxml2 library."""
 
 import logging
 
@@ -11,11 +11,11 @@ logger = logging.getLogger(__name__)
 def register_builder(bman: BuildManager):
     """Register the build function"""
 
-    bman.register_builder('zlib', Builder(bman))
+    bman.register_builder('libxml2', Builder(bman))
 
 
 class Builder(NVPBuilder):
-    """zlib builder class."""
+    """libxml2 builder class."""
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build on windows method"""
