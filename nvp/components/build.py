@@ -46,6 +46,8 @@ class BuildManager(NVPComponent):
                          help="Force rebuilding from sources")
         psr.add_argument("-k", "--keep-build", dest='keep_build', action='store_true',
                          help="Keep the build folder after build")
+        psr.add_argument("--preview", dest='preview', action='store_true',
+                         help="Preview the sources only")
 
         psr = ctx.get_parser('main.build')
 
@@ -203,11 +205,16 @@ class BuildManager(NVPComponent):
 
         doall = "all" in dep_list
         rebuild = self.settings['rebuild']
+        preview = self.settings['preview']
 
         for dep in alldeps:
 
             # Check if we should process that dependency:
             if not doall and not dep['name'].lower() in dep_list:
+                continue
+
+            if preview:
+                self.setup_dependency_build_context(dep)
                 continue
 
             dep_name = self.get_std_package_name(dep)

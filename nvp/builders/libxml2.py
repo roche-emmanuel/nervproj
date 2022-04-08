@@ -32,7 +32,8 @@ class Builder(NVPBuilder):
                 f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
                 f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
                 "-DLIBXML2_WITH_LZMA=OFF",
-                "-DLIBXML2_WITH_PYTHON=OFF"]
+                "-DLIBXML2_WITH_PYTHON=OFF",
+                "-DBUILD_SHARED_LIBS=OFF"]
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build on windows method"""
