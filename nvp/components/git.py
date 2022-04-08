@@ -74,6 +74,12 @@ class GitManager(NVPComponent):
         # Install the SSH keys:
         ssh_keys = ssh_cfg.get('keys', {})
 
+        # keep known hosts values:
+        # known_hosts = []
+        # tools = self.get_component("tools")
+        # git_dir = tools.get_git_path()
+        # keyscan
+
         for kfile, urls in ssh_keys.items():
             key_file = self.get_path(ssh_dir, kfile)
             if not self.file_exists(key_file):
@@ -82,6 +88,13 @@ class GitManager(NVPComponent):
                 assert src is not None, f"No valid path provided for {key_file}"
                 self.copy_file(src, key_file)
                 self.set_chmod(ssh_dir, "600")
+
+                # Get the server name from the key:
+                # sname = kfile.replace("id_rsa_", "").replace("_git")
+                # logger.info("Adding %s to known_hosts...")
+                # # cmd = ["ssh.exe", "-o", "StrictHostKeyChecking=no",  sname,  "ls"]
+                # keyscan = self.get_path()
+                # cmd = ["ssh-keyscan.exe", "-o", "StrictHostKeyChecking=no",  sname,  "ls"]
 
         cfg_file = self.get_path(home_dir, ".gitconfig")
 
