@@ -25,3 +25,15 @@ $ nvp -p nvh admin init
 ```bash
 $ nvp build libs llvm --rebuild
 ```
+
+- Building multiple libraries at once:
+
+```bash
+$ nvp build libs libiconv,zlib,libxml2
+```
+
+- Previewing the sources for a given library without actually building/rebuilding it:
+
+```bash
+$ nvp build libs libxml2 --preview
+```
