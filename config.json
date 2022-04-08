@@ -100,6 +100,11 @@
   // List of libraries that we can build:
   "libraries": [
     {
+      "name": "zlib",
+      "version": "1.2.12",
+      "url": "https://www.zlib.net/zlib-1.2.12.tar.gz"
+    },
+    {
       "name": "LLVM",
       "version": "14.0.0",
       "windows_url": "https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.0.zip",

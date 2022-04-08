@@ -143,15 +143,16 @@ class BuildManager(NVPComponent):
         logger.debug("Found builder files: %s", bld_files)
 
         # load those components:
-        sys.path.insert(0, bld_path)
+        # sys.path.insert(0, bld_path)
 
         for comp in bld_files:
             bld_name = comp[:-3]
-            bld_module = import_module(bld_name)
+            mod_name = f"nvp.builders.{bld_name}"
+            bld_module = import_module(mod_name)
             bld_module.register_builder(self)
-            del sys.modules[bld_name]
+            del sys.modules[mod_name]
 
-        sys.path.pop(0)
+        # sys.path.pop(0)
 
     def register_builder(self, bname, handler):
         """Register a builder function"""
