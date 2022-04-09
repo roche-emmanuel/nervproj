@@ -51,3 +51,23 @@ $ nvp rchat "Hello from nvp command"
   - **default_channel**: Default channel where the message should go, for instance **"global-admin"**
   - **user_id**: User Id from the rocketchat personnal access token generated for from an existing account (should have 2FA disabled)
   - **token**: Token from the rocketchat personnal access token generated for from an existing account (should have 2FA disabled)
+
+### Sending emails:
+
+- Example of sending an email with a configured SMTP server:
+
+```bash
+$ nvp email "This is the email body, can use <b>html code</b>" -t "This is the email title"
+```
+
+- Required configuration elements are specified in the **email** config entry:
+
+```json
+  "email": {
+    "smtp_server": "192.168.0.20:587",
+    "default_username": "yyyy@nervtech.org",
+    "default_password": "xxxxxxxxx",
+    "default_to_addrs": "zzzz@gmail.com",
+    "default_from_addr": "yyyy@nervtech.org"
+  }
+```
