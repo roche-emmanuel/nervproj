@@ -215,13 +215,14 @@ class NVPContext(NVPObject):
         logger.debug("Found Component files: %s", comp_files)
 
         # load those components:
-        sys.path.insert(0, comp_path)
+        # sys.path.insert(0, comp_path)
 
         for comp in comp_files:
-            comp_module = import_module(comp[:-3])
+            mod_name = f"nvp.components.{comp[:-3]}"
+            comp_module = import_module(mod_name)
             comp_module.register_component(self)
 
-        sys.path.pop(0)
+        # sys.path.pop(0)
 
     def register_component(self, cname, comp):
         """Register a component with a given name"""
