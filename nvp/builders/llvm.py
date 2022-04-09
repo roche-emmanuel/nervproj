@@ -46,6 +46,14 @@ class LLVMBuilder(NVPBuilder):
         z_lib = "zlibstatic.lib" if self.is_windows else "libz.a"
         xml2_lib = "libxml2s.lib" if self.is_windows else "libxml2.a"
 
+        # Note: we also need to add libiconv to the include/link flags:
+        iconv_dir = self.man.get_library_root_dir("libiconv").replace("\\", "/")
+        iconv_lib = "libiconvStatic.lib" if self.is_windows else "libiconv.a"
+
+        self.append_compileflag(f"-I{iconv_dir}/include")
+        self.append_linkflag(f"-L{iconv_dir}/lib")
+        self.append_linkflag(f"-l{iconv_lib}")
+
         # This is not needed/not working: using the patch below instead:
         # f"-DLIBC_INSTALL_LIBRARY_DIR={prefix}/lib",
 

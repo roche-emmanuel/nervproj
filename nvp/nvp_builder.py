@@ -41,6 +41,30 @@ class NVPBuilder(NVPObject):
         else:
             raise NotImplementedError
 
+    def append_cxxflag(self, val):
+        """Append a value to the cxxflags environment var"""
+        flags = self.env.get("CXXFLAGS", "")
+        self.env["CXXFLAGS"] = f"{flags} {val}"
+
+    def append_cflag(self, val):
+        """Append a value to the cflags environment var"""
+        flags = self.env.get("CFLAGS", "")
+        self.env["CFLAGS"] = f"{flags} {val}"
+
+    def append_ldflag(self, val):
+        """Append a value to the ldflags environment var"""
+        flags = self.env.get("LDFLAGS", "")
+        self.env["LDFLAGS"] = f"{flags} {val}"
+
+    def append_compileflag(self, val):
+        """Append a value to both the cxxflags and cflags"""
+        self.append_cxxflag(val)
+        self.append_cflag(val)
+
+    def append_linkflag(self, val):
+        """Append a value to both the ldflags"""
+        self.append_ldflag(val)
+
     def build_on_windows(self, build_dir, prefix, desc):
         """Run the build operation. Should be re-implemented."""
         raise NotImplementedError
