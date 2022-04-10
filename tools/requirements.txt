@@ -4,3 +4,4 @@ autopep8
 cmake_format
 jstyleson
 requests
+xxhash
