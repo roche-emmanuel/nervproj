@@ -249,3 +249,12 @@ class GitManager(NVPComponent):
     def git_pull(self, folder):
         """perform git pull from a given folder"""
         self.execute_git(["pull"], cwd=folder)
+
+    def commit_all(self, msg, folder, do_push=True):
+        """Commit all changes from a given folder"""
+
+        self.execute_git(["add", "-A", "."], cwd=folder)
+        self.execute_git(["commit", "-a", "-m", msg], cwd=folder)
+
+        if do_push:
+            self.git_push(folder)
