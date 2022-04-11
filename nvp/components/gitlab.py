@@ -418,10 +418,15 @@ class GitlabManager(NVPComponent):
         """Retrieve the root dir for a given sub project and
         return that path on stdout"""
 
-        proj_dir = self.ctx.get_current_project().get_root_dir()
+        proj = self.ctx.get_current_project()
+        proj_dir = proj.get_root_dir()
 
         if self.is_windows:
             proj_dir = self.to_cygwin_path(proj_dir)
+        
+        if proj_dir is None:
+            sys.stdout.write(f"No root dir found for project {proj.get_name()}")
+        else:
+            sys.stdout.write(proj_dir)
 
-        sys.stdout.write(proj_dir)
         sys.stdout.flush()

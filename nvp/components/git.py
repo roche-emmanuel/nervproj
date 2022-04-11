@@ -98,7 +98,7 @@ class GitManager(NVPComponent):
                 src = self.ctx.select_first_valid_path(urls)
                 assert src is not None, f"No valid path provided for {key_file}"
                 self.copy_file(src, key_file)
-                self.set_chmod(ssh_dir, "600")
+                self.set_chmod(key_file, "600")
 
                 # Get the server name from the key:
                 if kfile.startswith("id_rsa_") and kfile.endswith("_git"):
