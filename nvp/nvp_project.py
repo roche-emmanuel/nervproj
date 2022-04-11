@@ -37,16 +37,15 @@ class NVPProject(NVPObject):
 
             if self.file_exists(proj_path, "nvp_plug.py"):
                 # logger.info("Loading NVP plugin from %s...", proj_name)
-                sys.path.insert(0, proj_path)
                 try:
+                    sys.path.insert(0, proj_path)
                     plug_module = import_module("nvp_plug")
                     plug_module.register_nvp_plugin(ctx, self)
+                    sys.path.pop(0)
+                    # Remove the module name from the list of loaded modules:
+                    del sys.modules["nvp_plug"]
                 except ModuleNotFoundError as err:
                     logger.error("Cannot load project %s: exception: %s", self.get_name(False), str(err))
-
-                sys.path.pop(0)
-                # Remove the module name from the list of loaded modules:
-                del sys.modules["nvp_plug"]
 
     def has_name(self, pname):
         """Check if this project has the given name"""
