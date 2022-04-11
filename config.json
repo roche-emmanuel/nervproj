@@ -161,7 +161,7 @@
   "user_config_urls": [
     "D:\\Seafile\\Perso\\Admin\\nervproj.config.json",
     "D:\\Documents\\Perso\\Admin\\nervproj.config.json",
-    "${HOME}/seafile/Perso/Admin/nervproj.config.json"
+    "/home/kenshin/seafile/Perso/Admin/nervproj.config.json"
   ],
 
   // Repository url for the NervProj project itself:
