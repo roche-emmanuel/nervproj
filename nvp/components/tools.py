@@ -189,6 +189,10 @@ class ToolsManager(NVPComponent):
         """Retrieve git tool path."""
         return self.get_tool_path('git')
 
+    def get_par2_path(self):
+        """Retrieve par2 tool path."""
+        return self.get_tool_path('par2')
+
     def process_command(self, cmd0):
         """Re-implementation of the process_command method."""
 
@@ -343,3 +347,19 @@ class ToolsManager(NVPComponent):
         # here we should also ensure that we have a global .gitconfig file registered for our user:
         git = self.get_component('git')
         git.setup_global_config()
+
+    def create_par2_archives(self, src_path, redundancy=10, nblocks=3000):
+        """Create a PAR2 archive from a given source path."""
+
+        pdir = self.get_parent_folder(src_path)
+        fname = self.get_filename(src_path)
+
+        par2 = self.get_par2_path()
+        if self.is_windows:
+            cmd = [par2, "c", f"/sn{nblocks}", f"/rr{redundancy}", "/rd2", f"{fname}.par2", fname]
+        else:
+            cmd = [par2, "c", f"-b{nblocks}", f"-r{redundancy}", f"{fname}.par2", fname]
+
+        logger.info("Executing command %s", cmd)
+        self.execute(cmd, True, cwd=pdir)
+        logger.info("Done creating par archives.")

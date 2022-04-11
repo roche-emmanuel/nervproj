@@ -52,6 +52,11 @@
       "urls": [
         "https://github.com/git-for-windows/git/releases/download/v2.35.1.windows.2/PortableGit-2.35.1.2-64-bit.7z.exe"
       ]
+    },
+    {
+      "name": "par2",
+      "sub_path": "par2j64.exe",
+      "version": "1.2.8.6"
     }
   ],
   "linux_tools": [
@@ -85,6 +90,10 @@
     {
       "name": "git",
       "path": "git"
+    },
+    {
+      "name": "par2",
+      "path": "par2"
     },
     {
       "name": "clang",

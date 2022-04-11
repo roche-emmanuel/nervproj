@@ -129,6 +129,11 @@ class NVPObject(object):
         my_path = self.get_path(*parts)
         return os.path.basename(my_path)
 
+    def get_file_size(self, my_path):
+        """Retrieve the size of a given file"""
+        infos = os.lstat(my_path)
+        return infos.st_size
+
     def get_cwd(self):
         """Return the current CWD"""
         cwd = os.getenv("PWD", os.getcwd())
