@@ -288,7 +288,7 @@ class BuildManager(NVPComponent):
 
             # Finally we should create the package from that installed dependency folder
             # so that we don't have to build it the next time:
-            self.create_package(prefix, self.libs_package_dir, src_pkg_name)
+            self.tools.create_package(prefix, self.libs_package_dir, src_pkg_name)
 
             if not self.settings.get("keep_build", False):
                 logger.info("Removing build folder %s", build_dir)
@@ -308,34 +308,6 @@ class BuildManager(NVPComponent):
     def get_std_package_name(self, desc):
         """Return a standard package naem from base name and version"""
         return f"{desc['name']}-{self.get_package_version(desc)}"
-
-    def create_package(self, src_path, dest_folder, package_name):
-        """Create an archive package given a source folder, destination folder
-        and name for the zip file to create"""
-        # 7z a -t7z -m0=lzma2 -mx=9 -aoa -mfb=64 -md=32m -ms=on -d=1024m -r
-
-        # Note: we only create the package if the source folder exits:
-        if not self.path_exists(src_path):
-            logger.warning("Cannot create package: invalid source path: %s", src_path)
-            return False
-
-        dest_file = self.get_path(dest_folder, package_name)
-
-        # Check if we should create a tar.xz here:
-        if package_name.endswith(".tar.xz"):
-            # Generate a tar.xz:
-            cmd = ["tar", "cJf", dest_file,
-                   "-C", self.get_parent_folder(src_path), self.get_filename(src_path)]
-        else:
-            # Generate a 7zip package:
-            cmd = [self.tools.get_unzip_path(), "a", "-t7z", dest_file, src_path,
-                   "-m0=lzma2", "-mx=9", "-aoa", "-mfb=64",
-                   "-ms=on", "-mmt=2", "-r"]
-            # "-md=32m",
-
-        self.execute(cmd, self.settings['verbose'])
-        logger.debug("Done generating package %s", package_name)
-        return True
 
     def setup_dependency_build_context(self, desc):
         """Prepare the build folder for a given dependency package
