@@ -205,7 +205,7 @@ class ToolsManager(NVPComponent):
 
         return False
 
-    def download_file(self, url, dest_file):
+    def download_file(self, url, dest_file, prefix=""):
         """Helper function used to download a file with progress report."""
 
         if url.startswith("git@"):
@@ -253,7 +253,7 @@ class ToolsManager(NVPComponent):
                 fdd.write(data)
                 frac = dlsize / total_length
                 done = int(50 * frac)
-                sys.stdout.write(f"\r[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}%")
+                sys.stdout.write(f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}%")
                 sys.stdout.flush()
 
             sys.stdout.write('\n')
