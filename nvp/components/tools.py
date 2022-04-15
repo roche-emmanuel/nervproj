@@ -4,6 +4,7 @@ import sys
 import time
 import logging
 import requests
+import urllib3
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -238,52 +239,62 @@ class ToolsManager(NVPComponent):
                 count += 1
                 time.sleep(1.0)
 
-        if total_length is None:
-            logger.error("Cannot download file from %s", url)
-            return False
+            if total_length is None:
+                logger.error("Cannot download file from %s", url)
+                return False
 
-        # if total_length is None:  # no content length header
-        #     logger.info("Downloading file of unknown size.")
-        #     dlsize += len(response.content)
-        #     logger.info("Got %d bytes", dlsize)
-        #     fdd.write(response.content)
+            # if total_length is None:  # no content length header
+            #     logger.info("Downloading file of unknown size.")
+            #     dlsize += len(response.content)
+            #     logger.info("Got %d bytes", dlsize)
+            #     fdd.write(response.content)
 
-        #     sys.stdout.write(f"\r Downloaded {dlsize} bytes (unknown total size)")
-        #     sys.stdout.flush()
-        # else:
+            #     sys.stdout.write(f"\r Downloaded {dlsize} bytes (unknown total size)")
+            #     sys.stdout.flush()
+            # else:
 
-        logger.debug("Total file length is: %s", total_length)
-        total_length = int(total_length)
-        last_time = time.time()
+            logger.debug("Total file length is: %s", total_length)
+            total_length = int(total_length)
+            last_time = time.time()
 
-        with open(dest_file, "wb") as fdd:
-            for data in response.iter_content(chunk_size=4096):
-                nbytes = len(data)
-                dlsize += nbytes
-                fdd.write(data)
-                frac = dlsize / total_length
-                done = int(50 * frac)
-                sys.stdout.write(f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}%")
-                sys.stdout.flush()
-                if max_speed > 0:
-                    # We should take a speed limit into consideration here:
-                    cur_time = time.time()
-                    elapsed = cur_time - last_time
-                    last_time = cur_time
-                    # we downloaded nbytes in elapsed seconds
-                    # and we have the limit of max_speed bytes per seconds.
-                    # Compute how long we should take to download nbytes in seconds:
-                    dl_dur = nbytes/max_speed
-                    if elapsed < dl_dur:
-                        # We took less time than the requirement so far, so we should speed
-                        # for the remaining time:
-                        time.sleep(dl_dur - elapsed)
-                        last_time = time.time()
+            try:
+                with open(dest_file, "wb") as fdd:
+                    for data in response.iter_content(chunk_size=4096):
+                        nbytes = len(data)
+                        dlsize += nbytes
+                        fdd.write(data)
+                        frac = dlsize / total_length
+                        done = int(50 * frac)
+                        sys.stdout.write(
+                            f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}%")
+                        sys.stdout.flush()
+                        if max_speed > 0:
+                            # We should take a speed limit into consideration here:
+                            cur_time = time.time()
+                            elapsed = cur_time - last_time
+                            last_time = cur_time
+                            # we downloaded nbytes in elapsed seconds
+                            # and we have the limit of max_speed bytes per seconds.
+                            # Compute how long we should take to download nbytes in seconds:
+                            dl_dur = nbytes/max_speed
+                            if elapsed < dl_dur:
+                                # We took less time than the requirement so far, so we should speed
+                                # for the remaining time:
+                                time.sleep(dl_dur - elapsed)
+                                last_time = time.time()
 
-            sys.stdout.write('\n')
-            sys.stdout.flush()
+                    sys.stdout.write('\n')
+                    sys.stdout.flush()
 
-        return True
+                    # The file was completely downloaded
+                    return True
+            except urllib3.exceptions.ReadTimeoutError:
+                logger.error("Timeout occured while downloading %s, retrying...")
+                count += 1
+                self.remove_file(dest_file)
+
+        logger.error("Cannot download file from %s in %d retries", url, max_retries)
+        return False
 
     def extract_package(self, src_pkg_path, dest_dir, target_dir=None, extracted_dir=None):
         """Extract source package into the target dir folder."""
