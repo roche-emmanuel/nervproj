@@ -205,7 +205,7 @@ class ToolsManager(NVPComponent):
 
         return False
 
-    def download_file(self, url, dest_file, prefix="", max_speed=None, max_retries=20):
+    def download_file(self, url, dest_file, prefix="", max_speed=0, max_retries=20):
         """Helper function used to download a file with progress report."""
 
         if url.startswith("git@"):
@@ -265,7 +265,7 @@ class ToolsManager(NVPComponent):
                 done = int(50 * frac)
                 sys.stdout.write(f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}%")
                 sys.stdout.flush()
-                if max_speed is not None:
+                if max_speed > 0:
                     # We should take a speed limit into consideration here:
                     cur_time = time.time()
                     elapsed = cur_time - last_time
