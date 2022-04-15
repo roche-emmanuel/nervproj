@@ -212,14 +212,14 @@ class ToolsManager(NVPComponent):
             logger.info("Checking out git repo %s...", url)
             cmd = [self.get_git_path(), "clone", url, dest_file]
             self.execute(cmd)
-            return
+            return True
 
         # Check if this is a valid local file:
         if self.file_exists(url):
             # Just copy the file in that case:
             logger.info("Copying file from %s...", url)
             self.copy_file(url, dest_file, True)
-            return
+            return True
 
         logger.info("Downloading file from %s...", url)
         dlsize = 0
@@ -240,7 +240,7 @@ class ToolsManager(NVPComponent):
 
         if total_length is None:
             logger.error("Cannot download file from %s", url)
-            return
+            return False
 
         # if total_length is None:  # no content length header
         #     logger.info("Downloading file of unknown size.")
@@ -282,6 +282,8 @@ class ToolsManager(NVPComponent):
 
             sys.stdout.write('\n')
             sys.stdout.flush()
+
+        return True
 
     def extract_package(self, src_pkg_path, dest_dir, target_dir=None, extracted_dir=None):
         """Extract source package into the target dir folder."""
