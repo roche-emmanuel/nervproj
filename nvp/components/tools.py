@@ -232,16 +232,11 @@ class ToolsManager(NVPComponent):
 
             logger.debug("Retrieving content-length.")
             total_length = response.headers.get('content-length')
-            if total_length is not None:
-                break
-            else:
+            if total_length is None:
                 logger.info("Detected invalid stream size, retrying...")
                 count += 1
                 time.sleep(1.0)
-
-            if total_length is None:
-                logger.error("Cannot download file from %s", url)
-                return False
+                continue
 
             # if total_length is None:  # no content length header
             #     logger.info("Downloading file of unknown size.")
