@@ -205,7 +205,7 @@ class ToolsManager(NVPComponent):
 
         return False
 
-    def download_file(self, url, dest_file, prefix=""):
+    def download_file(self, url, dest_file, prefix="", max_speed=None, max_retries=20):
         """Helper function used to download a file with progress report."""
 
         if url.startswith("git@"):
@@ -223,38 +223,62 @@ class ToolsManager(NVPComponent):
 
         logger.info("Downloading file from %s...", url)
         dlsize = 0
+        count = 0
+
+        while count < max_retries:
+            logger.debug("Sending request...")
+            response = requests.get(url, stream=True, timeout=6)
+
+            logger.debug("Retrieving content-length.")
+            total_length = response.headers.get('content-length')
+            if total_length is not None:
+                break
+            else:
+                logger.info("Detected invalid stream size, retrying...")
+                count += 1
+                time.sleep(1.0)
+
+        if total_length is None:
+            logger.error("Cannot download file from %s", url)
+            return
+
+        # if total_length is None:  # no content length header
+        #     logger.info("Downloading file of unknown size.")
+        #     dlsize += len(response.content)
+        #     logger.info("Got %d bytes", dlsize)
+        #     fdd.write(response.content)
+
+        #     sys.stdout.write(f"\r Downloaded {dlsize} bytes (unknown total size)")
+        #     sys.stdout.flush()
+        # else:
+
+        logger.debug("Total file length is: %s", total_length)
+        total_length = int(total_length)
+        last_time = time.time()
+
         with open(dest_file, "wb") as fdd:
-            while True:
-                logger.debug("Sending request...")
-                response = requests.get(url, stream=True, timeout=6)
-
-                logger.debug("Retrieving content-length.")
-                total_length = response.headers.get('content-length')
-                if total_length is not None:
-                    break
-                else:
-                    logger.info("Detected invalid stream size, retrying...")
-                    time.sleep(1.0)
-
-            # if total_length is None:  # no content length header
-            #     logger.info("Downloading file of unknown size.")
-            #     dlsize += len(response.content)
-            #     logger.info("Got %d bytes", dlsize)
-            #     fdd.write(response.content)
-
-            #     sys.stdout.write(f"\r Downloaded {dlsize} bytes (unknown total size)")
-            #     sys.stdout.flush()
-            # else:
-
-            logger.debug("Total file length is: %s", total_length)
-            total_length = int(total_length)
             for data in response.iter_content(chunk_size=4096):
-                dlsize += len(data)
+                nbytes = len(data)
+                dlsize += nbytes
                 fdd.write(data)
                 frac = dlsize / total_length
                 done = int(50 * frac)
                 sys.stdout.write(f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}%")
                 sys.stdout.flush()
+                if max_speed is not None:
+                    # We should take a speed limit into consideration here:
+                    cur_time = time.time()
+                    elapsed = cur_time - last_time
+                    last_time = cur_time
+                    # we downloaded nbytes in elapsed seconds
+                    # and we have the limit of max_speed bytes per seconds.
+                    # Compute how long we should take to download nbytes in seconds:
+                    dl_dur = nbytes/max_speed
+                    if elapsed < dl_dur:
+                        # We took less time than the requirement so far, so we should speed
+                        # for the remaining time:
+                        time.sleep(dl_dur - elapsed)
+                        last_time = time.time()
 
             sys.stdout.write('\n')
             sys.stdout.flush()
