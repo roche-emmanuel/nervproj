@@ -205,7 +205,7 @@ class ToolsManager(NVPComponent):
 
         return False
 
-    def download_file(self, url, dest_file, prefix="", max_speed=0, max_retries=20):
+    def download_file(self, url, dest_file, prefix="", max_speed=0, max_retries=10):
         """Helper function used to download a file with progress report."""
 
         if url.startswith("git@"):
