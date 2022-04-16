@@ -206,7 +206,7 @@ class ToolsManager(NVPComponent):
 
         return False
 
-    def download_file(self, url, dest_file, prefix="", max_speed=0, max_retries=10):
+    def download_file(self, url, dest_file, prefix="", max_speed=0, max_retries=20):
         """Helper function used to download a file with progress report."""
 
         if url.startswith("git@"):
@@ -283,7 +283,7 @@ class ToolsManager(NVPComponent):
 
                     # The file was completely downloaded
                     return True
-            except urllib3.exceptions.ReadTimeoutError:
+            except (urllib3.exceptions.ReadTimeoutError, requests.exceptions.ConnectionError):
                 logger.error("Timeout occured while downloading %s, retrying...")
                 count += 1
                 self.remove_file(dest_file)
