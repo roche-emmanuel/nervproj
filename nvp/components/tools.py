@@ -386,6 +386,10 @@ class ToolsManager(NVPComponent):
         pdir = self.get_parent_folder(src_path)
         fname = self.get_filename(src_path)
 
+        # Ensure we have int values:
+        redundancy = int(redundancy)
+        nblocks = int(nblocks)
+
         par2 = self.get_par2_path()
         if self.is_windows:
             cmd = [par2, "c", f"/sn{nblocks}", f"/rr{redundancy}", "/rd2", f"{fname}.par2", fname]
