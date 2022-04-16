@@ -227,32 +227,32 @@ class ToolsManager(NVPComponent):
         count = 0
 
         while count < max_retries:
-            logger.debug("Sending request...")
-            response = requests.get(url, stream=True, timeout=6)
-
-            logger.debug("Retrieving content-length.")
-            total_length = response.headers.get('content-length')
-            if total_length is None:
-                logger.info("Detected invalid stream size, retrying...")
-                count += 1
-                time.sleep(1.0)
-                continue
-
-            # if total_length is None:  # no content length header
-            #     logger.info("Downloading file of unknown size.")
-            #     dlsize += len(response.content)
-            #     logger.info("Got %d bytes", dlsize)
-            #     fdd.write(response.content)
-
-            #     sys.stdout.write(f"\r Downloaded {dlsize} bytes (unknown total size)")
-            #     sys.stdout.flush()
-            # else:
-
-            logger.debug("Total file length is: %s", total_length)
-            total_length = int(total_length)
-            last_time = time.time()
-
             try:
+                logger.debug("Sending request...")
+                response = requests.get(url, stream=True, timeout=6)
+
+                logger.debug("Retrieving content-length.")
+                total_length = response.headers.get('content-length')
+                if total_length is None:
+                    logger.info("Detected invalid stream size, retrying...")
+                    count += 1
+                    time.sleep(1.0)
+                    continue
+
+                # if total_length is None:  # no content length header
+                #     logger.info("Downloading file of unknown size.")
+                #     dlsize += len(response.content)
+                #     logger.info("Got %d bytes", dlsize)
+                #     fdd.write(response.content)
+
+                #     sys.stdout.write(f"\r Downloaded {dlsize} bytes (unknown total size)")
+                #     sys.stdout.flush()
+                # else:
+
+                logger.debug("Total file length is: %s", total_length)
+                total_length = int(total_length)
+                last_time = time.time()
+
                 with open(dest_file, "wb") as fdd:
                     for data in response.iter_content(chunk_size=4096):
                         nbytes = len(data)
@@ -284,7 +284,7 @@ class ToolsManager(NVPComponent):
                     # The file was completely downloaded
                     return True
             except (urllib3.exceptions.ReadTimeoutError, requests.exceptions.ConnectionError):
-                logger.error("Timeout occured while downloading %s, retrying...")
+                logger.error("Exception occured while downloading %s, retrying...")
                 count += 1
                 self.remove_file(dest_file)
 
