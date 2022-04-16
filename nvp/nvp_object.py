@@ -10,6 +10,7 @@ import re
 import sys
 import subprocess
 import shutil
+import json
 import jstyleson
 import requests
 
@@ -206,8 +207,13 @@ class NVPObject(object):
 
     def read_json(self, *parts):
         """Read JSON file as object"""
-        content = self.read_text_file(*parts)
-        return jstyleson.loads(content)
+        fname = self.get_path(*parts)
+        try:
+            content = self.read_text_file(*parts)
+            return jstyleson.loads(content)
+        except json.decoder.JSONDecodeError as err:
+            logger.error("Error parsing json file %s: %s", fname, str(err))
+            raise err
 
     def write_json(self, data, *parts, indent=2):
         """Write a structure as JSON file"""
