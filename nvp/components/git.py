@@ -207,14 +207,18 @@ class GitManager(NVPComponent):
         logger.debug("git command: %s", cmd)
         self.execute(cmd, cwd=cwd)
 
-    def clone_repository(self, url, dest_folder):
+    def clone_repository(self, url, dest_folder, mirror=False):
         """Clone a given url into a given folder"""
 
         # Ensure the parent folder exists:
         base_dir = self.get_parent_folder(dest_folder)
         self.make_folder(base_dir)
 
-        self.execute_git(["clone", url, dest_folder])
+        cmd = ["clone"]
+        if mirror:
+            cmd.append("--mirror")
+        cmd += [url, dest_folder]
+        self.execute_git(cmd)
 
     def clone_project_repository(self, dest_folder=None, proj=None):
         """Checkout the repository for the given project into the given local folder"""
@@ -249,6 +253,13 @@ class GitManager(NVPComponent):
     def git_pull(self, folder):
         """perform git pull from a given folder"""
         self.execute_git(["pull"], cwd=folder)
+
+    def git_fetch(self, folder, url=None):
+        """perform git fetch in a given folder"""
+        cmd = ["fetch"]
+        if url is not None:
+            cmd.append(url)
+        self.execute_git(cmd, cwd=folder)
 
     def commit_all(self, msg, folder, do_push=True):
         """Commit all changes from a given folder"""
