@@ -213,6 +213,7 @@ class NVPObject(object):
             return jstyleson.loads(content)
         except json.decoder.JSONDecodeError as err:
             logger.error("Error parsing json file %s: %s", fname, str(err))
+            logger.error("Content is: %s", self.pretty_print(content))
             raise err
 
     def write_json(self, data, *parts, indent=2):
