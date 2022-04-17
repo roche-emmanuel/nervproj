@@ -7,3 +7,4 @@ requests
 xxhash
 moviepy
 pillow
+ffmpeg-python
