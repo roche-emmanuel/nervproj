@@ -235,7 +235,7 @@ class ToolsManager(NVPComponent):
                 total_length = response.headers.get('content-length')
                 if total_length is None:
                     count += 1
-                    logger.info("Detected invalid stream size, retrying (%d/%d)...", count, max_retries)
+                    logger.info("Detected invalid stream size for %s, retrying (%d/%d)...", url, count, max_retries)
                     time.sleep(1.0)
                     continue
 
@@ -285,7 +285,7 @@ class ToolsManager(NVPComponent):
                     return True
             except (urllib3.exceptions.ReadTimeoutError, requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
                 count += 1
-                logger.error("Exception occured while downloading %s, retrying (%d/%d)...", count, max_retries)
+                logger.error("Exception occured while downloading %s, retrying (%d/%d)...", url, count, max_retries)
                 self.remove_file(dest_file)
 
         logger.error("Cannot download file from %s in %d retries", url, max_retries)
