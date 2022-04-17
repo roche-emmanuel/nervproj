@@ -11,6 +11,7 @@ import sys
 import subprocess
 import shutil
 import json
+import urllib
 import jstyleson
 import requests
 
@@ -204,6 +205,10 @@ class NVPObject(object):
         fname = self.get_path(*parts)
         with open(fname, mode, encoding="utf-8", newline=newline) as file:
             file.write(content)
+
+    def url_encode_path(self, file_path):
+        """Apply URL encoding rules to a given file path"""
+        return urllib.parse.quote(file_path, safe='')
 
     def read_json(self, *parts):
         """Read JSON file as object"""

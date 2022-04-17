@@ -3,7 +3,6 @@ import logging
 import sys
 import re
 import time
-import urllib
 import json
 import requests
 
@@ -312,10 +311,6 @@ class GitlabManager(NVPComponent):
         res = self.put(f"/projects/{self.proj_id}/milestones/{mid}", data)
         logger.info("Closed milestone: %s", self.pretty_print(res))
 
-    def url_encode_path(self, file_path):
-        """Apply URL encoding rules to a given file path"""
-        return urllib.parse.quote(file_path, safe='')
-
     def update_file(self, data, project=None):
         """Send an update to a single file given the input data.
         Data should contain the following elements at least:
@@ -423,7 +418,7 @@ class GitlabManager(NVPComponent):
 
         if self.is_windows:
             proj_dir = self.to_cygwin_path(proj_dir)
-        
+
         if proj_dir is None:
             sys.stdout.write(f"No root dir found for project {proj.get_name()}")
         else:
