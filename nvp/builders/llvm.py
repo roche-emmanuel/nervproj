@@ -28,9 +28,11 @@ class LLVMBuilder(NVPBuilder):
         # "-DLLVM_ENABLE_RUNTIMES=all"
         #
         # "-DLLVM_ENABLE_RUNTIMES='libcxx;libcxxabi'"
+        # "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp",
+
         self.common_flags = ["-DLLVM_TARGETS_TO_BUILD=X86",
                              "-DLLVM_ENABLE_EH=ON", "-DLLVM_ENABLE_RTTI=ON",
-                             "-DLLVM_BUILD_TOOLS=ON", "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp",
+                             "-DLLVM_BUILD_TOOLS=ON",
                              "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;libclc;lld;lldb;polly;pstl",
                              "-DLLVM_STATIC_LINK_CXX_STDLIB=OFF", "-DLLVM_INCLUDE_TOOLS=ON",
                              "-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF",
@@ -62,17 +64,24 @@ class LLVMBuilder(NVPBuilder):
         # This is not needed/not working: using the patch below instead:
         # f"-DLIBC_INSTALL_LIBRARY_DIR={prefix}/lib",
 
-        return self.common_flags + [f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib",
-                                    f"-DLIBCXX_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
-                                    f"-DLIBCXX_INSTALL_INCLUDE_TARGET_DIR={prefix}/include/c++/v1",
-                                    f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
-                                    f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
-                                    f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
-                                    f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
-                                    f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
-                                    f"-DLIBXML2_LIBRARY={xml2_dir}/lib/{xml2_lib}",
-                                    f"-DLIBXML2_INCLUDE_DIR={xml2_dir}/include/libxml2",
-                                    ]
+        flags = self.common_flags + [
+            f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
+            f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
+            f"-DLIBXML2_LIBRARY={xml2_dir}/lib/{xml2_lib}",
+            f"-DLIBXML2_INCLUDE_DIR={xml2_dir}/include/libxml2",
+        ]
+
+        if self.is_linux:
+            flags += [f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib",
+                      f"-DLIBCXX_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
+                      f"-DLIBCXX_INSTALL_INCLUDE_TARGET_DIR={prefix}/include/c++/v1",
+                      f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
+                      f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
+                      f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
+                      "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp"
+                      ]
+
+        return flags
 
     def apply_patches(self, build_dir):
         """Apply the required patches for the build"""
@@ -86,11 +95,11 @@ class LLVMBuilder(NVPBuilder):
                              "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX})",
                              "set(LIBC_INSTALL_LIBRARY_DIR lib)")
 
-        # Force using libxml2 in config.h
-        cfg_file = self.get_path(build_dir, "llvm", "cmake", "modules", "LLVMConfig.cmake.in")
-        self.replace_in_file(cfg_file,
-                             "set(LLVM_ENABLE_LIBXML2 @LLVM_ENABLE_LIBXML2@)",
-                             "set(LLVM_ENABLE_LIBXML2 1)")
+        # # Force using libxml2 in config.h
+        # cfg_file = self.get_path(build_dir, "llvm", "cmake", "modules", "LLVMConfig.cmake.in")
+        # self.replace_in_file(cfg_file,
+        #                      "set(LLVM_ENABLE_LIBXML2 @LLVM_ENABLE_LIBXML2@)",
+        #                      "set(LLVM_ENABLE_LIBXML2 1)")
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build method for LLVM on windows"""
