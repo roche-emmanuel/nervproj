@@ -191,6 +191,11 @@ class NVPObject(object):
         """Rename a file"""
         self.move_path(src_path, dest_path)
 
+    def set_path_extension(self, src_path, ext):
+        """Change the extension of a given path"""
+        parts = os.path.splitext(src_path)
+        return parts[0]+ext
+
     def read_text_file(self, *parts, mode="r"):
         """Read the content of a file as string."""
 

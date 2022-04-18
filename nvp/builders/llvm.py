@@ -33,7 +33,8 @@ class LLVMBuilder(NVPBuilder):
                              "-DLLVM_BUILD_TOOLS=ON", "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp",
                              "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;libclc;lld;lldb;polly;pstl",
                              "-DLLVM_STATIC_LINK_CXX_STDLIB=OFF", "-DLLVM_INCLUDE_TOOLS=ON",
-                             "-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF"]
+                             "-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF",
+                             "-DLLVM_ENABLE_LIBXML2=ON"]
 
     def get_cmake_flags(self, prefix):
         """Retrive the applicable cmake flags for the build"""
@@ -84,6 +85,12 @@ class LLVMBuilder(NVPBuilder):
         self.replace_in_file(libc_file,
                              "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX})",
                              "set(LIBC_INSTALL_LIBRARY_DIR lib)")
+
+        # Force using libxml2 in config.h
+        cfg_file = self.get_path(build_dir, "llvm", "cmake", "modules", "LLVMConfig.cmake.in")
+        self.replace_in_file(cfg_file,
+                             "set(LLVM_ENABLE_LIBXML2 @LLVM_ENABLE_LIBXML2@)",
+                             "set(LLVM_ENABLE_LIBXML2 1)")
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build method for LLVM on windows"""
