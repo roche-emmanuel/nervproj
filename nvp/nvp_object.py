@@ -191,6 +191,12 @@ class NVPObject(object):
         """Rename a file"""
         self.move_path(src_path, dest_path)
 
+    def is_folder_empty(self, fpath):
+        """Check if a given folder is empty"""
+        if self.dir_exists(fpath):
+            return len(os.listdir(fpath)) == 0
+        return True
+
     def set_path_extension(self, src_path, ext):
         """Change the extension of a given path"""
         parts = os.path.splitext(src_path)
