@@ -6,6 +6,7 @@
   // Note that the first valid path in this list will be used here.
   "msvc_install_paths": [
     "D:\\Softs\\VisualStudio2022CE",
+    "D:\\Softs\\VisualStudio\\VS2022",
     "D:\\Softs\\VisualStudio\\VS2017"
   ],
 

@@ -53,10 +53,11 @@ class LLVMBuilder(NVPBuilder):
         iconv_dir = self.man.get_library_root_dir("libiconv").replace("\\", "/")
         iconv_lib = "libiconvStatic.lib" if self.is_windows else "libiconv.a"
 
-        self.append_compileflag(f"-DLIBXML_STATIC -I{iconv_dir}/include")
+        self.append_compileflag(f"-DLIBXML_STATIC -I{iconv_dir}/include -I{xml2_dir}/include/libxml2")
         if self.is_windows:
             self.append_linkflag(f"/LIBPATH:{xml2_dir}/lib {xml2_lib}")
             self.append_linkflag(f"/LIBPATH:{iconv_dir}/lib {iconv_lib}")
+            self.append_linkflag("Ws2_32.lib")
         else:
             self.append_linkflag(f"-L{iconv_dir}/lib")
             self.append_linkflag(f"-l{iconv_lib}")
@@ -96,10 +97,14 @@ class LLVMBuilder(NVPBuilder):
                              "set(LIBC_INSTALL_LIBRARY_DIR lib)")
 
         # Force using libxml2 in config.h
-        cfg_file = self.get_path(build_dir, "llvm", "cmake", "modules", "LLVMConfig.cmake.in")
-        self.replace_in_file(cfg_file,
-                             "set(LLVM_ENABLE_LIBXML2 @LLVM_ENABLE_LIBXML2@)",
-                             "set(LLVM_ENABLE_LIBXML2 1)")
+        # cfg_file = self.get_path(build_dir, "llvm", "cmake", "modules", "LLVMConfig.cmake.in")
+        # self.replace_in_file(cfg_file,
+        #                      "set(LLVM_ENABLE_LIBXML2 @LLVM_ENABLE_LIBXML2@)",
+        #                      "set(LLVM_ENABLE_LIBXML2 ON)")
+        # cfg_file = self.get_path(build_dir, "llvm", "include", "llvm", "Config", "config.h.cmake")
+        # self.replace_in_file(cfg_file,
+        #                      "#cmakedefine LLVM_ENABLE_LIBXML2 ${LLVM_ENABLE_LIBXML2}",
+        #                      "#cmakedefine LLVM_ENABLE_LIBXML2 1")
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build method for LLVM on windows"""
@@ -113,6 +118,13 @@ class LLVMBuilder(NVPBuilder):
 
         flags = self.get_cmake_flags(prefix)
         self.run_cmake(build_dir1, prefix, "../llvm", flags)
+
+        # After configuration we need to fix the config.h file:
+        cfg_file = self.get_path(build_dir, "build", "include", "llvm", "Config", "config.h")
+        self.replace_in_file(cfg_file,
+                             "/* #undef LLVM_ENABLE_LIBXML2 */",
+                             "#define LLVM_ENABLE_LIBXML2 1")
+
         self.run_ninja(build_dir1)
 
         # other possible options:
