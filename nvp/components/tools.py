@@ -206,7 +206,7 @@ class ToolsManager(NVPComponent):
 
         return False
 
-    def download_file(self, url, dest_file, prefix="", max_speed=0, max_retries=20, timeout=6):
+    def download_file(self, url, dest_file, prefix="", max_speed=0, max_retries=20, timeout=6, headers=None):
         """Helper function used to download a file with progress report."""
 
         if url.startswith("git@"):
@@ -229,7 +229,7 @@ class ToolsManager(NVPComponent):
         while count < max_retries:
             try:
                 logger.debug("Sending request...")
-                response = requests.get(url, stream=True, timeout=timeout)
+                response = requests.get(url, stream=True, timeout=timeout, headers=headers)
 
                 logger.debug("Retrieving content-length.")
                 total_length = response.headers.get('content-length')
