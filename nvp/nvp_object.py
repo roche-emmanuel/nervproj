@@ -202,6 +202,11 @@ class NVPObject(object):
         parts = os.path.splitext(src_path)
         return parts[0]+ext
 
+    def get_path_extension(self, src_path):
+        """Get the extension of a given path"""
+        parts = os.path.splitext(src_path)
+        return parts[1]
+
     def read_text_file(self, *parts, mode="r"):
         """Read the content of a file as string."""
 
