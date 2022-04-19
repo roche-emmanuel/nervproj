@@ -95,11 +95,11 @@ class LLVMBuilder(NVPBuilder):
                              "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX})",
                              "set(LIBC_INSTALL_LIBRARY_DIR lib)")
 
-        # # Force using libxml2 in config.h
-        # cfg_file = self.get_path(build_dir, "llvm", "cmake", "modules", "LLVMConfig.cmake.in")
-        # self.replace_in_file(cfg_file,
-        #                      "set(LLVM_ENABLE_LIBXML2 @LLVM_ENABLE_LIBXML2@)",
-        #                      "set(LLVM_ENABLE_LIBXML2 1)")
+        # Force using libxml2 in config.h
+        cfg_file = self.get_path(build_dir, "llvm", "cmake", "modules", "LLVMConfig.cmake.in")
+        self.replace_in_file(cfg_file,
+                             "set(LLVM_ENABLE_LIBXML2 @LLVM_ENABLE_LIBXML2@)",
+                             "set(LLVM_ENABLE_LIBXML2 1)")
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build method for LLVM on windows"""
@@ -111,9 +111,9 @@ class LLVMBuilder(NVPBuilder):
         build_dir1 = self.get_path(build_dir, "build")
         self.make_folder(build_dir1)
 
-        # flags = self.get_cmake_flags(prefix)
-        # self.run_cmake(build_dir1, prefix, "../llvm", flags)
-        # self.run_ninja(build_dir1)
+        flags = self.get_cmake_flags(prefix)
+        self.run_cmake(build_dir1, prefix, "../llvm", flags)
+        self.run_ninja(build_dir1)
 
         # other possible options:
         # -DLLVM_BUILD_TOOLS=ON -DLLVM_INCLUDE_TOOLS=ON
@@ -149,7 +149,7 @@ class LLVMBuilder(NVPBuilder):
 
         logger.info("Building LLVM runtimes...")
 
-        self.run_cmake(build_dir2, prefix, "", flags)
+        self.run_cmake(build_dir, prefix, flags=flags)
         self.exec_ninja(build_dir2)
         self.exec_ninja(build_dir2, ['check'])
         self.exec_ninja(build_dir2, ['install'])
