@@ -123,12 +123,13 @@ class LLVMBuilder(NVPBuilder):
         # cf. https://libcxx.llvm.org/BuildingLibcxx.html#cmake-visual-studio
 
         # Should also add git bash shell to the path:
+        # and we should explicitly add the path to clang-cl to PATH:
         base_dir = self.tools.get_tool_root_dir('git')
         logger.info("Using git base path: %s", base_dir)
-        self.env['PATH'].insert(0, self.get_path(base_dir, "usr", "bin"))
-
-        # So we should explicitly add the path to clang-cl to PATH:
-        self.env['PATH'].insert(0, self.get_path(prefix, "bin"))
+        pdirs = self.env.get("PATH", "")
+        shell_dir = self.get_path(base_dir, "usr", "bin")
+        clang_dir = self.get_path(prefix, "bin")
+        self.env['PATH'] = f"{clang_dir};{shell_dir};{pdirs}"
 
         # next we create a build dir for the runtimes
         build_dir2 = self.get_path(build_dir, "build2")
