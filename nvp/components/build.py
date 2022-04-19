@@ -46,6 +46,8 @@ class BuildManager(NVPComponent):
                          help="Force rebuilding from sources")
         psr.add_argument("-k", "--keep-build", dest='keep_build', action='store_true',
                          help="Keep the build folder after build")
+        psr.add_argument("-a", "--append", dest='append', action='store_true',
+                         help="Keep the target install folder if it exists.")
         psr.add_argument("--preview", dest='preview', action='store_true',
                          help="Preview the sources only")
 
@@ -206,6 +208,7 @@ class BuildManager(NVPComponent):
         doall = "all" in dep_list
         rebuild = self.settings['rebuild']
         preview = self.settings['preview']
+        append = self.settings['append']
 
         for dep in alldeps:
 
@@ -229,7 +232,7 @@ class BuildManager(NVPComponent):
                 # Also remove the previously built package:
                 self.remove_file(self.libs_package_dir, self.get_library_package_name(dep_name))
 
-            if not os.path.exists(dep_dir):
+            if not os.path.exists(dep_dir) or append:
                 # Here we need to deploy that dependency:
                 self.deploy_dependency(dep)
             else:
@@ -248,9 +251,10 @@ class BuildManager(NVPComponent):
         src_pkg_path = self.get_path(self.libs_package_dir, src_pkg_name)
 
         rebuild = self.settings['rebuild']
+        append = self.settings['append']
 
         # if the package is not already available locally, maybe we can retrieve it remotely:
-        if not self.file_exists(src_pkg_path) and not rebuild:
+        if not self.file_exists(src_pkg_path) and not rebuild and not append:
             pkg_urls = self.config.get("package_urls", [])
             pkg_urls = [base_url+'libraries/'+src_pkg_name for base_url in pkg_urls]
 
@@ -258,7 +262,7 @@ class BuildManager(NVPComponent):
             if pkg_url is not None:
                 self.tools.download_file(pkg_url, src_pkg_path)
 
-        if self.file_exists(src_pkg_path):
+        if self.file_exists(src_pkg_path) and not append:
             # We should simply extract that package into our target dir:
             self.tools.extract_package(src_pkg_path, self.libs_dir, target_dir=dep_name)
         else:

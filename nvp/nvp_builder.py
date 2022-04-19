@@ -73,11 +73,16 @@ class NVPBuilder(NVPObject):
         """Run the build operation. Should be re-implemented."""
         raise NotImplementedError
 
+    def exec_ninja(self, build_dir, flags=None):
+        """Run a custom ninja command line"""
+        ninja_path = self.tools.get_ninja_path()
+        flags = flags or []
+        self.execute([ninja_path]+flags, cwd=build_dir, env=self.env)
+
     def run_ninja(self, build_dir):
         """Execute the standard ninja build/install commands"""
-        ninja_path = self.tools.get_ninja_path()
-        self.execute([ninja_path], cwd=build_dir, env=self.env)
-        self.execute([ninja_path, "install"], cwd=build_dir, env=self.env)
+        self.exec_ninja(build_dir)
+        self.exec_ninja(build_dir, ['install'])
 
     def run_make(self, build_dir):
         """Execute the standard make build/install commands"""

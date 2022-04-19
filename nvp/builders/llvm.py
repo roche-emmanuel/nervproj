@@ -108,16 +108,66 @@ class LLVMBuilder(NVPBuilder):
         self.apply_patches(build_dir)
 
         # Create a sub build folder:
-        build_dir = self.get_path(build_dir, "build")
-        self.make_folder(build_dir)
+        build_dir1 = self.get_path(build_dir, "build")
+        self.make_folder(build_dir1)
 
-        flags = self.get_cmake_flags(prefix)
-        self.run_cmake(build_dir, prefix, "../llvm", flags)
-        self.run_ninja(build_dir)
+        # flags = self.get_cmake_flags(prefix)
+        # self.run_cmake(build_dir1, prefix, "../llvm", flags)
+        # self.run_ninja(build_dir1)
 
         # other possible options:
         # -DLLVM_BUILD_TOOLS=ON -DLLVM_INCLUDE_TOOLS=ON
         # -DLLVM_BUILD_EXAMPLES=ON   -DLLVM_ENABLE_IDE=OFF  ..\llvm
+
+        # On windows, When done building the compiler we should then build the runtimes:
+        # cf. https://libcxx.llvm.org/BuildingLibcxx.html#cmake-visual-studio
+
+        # Should also add git bash shell to the path:
+        base_dir = self.tools.get_tool_root_dir('git')
+        logger.info("Using git base path: %s", base_dir)
+        self.env['PATH'].insert(0, self.get_path(base_dir, "usr", "bin"))
+
+        # So we should explicitly add the path to clang-cl to PATH:
+        self.env['PATH'].insert(0, self.get_path(prefix, "bin"))
+
+        # next we create a build dir for the runtimes
+        build_dir2 = self.get_path(build_dir, "build2")
+
+        # prepare the flags for cmake:
+        flags = ["-S", "runtimes", "-B", "build2",
+                 f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib",
+                 f"-DLIBCXX_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
+                 f"-DLIBCXX_INSTALL_INCLUDE_TARGET_DIR={prefix}/include/c++/v1",
+                 f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
+                 f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
+                 f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
+                 "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp",
+                 "-DCMAKE_C_COMPILER=clang-cl.exe",
+                 "-DCMAKE_CXX_COMPILER=clang-cl.exe"
+                 ]
+
+        logger.info("Building LLVM runtimes...")
+
+        self.run_cmake(build_dir2, prefix, "", flags)
+        self.exec_ninja(build_dir2)
+        self.exec_ninja(build_dir2, ['check'])
+        self.exec_ninja(build_dir2, ['install'])
+
+# $ git clone https://github.com/llvm/llvm-project.git
+# $ cd llvm-project
+# $ mkdir build
+# $ cmake -G Ninja -S runtimes -B build -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind" # Configure
+# $ ninja -C build cxx cxxabi unwind                                                        # Build
+# $ ninja -C build check-cxx check-cxxabi check-unwind                                      # Test
+# $ ninja -C build install-cxx install-cxxabi install-unwind                                # Install
+
+# > cmake -G Ninja -S runtimes -B build                                               ^
+#         -DCMAKE_C_COMPILER=clang-cl                                                 ^
+#         -DCMAKE_CXX_COMPILER=clang-cl                                               ^
+#         -DLLVM_ENABLE_RUNTIMES=libcxx                                               ^
+#         -DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=NO
+# > ninja -C build cxx
+# > ninja -C build check-cxx
 
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for LLVM on linux"""
