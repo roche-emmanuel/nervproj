@@ -134,6 +134,9 @@ class LLVMBuilder(NVPBuilder):
         # next we create a build dir for the runtimes
         build_dir2 = self.get_path(build_dir, "build2")
 
+        # Note: Failure when building libc below ?
+        # "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp",
+
         # prepare the flags for cmake:
         flags = ["-S", "runtimes", "-B", "build2",
                  f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib",
@@ -142,7 +145,7 @@ class LLVMBuilder(NVPBuilder):
                  f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
                  f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
                  f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
-                 "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp",
+                 "-DLLVM_ENABLE_RUNTIMES=libcxx;libcxxabi;libunwind;openmp",
                  "-DCMAKE_C_COMPILER=clang-cl.exe",
                  "-DCMAKE_CXX_COMPILER=clang-cl.exe"
                  ]
