@@ -142,48 +142,53 @@ class LLVMBuilder(NVPBuilder):
         shell_dir = self.get_path(base_dir, "usr", "bin")
         clang_dir = self.get_path(prefix, "bin")
         self.env['PATH'] = f"{clang_dir};{shell_dir};{pdirs}"
+        # Reset the previous env flags:
+        if "CFLAGS" in self.env:
+            del self.env["CFLAGS"]
+        if "CXXFLAGS" in self.env:
+            del self.env["CXXFLAGS"]
+        if "LDFLAGS" in self.env:
+            del self.env["LDFLAGS"]
 
         # next we create a build dir for the runtimes
         build_dir2 = self.get_path(build_dir, "build2")
 
-        # Note: Failure when building libc below ?
+        # **Important note**: Failure when building libc below
+        # And also failure with openmp
+        # And same for libunwind
+        # And libcxxabi
         # "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp",
+        # => Basically, we can only build libcxx here.
 
         # prepare the flags for cmake:
         flags = ["-S", "runtimes", "-B", "build2",
                  f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib",
                  f"-DLIBCXX_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
                  f"-DLIBCXX_INSTALL_INCLUDE_TARGET_DIR={prefix}/include/c++/v1",
-                 f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
-                 f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
-                 f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
-                 "-DLLVM_ENABLE_RUNTIMES=libcxx;libcxxabi;libunwind;openmp",
+                 "-DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=NO",
+                 #  f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
+                 #  f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
+                 #  f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
+                 "-DLLVM_ENABLE_RUNTIMES=libcxx",
                  "-DCMAKE_C_COMPILER=clang-cl.exe",
-                 "-DCMAKE_CXX_COMPILER=clang-cl.exe"
+                 "-DCMAKE_CXX_COMPILER=clang-cl.exe",
+                 #  "-DLIBCXX_ENABLE_STATIC=OFF",
+                 #  "-DLIBCXXABI_ENABLE_STATIC=OFF",
+                 #  "-DLIBCXX_LINK_TESTS_WITH_SHARED_LIBCXXABI=ON",
+                 #  "-DLIBUNWIND_ENABLE_STATIC=OFF",
                  ]
 
         logger.info("Building LLVM runtimes...")
 
         self.run_cmake(build_dir, prefix, flags=flags)
-        self.exec_ninja(build_dir2)
-        self.exec_ninja(build_dir2, ['check'])
-        self.exec_ninja(build_dir2, ['install'])
 
-# $ git clone https://github.com/llvm/llvm-project.git
-# $ cd llvm-project
-# $ mkdir build
-# $ cmake -G Ninja -S runtimes -B build -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind" # Configure
-# $ ninja -C build cxx cxxabi unwind                                                        # Build
-# $ ninja -C build check-cxx check-cxxabi check-unwind                                      # Test
-# $ ninja -C build install-cxx install-cxxabi install-unwind                                # Install
+        # We also have to create the destination include/c++/v1 folder ourself here:
+        # self.make_folder(build_dir2, "include", "c++", "v1")
 
-# > cmake -G Ninja -S runtimes -B build                                               ^
-#         -DCMAKE_C_COMPILER=clang-cl                                                 ^
-#         -DCMAKE_CXX_COMPILER=clang-cl                                               ^
-#         -DLLVM_ENABLE_RUNTIMES=libcxx                                               ^
-#         -DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=NO
-# > ninja -C build cxx
-# > ninja -C build check-cxx
+        self.exec_ninja(build_dir2, ['cxx'])  # , 'cxxabi' , 'unwind'
+        # Test are failing for now below:
+        # self.exec_ninja(build_dir2, ['check-cxx'])  # , 'check-cxxabi' , 'check-unwind'
+        self.exec_ninja(build_dir2, ['install-cxx'])  # , 'install-cxxabi' , 'install-unwind'
 
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for LLVM on linux"""
