@@ -206,7 +206,7 @@ class ToolsManager(NVPComponent):
 
         return False
 
-    def download_file(self, url, dest_file, prefix="", max_speed=0, max_retries=20, timeout=6):
+    def download_file(self, url, dest_file, prefix="", max_speed=0, max_retries=20, timeout=6, headers=None):
         """Helper function used to download a file with progress report."""
 
         if url.startswith("git@"):
@@ -226,10 +226,12 @@ class ToolsManager(NVPComponent):
         dlsize = 0
         count = 0
 
+        tmp_file = dest_file+".download"
+
         while count < max_retries:
             try:
                 logger.debug("Sending request...")
-                response = requests.get(url, stream=True, timeout=timeout)
+                response = requests.get(url, stream=True, timeout=timeout, headers=headers)
 
                 logger.debug("Retrieving content-length.")
                 total_length = response.headers.get('content-length')
@@ -253,7 +255,7 @@ class ToolsManager(NVPComponent):
                 total_length = int(total_length)
                 last_time = time.time()
 
-                with open(dest_file, "wb") as fdd:
+                with open(tmp_file, "wb") as fdd:
                     for data in response.iter_content(chunk_size=4096):
                         nbytes = len(data)
                         dlsize += nbytes
@@ -281,12 +283,16 @@ class ToolsManager(NVPComponent):
                     sys.stdout.write('\n')
                     sys.stdout.flush()
 
-                    # The file was completely downloaded
-                    return True
+                # The file was completely downloaded
+                # So we can rename it:
+                self.rename_file(tmp_file, dest_file)
+                return True
+
             except (urllib3.exceptions.ReadTimeoutError, requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
                 count += 1
                 logger.error("Exception occured while downloading %s, retrying (%d/%d)...", url, count, max_retries)
-                self.remove_file(dest_file)
+                self.remove_file(tmp_file)
+                # self.remove_file(dest_file)
 
         logger.error("Cannot download file from %s in %d retries", url, max_retries)
         return False
