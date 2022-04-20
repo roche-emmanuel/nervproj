@@ -8,3 +8,4 @@ xxhash
 moviepy
 pillow
 ffmpeg-python
+numpy
