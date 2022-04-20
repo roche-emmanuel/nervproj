@@ -129,6 +129,10 @@ class NVPObject(object):
         """Return true if the given path is absolute"""
         return os.path.isabs(my_path)
 
+    def to_relative_path(self, my_path, base_dir):
+        """Get a relative path from the given base dir"""
+        return os.path.relpath(my_path, start=base_dir)
+
     def get_parent_folder(self, *parts):
         """Retrieve the parent folder from any path."""
         my_path = self.get_path(*parts)
