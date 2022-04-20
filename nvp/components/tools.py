@@ -226,6 +226,8 @@ class ToolsManager(NVPComponent):
         dlsize = 0
         count = 0
 
+        tmp_file = dest_file+".download"
+
         while count < max_retries:
             try:
                 logger.debug("Sending request...")
@@ -252,8 +254,6 @@ class ToolsManager(NVPComponent):
                 logger.debug("Total file length is: %s", total_length)
                 total_length = int(total_length)
                 last_time = time.time()
-
-                tmp_file = dest_file+".download"
 
                 with open(tmp_file, "wb") as fdd:
                     for data in response.iter_content(chunk_size=4096):
