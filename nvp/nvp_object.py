@@ -109,6 +109,14 @@ class NVPObject(object):
         """Check if a file exists."""
         return os.path.isfile(self.get_path(*parts))
 
+    def symlink_exists(self, *parts):
+        """Check if a symlink exists."""
+        return os.path.islink(self.get_path(*parts))
+
+    def create_symlink(self, src, dest):
+        """Create a symlink from source to dest"""
+        os.symlink(src, dest)
+
     def path_exists(self, *parts):
         """Check if a path exists."""
         return os.path.exists(self.get_path(*parts))
