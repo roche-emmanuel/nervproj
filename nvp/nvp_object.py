@@ -14,6 +14,7 @@ import json
 import urllib
 import jstyleson
 import requests
+import xxhash
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +170,19 @@ class NVPObject(object):
             os.makedirs(folder, exist_ok=True)
 
         return folder
+
+    def compute_file_hash(self, fpath, blocksize=65536):
+        """Compute the hash for a given file path"""
+        # cf. https://www.programcreek.com/python/example/111324/xxhash.xxh64
+        hasher = xxhash.xxh64()
+        with open(fpath, 'rb') as file:
+            buf = file.read(blocksize)
+            # otherwise hash the entire file
+            while len(buf) > 0:
+                hasher.update(buf)
+                buf = file.read(blocksize)
+
+        return hasher.intdigest()
 
     def remove_folder(self, *parts, recursive=True):
         """Helper method used to remove a given folder either recursively or not."""
