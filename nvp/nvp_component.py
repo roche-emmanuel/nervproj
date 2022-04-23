@@ -30,11 +30,14 @@ class NVPComponent(NVPObject):
         """Retrieve a component from the context"""
         return self.ctx.get_component(cname, do_init)
 
-    def get_param(self, pname, defval):
+    def get_param(self, pname, defval=None):
         """Retrieve a given parameter from the context
         or the default value."""
 
-        return self.ctx.get_settings().get(pname, defval)
+        val = self.ctx.get_settings().get(pname, None)
+        if val is None:
+            val = defval
+        return val
 
     def is_initialized(self):
         """Return initialization state."""
