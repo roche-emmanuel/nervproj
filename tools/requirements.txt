@@ -9,3 +9,4 @@ moviepy
 pillow
 ffmpeg-python
 numpy
+deep-translator
