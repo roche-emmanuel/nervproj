@@ -6,6 +6,7 @@ import os
 import stat
 import pprint
 import time
+import unicodedata
 import re
 import sys
 import subprocess
@@ -462,3 +463,28 @@ class NVPObject(object):
         # logger.info("All paths in append_env_list: %s", all_paths)
         env[key] = sep.join(all_paths)
         return env
+
+    def get_online_content(self, url, timeout=20):
+        """Get the content from a given URL"""
+        logger.info("Sending request on %s...", url)
+        response = requests.get(url, timeout=timeout)
+        content = response.text
+
+        return content
+
+    # cf. https://stackoverflow.com/questions/295135/turn-a-string-into-a-valid-filename
+    def slugify(self, value, allow_unicode=False):
+        """
+        Taken from https://github.com/django/django/blob/master/django/utils/text.py
+        Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
+        dashes to single dashes. Remove characters that aren't alphanumerics,
+        underscores, or hyphens. Convert to lowercase. Also strip leading and
+        trailing whitespace, dashes, and underscores.
+        """
+        value = str(value)
+        if allow_unicode:
+            value = unicodedata.normalize('NFKC', value)
+        else:
+            value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+        value = re.sub(r'[^\w\s-]', '', value.lower())
+        return re.sub(r'[-\s]+', '-', value).strip('-_')
