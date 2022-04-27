@@ -351,6 +351,29 @@ class AdminManager(NVPComponent):
             content = DEFAULT_NVPPLUG_CONTENT.replace("${PROJ_NAME}", proj_name)
             self.write_text_file(content, dest_file)
 
+        # Add pull rebase = false to .git/config
+        cfg_file = self.get_path(proj_dir, ".git", "config")
+        assert self.file_exists(cfg_file), f"Cannot fine git config file at {cfg_file}"
+        # Load that config:
+        config = self.read_ini(cfg_file)
+        save_needed = False
+
+        if 'pull' not in config:
+            logger.info("Adding pull section in git config.")
+            config['pull'] = {
+                "rebase": "false",
+            }
+            save_needed = True
+        else:
+            pull = config['pull']
+            if pull['rebase'] != 'false':
+                logger.info("Updating git pull rebase from %s to %s", pull['rebase'], 'false')
+                pull['rebase'] = 'false'
+                save_needed = True
+
+        if save_needed:
+            self.write_ini(config, cfg_file)
+
     def process_command(self, cmd0):
         """Re-implementation of the process_command method."""
 
