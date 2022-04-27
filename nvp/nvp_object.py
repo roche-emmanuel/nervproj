@@ -297,6 +297,10 @@ class NVPObject(object):
         with open(filename, 'w', encoding="utf-8") as file:
             file.write(filedata)
 
+    def copy_folder(self, src_folder, dst_folder):
+        """Copy a source folder to a destination folder."""
+        shutil.copytree(src_folder, dst_folder)
+
     def copy_file(self, src_file, dst_file, force=False):
         """copy a source file to a destination file, overriding
         destination if force==True"""

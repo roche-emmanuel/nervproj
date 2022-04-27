@@ -128,6 +128,143 @@ DEFAULT_GITATTRIBUTES_CONTENT = """###############################
 
 """
 
+DEFAULT_CLI_PY_CONTENT = '''""" Main command line interface module """
+
+# => Adapt the code below to be your application entrypoint.
+
+parser = argparse.ArgumentParser()
+args = parser.parse_args()
+
+print("Should implement application logic here.")
+
+'''
+
+DEFAULT_CLI_SH_CONTENT = '''#!/bin/bash
+
+# cf. https://stackoverflow.com/questions/59895/how-can-i-get-the-source-directory-of-a-bash-script-from-within-the-script-itsel
+ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+
+_${PROJ_NAME}_run_cli_windows() {
+    # On windows we should simply rely on the cli.bat script below:
+    ROOT_DIR="$(cygpath -w $ROOT_DIR)"
+    cmd /C "$ROOT_DIR\cli.bat" "$@"
+}
+
+_${PROJ_NAME}_run_cli_linux() {
+    local python_version="${PY_VERSION}"
+
+    # On linux we should call the python cli directly:
+    # Get the project root folder:
+    local root_dir=$(readlink -f $ROOT_DIR/)
+    # echo "Project root dir is: $root_dir"
+
+    # Check if we already have python:
+    local tools_dir=$root_dir/tools/linux
+    if [[ ! -d $tools_dir ]]; then
+        echo "Creating tools/linux folder..."
+        mkdir $tools_dir
+    fi
+
+    local python_dir=$tools_dir/python-$python_version
+    local python_path=$python_dir/bin/python3
+
+    if [[ ! -d $python_dir ]]; then
+        # Get the path to package:
+        local python_pkg=$root_dir/tools/packages/python-$python_version-linux.tar.xz
+
+        echo "Extracting $python_pkg..."
+        # $unzip_path x -o"$tools_dir" "$python_pkg" > /dev/null
+        pushd $tools_dir >/dev/null
+        tar xvJf $python_pkg
+        popd >/dev/null
+
+        # Once we have deployed the base python tool package we start with upgrading pip:
+        echo "Upgrading pip..."
+        $python_path -m pip install --upgrade pip
+
+        # Finally we install the python requirements:
+        echo "Installing python requirements..."
+        $python_path -m pip install -r $root_dir/tools/requirements.txt
+    fi
+
+    if [ "$1" == "--install-py-reqs" ]; then
+        echo "Installing python requirements..."
+        $python_path -m pip install -r $root_dir/tools/requirements.txt
+    else
+        # Execute the command in python:
+        $python_path $root_dir/cli.py "$@"
+    fi
+}
+
+${PROJ_NAME}() {
+    if [ "$1" == "home" ]; then
+        # We simply go to the home of this project:
+        cd "$ROOT_DIR"
+    else
+        # Check if we are on a windows or a linux system:
+        pname=$(uname -s)
+
+        case $pname in
+        CYGWIN*)
+            _${PROJ_NAME}_run_cli_windows "$@"
+            ;;
+        *)
+            _${PROJ_NAME}_run_cli_linux "$@"
+            ;;
+        esac
+    fi
+}
+
+if [ "$#" != "0" ]; then
+    ${PROJ_NAME} "$@"
+else
+    echo "${PROJ_NAME} command loaded."
+fi
+
+'''
+
+DEFAULT_CLI_BAT_CONTENT = '''
+@echo off
+
+SETLOCAL ENABLEDELAYEDEXPANSION
+
+@REM Retrieve the current folder:
+@REM cli script is located directly in the root, so we don't need the '..' in path:
+@REM cd /D %~dp0..
+cd /D %~dp0
+FOR /F %%i IN (".") DO set ${PROJ_NAME}_ROOT_DIR=%%~fi
+
+set ${PROJ_NAME}_DIR=%${PROJ_NAME}_ROOT_DIR%
+@REM echo Using NervProj root folder: %${PROJ_NAME}_DIR%
+
+@REM Extract the python env if needed:
+set py_vers=${PY_VERSION}
+set TOOLS_DIR=%${PROJ_NAME}_DIR%\\tools\\windows\\
+set UNZIP=%TOOLS_DIR%\\7zip-${ZIP_VERSION}\\7za.exe
+set PYTHON=%TOOLS_DIR%\\python-%py_vers%\\python.exe
+
+@REM Check if python is extracted already:
+if not exist "%PYTHON%" (
+    echo Extracting python tool...
+    %UNZIP% x -o"%TOOLS_DIR%" "%${PROJ_NAME}_DIR%\\tools\\packages\\python-%py_vers%-windows.7z" > nul
+
+    @REM Upgrade pip:
+    %PYTHON% -m pip install --upgrade pip
+
+    @REM Install requirements:
+    %PYTHON% -m pip install -r %${PROJ_NAME}_DIR%\\tools\\requirements.txt
+)
+
+@REM check if the first argument is "--install-py-reqs"
+if "%~1" == "--install-py-reqs" (
+    %PYTHON% -m pip install -r %${PROJ_NAME}_DIR%\\tools\\requirements.txt
+) else (
+    @REM call the python app with the provided arguments:
+    %PYTHON% %${PROJ_NAME}_DIR%\\cli.py %*
+)
+
+'''
+
 
 def register_component(ctx: NVPContext):
     """Register this component in the given context"""
@@ -154,6 +291,10 @@ class AdminManager(NVPComponent):
             }
         }
         ctx.define_subparsers("main", desc)
+
+        psr = ctx.get_parser('main.admin.init')
+        psr.add_argument("-p", "--with-py-env", dest="with_py_env", action="store_true",
+                         help="Request deployment of a full python environment.")
 
     def install_cli(self):
         """Install a CLI script in .bashrc if application"""
@@ -293,6 +434,12 @@ class AdminManager(NVPComponent):
         config = {}
         ref_config = None
 
+        # Check if we should provide a python environment in this project:
+        with_py = self.get_param("with_py_env", False)
+
+        if with_py:
+            logger.info("Setting up dedicated python env for %s", proj_name)
+
         if self.file_exists(cfg_file):
             # Read the config:
             config = self.read_json(cfg_file)
@@ -306,6 +453,85 @@ class AdminManager(NVPComponent):
             self.write_json(config, cfg_file)
         else:
             logger.info("No change in %s", cfg_file)
+
+        ignore_elems = []
+
+        if with_py:
+            # We deploy the python packages:
+            dest_dir = self.get_path(proj_dir, "tools", "packages")
+            self.make_folder(dest_dir)
+            # get the python version on windows:
+            py_vers = {}
+            sevenzip_vers = {}
+
+            for plat_name in ["windows", "linux"]:
+                for el in self.config[f'{plat_name}_tools']:
+                    if el["name"] == 'python':
+                        py_vers[plat_name] = el["version"]
+                    if el["name"] == '7zip':
+                        sevenzip_vers[plat_name] = el["version"]
+
+            for plat_name, py_version in py_vers.items():
+                for ext in [".7z", ".tar.xz"]:
+                    file_name = f"python-{py_version}-{plat_name}{ext}"
+                    src_file = self.get_path(self.ctx.get_root_dir(), "tools", "packages", file_name)
+                    dst_file = self.get_path(dest_dir, file_name)
+                    if self.file_exists(src_file) and not self.file_exists(dst_file):
+                        logger.info("Adding package file %s", dst_file)
+                        self.copy_file(src_file, dst_file)
+
+            # Next, for the windows part we need to deploy the 7zip package too:
+            folder_name = f"7zip-{sevenzip_vers['windows']}"
+            src_folder = self.get_path(self.ctx.get_root_dir(), "tools", "windows", folder_name)
+            dst_folder = self.get_path(proj_dir, "tools", "windows", folder_name)
+            if not self.dir_exists(dst_folder):
+                logger.info("Adding windows 7zip package at %s", dst_folder)
+                self.copy_folder(src_folder, dst_folder)
+
+            # Update the ignore elements:
+            ignore_elems += ["",
+                             "# Ignore all the windows tools except the 7zip folder:",
+                             "tools/windows/*",
+                             "!tools/windows/7zip-*",
+                             "tools/linux/*"]
+
+            # Should also install an requirements.txt file:
+            dest_file = self.get_path(proj_dir, "tools", "requirements.txt")
+            if not self.file_exists(dest_file):
+                logger.info("Installing pythong requirements file.")
+                content = ["# List here all the required python packages,"
+                           "# Then call install_requirements.sh/install_requirements.bat"
+                           "pylint",
+                           "autopep8",
+                           ""]
+                content = "\n".join(content)
+                self.write_text_file(content, dest_file)
+
+            # Should install the cli script files:
+            dest_file = self.get_path(proj_dir, "cli.py")
+            if not self.file_exists(dest_file):
+                logger.info("Writting cli python file %s", dest_file)
+                content = DEFAULT_CLI_PY_CONTENT
+                self.write_text_file(content, dest_file)
+
+            dest_file = self.get_path(proj_dir, "cli.sh")
+            if not self.file_exists(dest_file):
+                logger.info("Writting cli shell file %s", dest_file)
+                content = DEFAULT_CLI_SH_CONTENT
+                content = content.replace("${PROJ_NAME}", proj_name.lower())
+                # Use the linux python version below:
+                content = content.replace("${PY_VERSION}", py_vers['linux'])
+                self.write_text_file(content, dest_file, newline="\n")
+
+            dest_file = self.get_path(proj_dir, "cli.bat")
+            if not self.file_exists(dest_file):
+                logger.info("Writting cli batch file %s", dest_file)
+                content = DEFAULT_CLI_BAT_CONTENT
+                content = content.replace("${PROJ_NAME}", proj_name.upper())
+                # Use the windows versionq below:
+                content = content.replace("${PY_VERSION}", py_vers['windows'])
+                content = content.replace("${ZIP_VERSION}", sevenzip_vers['windows'])
+                self.write_text_file(content, dest_file)
 
         # Write the env file if needed:
         dest_file = self.get_path(proj_dir, ".vs_env")
@@ -328,6 +554,8 @@ class AdminManager(NVPComponent):
         if not self.file_exists(dest_file):
             logger.info("Writting .gitignore file %s", dest_file)
             content = DEFAULT_GITIGNORE_CONTENT
+            content += "\n".join(ignore_elems)
+            content += "\n"
             self.write_text_file(content, dest_file)
 
         # and write a .gitattributes file:
