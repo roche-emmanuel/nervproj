@@ -10,3 +10,4 @@ pillow
 ffmpeg-python
 numpy
 deep-translator
+opencv-python
