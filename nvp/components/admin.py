@@ -130,6 +130,8 @@ DEFAULT_GITATTRIBUTES_CONTENT = """###############################
 
 DEFAULT_CLI_PY_CONTENT = '''""" Main command line interface module """
 
+import argparse
+
 # => Adapt the code below to be your application entrypoint.
 
 parser = argparse.ArgumentParser()
@@ -215,7 +217,9 @@ ${PROJ_NAME}() {
     fi
 }
 
-if [ "$#" != "0" ]; then
+# cf. https://askubuntu.com/questions/141928/what-is-the-difference-between-bin-sh-and-bin-bash
+(return 0 2>/dev/null) && sourced=1 || sourced=0
+if [ "$sourced" == "0" ]; then
     ${PROJ_NAME} "$@"
 else
     echo "${PROJ_NAME} command loaded."
@@ -538,8 +542,9 @@ class AdminManager(NVPComponent):
         if not self.file_exists(dest_file):
             logger.info("Writting python env file %s", dest_file)
             content = DEFAULT_PYTHONENV_CONTENT
-            content = content.replace("${NVP_ROOT_DIR}", self.ctx.get_root_dir())
-            content = content.replace("${SEP}", ";" if self.is_windows else ":")
+            sep = ";" if self.is_windows else ":"
+            content = content.replace("${NVP_ROOT_DIR}", "" if with_py else self.ctx.get_root_dir())
+            content = content.replace("${SEP}", "" if with_py else sep)
             self.write_text_file(content, dest_file)
 
         # and write a .editorconfig file:
