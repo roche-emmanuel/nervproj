@@ -25,6 +25,9 @@ DEFAULT_GITIGNORE_CONTENT = """# Ignore python compiled files:
 # Ignore .vs_env file:
 .vs_env
 
+# Ignore visual studio code actual settings file:
+.vscode/settings.json
+
 # Ignore log files:
 *.log
 """
@@ -432,7 +435,7 @@ class AdminManager(NVPComponent):
         """Setup initial project local config elements"""
         config_dir = self.get_path(proj_dir, ".vscode")
 
-        cfg_file = self.get_path(config_dir, "settings.json")
+        cfg_file = self.get_path(config_dir, "settings.template.json")
         self.make_folder(config_dir)
 
         config = {}
@@ -451,12 +454,6 @@ class AdminManager(NVPComponent):
             ref_config = self.read_json(cfg_file)
 
         config["python.envFile"] = "${workspaceFolder}/.vs_env"
-
-        if ref_config is None or config != ref_config:
-            logger.info("Wrtting updated vscode settings in %s", cfg_file)
-            self.write_json(config, cfg_file)
-        else:
-            logger.info("No change in %s", cfg_file)
 
         ignore_elems = []
 
@@ -483,6 +480,20 @@ class AdminManager(NVPComponent):
                     if self.file_exists(src_file) and not self.file_exists(dst_file):
                         logger.info("Adding package file %s", dst_file)
                         self.copy_file(src_file, dst_file)
+
+            # more updates to vscode settings if we have a dedicated python env:
+            cur_py_vers = py_vers[self.platform]
+
+            ext = ".exe" if self.is_windows else ""
+
+            config["python.linting.pylintEnabled"] = True
+            config["python.linting.enabled"] = True
+            config["python.linting.pylintPath"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/pylint{ext}"
+            config["python.linting.pylintArgs"] = ["--max-line-length=120"]
+            config["python.defaultInterpreterPath"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/python{ext}"
+            config["python.formatting.autopep8Path"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/autopep8{ext}"
+            config["python.formatting.provider"] = "autopep8"
+            config["python.formatting.autopep8Args"] = ["--max-line-length=120", "--experimental"]
 
             # Next, for the windows part we need to deploy the 7zip package too:
             folder_name = f"7zip-{sevenzip_vers['windows']}"
@@ -537,6 +548,19 @@ class AdminManager(NVPComponent):
                 content = content.replace("${PY_VERSION}", py_vers['windows'])
                 content = content.replace("${ZIP_VERSION}", sevenzip_vers['windows'])
                 self.write_text_file(content, dest_file)
+
+        # Finish writting the vscode config:
+        if ref_config is None or config != ref_config:
+            logger.info("Wrtting updated vscode settings in %s", cfg_file)
+            self.write_json(config, cfg_file)
+        else:
+            logger.info("No change in %s", cfg_file)
+
+        # Also copy to actuall settings if we don't have the file yet:
+        cfg_file2 = self.get_path(config_dir, "settings.json")
+        if not self.file_exists(cfg_file2):
+            logger.info("Copyging VSCode settings template to %s", cfg_file2)
+            self.copy_file(cfg_file, cfg_file2)
 
         # Write the env file if needed:
         dest_file = self.get_path(proj_dir, ".vs_env")
