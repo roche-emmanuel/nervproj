@@ -503,8 +503,9 @@ class AdminManager(NVPComponent):
             dest_file = self.get_path(proj_dir, "tools", "requirements.txt")
             if not self.file_exists(dest_file):
                 logger.info("Installing pythong requirements file.")
-                content = ["# List here all the required python packages,"
-                           "# Then call install_requirements.sh/install_requirements.bat"
+                content = ["# List here all the required python packages",
+                           "# Then call cli.{sh/bat} --install-py-reqs",
+                           "",
                            "pylint",
                            "autopep8",
                            ""]
