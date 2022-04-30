@@ -149,6 +149,11 @@
       "name": "LuaJIT",
       "version": "2.1",
       "url": "git@github.com:roche-emmanuel/LuaJIT.git"
+    },
+    {
+      "name": "FastNoise2",
+      "version": "0.9.4",
+      "url": "git@github.com:roche-emmanuel/FastNoise2.git"
     }
   ],
 
