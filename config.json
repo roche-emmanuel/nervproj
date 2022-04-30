@@ -177,5 +177,16 @@
   "git": {
     "user_email": "your_email@domain.com",
     "user_name": "your_user_name"
+  },
+
+  // List of local blueprints that we can build:
+  "blueprints": {
+    "fastnoise2_python_bindings": {
+      "url": "${PROJECT_ROOT_DIR}/sources/pyfn2",
+      "dependencies": {
+        "BOOST_DIR": "boost",
+        "PYTHON_DIR": "python"
+      }
+    }
   }
 }

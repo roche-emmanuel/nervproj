@@ -144,7 +144,28 @@ class NVPContext(NVPObject):
 
         if cfg_file is not None:
             user_cfg = self.read_json(cfg_file)
-            self.config.update(user_cfg)
+
+            # If a key starts with a "+" symbol then we append to the existing element instead of overriding it:
+            for key, val in user_cfg.items():
+                if key[0] == "+":
+                    # Should append here:
+                    key = key[1:]
+                    if key in self.config:
+                        # Should have the same types:
+                        assert type(self.config[key]) == type(val), f"Type mismatch on config key {key}"
+                        if isinstance(self.config[key], list):
+                            self.config[key] += val
+                        else:
+                            # assume that we have a dict:
+                            self.config[key].update(val)
+                    else:
+                        # add the new key value:
+                        self.config[key] = val
+                else:
+                    # regular keys:
+                    self.config[key] = val
+
+            # self.config.update(user_cfg)
 
     def has_project(self, pname):
         """Check if a given project should be considered available"""
