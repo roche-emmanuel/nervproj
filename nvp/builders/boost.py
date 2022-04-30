@@ -74,7 +74,7 @@ class BoostBuilder(NVPBuilder):
 
         logger.info("Building boost library...")
 
-        # build_env = self.compiler.get_env()
+        build_env = self.compiler.get_env()
         # logger.info("Using build env: %s", self.pretty_print(build_env))
 
         comp_path = self.compiler.get_cxx_path()
