@@ -21,22 +21,28 @@ class NVPBuilder(NVPObject):
         desc = desc or {}
         self.tool_envs = desc.get('tool_envs', ['ninja'])
 
-    def build(self, build_dir, prefix, desc):
-        """Run the build process either on the proper target platform"""
+    def init_env(self):
+        """Init the compiler environment"""
         self.env = self.compiler.get_env()
 
         # Add the tools to the path:
         tdirs = [self.tools.get_tool_dir(tname) for tname in self.tool_envs]
         self.env = self.prepend_env_list(tdirs, self.env)
 
-        if self.is_windows:
-            self.build_on_windows(build_dir, prefix, desc)
-        elif self.is_linux:
+        if self.is_linux:
             # We should add the -fPIC flag to the CXXFLAGS:
             flags = self.env.get("CXXFLAGS", "")
             self.env["CXXFLAGS"] = f"{flags} -fPIC"
             flags = self.env.get("CFLAGS", "")
             self.env["CFLAGS"] = f"{flags} -fPIC"
+
+    def build(self, build_dir, prefix, desc):
+        """Run the build process either on the proper target platform"""
+        self.init_env()
+
+        if self.is_windows:
+            self.build_on_windows(build_dir, prefix, desc)
+        elif self.is_linux:
             self.build_on_linux(build_dir, prefix, desc)
         else:
             raise NotImplementedError

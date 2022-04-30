@@ -175,6 +175,20 @@ class BuildManager(NVPComponent):
         # Store the packages in the destination library folder:
         self.libs_package_dir = self.libs_dir
 
+    def has_library(self, lib_name):
+        """Check if a given library is available"""
+        for ldesc in self.config['libraries']:
+            if ldesc['name'] == lib_name:
+                return True
+        return False
+
+    def get_library_desc(self, lib_name):
+        """Retrieve library desc if available"""
+        for ldesc in self.config['libraries']:
+            if ldesc['name'] == lib_name:
+                return ldesc
+        return None
+
     def get_library_root_dir(self, lib_name):
         """Retrieve the root dir for a given library"""
 

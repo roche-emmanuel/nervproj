@@ -117,9 +117,7 @@
     },
     {
       "name": "libiconv",
-      // "windows_version": "1.9.2",
-      "windows_version": "1.16",
-      "linux_version": "1.16",
+      "version": "1.16",
       "url": "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.16.tar.gz"
     },
     {
@@ -181,11 +179,14 @@
 
   // List of local blueprints that we can build:
   "blueprints": {
-    "fastnoise2_python_bindings": {
-      "url": "${PROJECT_ROOT_DIR}/sources/pyfn2",
+    // Fastnoise2 python bindings:
+    "pyfn2": {
+      "url": "${NVP_ROOT_DIR}/sources/pyfn2",
       "dependencies": {
         "BOOST_DIR": "boost",
-        "PYTHON_DIR": "python"
+        "PYTHON_DIR": "python",
+        "PY_VERS_MAJOR": "python:version_major",
+        "PY_VERS_MINOR": "python:version_minor"
       }
     }
   }

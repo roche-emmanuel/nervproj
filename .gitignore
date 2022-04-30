@@ -14,3 +14,9 @@ libraries/*
 
 # Ignore log files:
 *.log
+
+# Ignore dist/bin:
+dist/bin/*
+
+#  Ignore build folder:
+build/

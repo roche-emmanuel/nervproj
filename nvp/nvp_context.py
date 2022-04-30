@@ -90,11 +90,14 @@ class NVPContext(NVPObject):
 
         for key, sub_desc in desc.items():
             # logger.info("Adding parser for %s", key)
-            ppp = subparsers.add_parser(key)
             sub_name = f"{pname}.{key}"
-            assert sub_name not in self.parsers, f"Parser {sub_name} already defined."
 
-            self.parsers[sub_name] = ppp
+            if sub_name not in self.parsers:
+                ppp = subparsers.add_parser(key)
+                self.parsers[sub_name] = ppp
+
+            # No error if the parser is already registered:
+            # assert sub_name not in self.parsers, f"Parser {sub_name} already defined."
 
             # Check if we have more sub parsers:
             if sub_desc is not None:
