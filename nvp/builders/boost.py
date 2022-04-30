@@ -37,11 +37,18 @@ class BoostBuilder(NVPBuilder):
             assert self.compiler.is_msvc(), "Expected MSVC compiler here."
 
             # logger.info("Using build env: %s", self.pretty_print(msvc_env))
+            py_path = self.tools.get_tool_path("python").replace("\\", "/")
+            py_vers = self.tools.get_tool_desc("python")["version"].split(".")
+
+            with open(self.get_path(build_dir, "user-config.jam"), "w", encoding="utf-8") as file:
+                # Add the entry for python:
+                file.write(f"using python : {py_vers[0]}.{py_vers[1]} : {py_path} ;\n")
 
             # Note: updated below to use runtime-link=shared instead of runtime-link=static
-            bjam_cmd = [build_dir + '/b2.exe', "--prefix=" + prefix, "--without-mpi", "-sNO_BZIP2=1",
-                        "toolset=msvc", "architecture=x86", "address-model=64", "variant=release",
-                        "link=static", "threading=multi", "runtime-link=shared", "install"]
+            bjam_cmd = [build_dir + '/b2.exe',  "--user-config=user-config.jam", "--prefix=" + prefix,
+                        "--without-mpi", "-sNO_BZIP2=1", "toolset=msvc", "architecture=x86",
+                        "address-model=64", "variant=release", "link=static", "threading=multi",
+                        "runtime-link=shared", "install"]
 
             logger.info("Executing bjam command: %s", bjam_cmd)
             self.execute(bjam_cmd, cwd=build_dir, env=msvc_env)
@@ -67,7 +74,7 @@ class BoostBuilder(NVPBuilder):
 
         logger.info("Building boost library...")
 
-        build_env = self.compiler.get_env()
+        # build_env = self.compiler.get_env()
         # logger.info("Using build env: %s", self.pretty_print(build_env))
 
         comp_path = self.compiler.get_cxx_path()
@@ -93,6 +100,9 @@ class BoostBuilder(NVPBuilder):
         comp_dir = self.compiler.get_cxx_dir().replace("\\", "/")
         comp_path = comp_path.replace("\\", "/")
 
+        py_path = self.tools.get_tool_path("python").replace("\\", "/")
+        py_vers = self.tools.get_tool_desc("python")["version"].split(".")
+
         with open(self.get_path(build_dir, "user-config.jam"), "w", encoding="utf-8") as file:
             # Note: Should not add the -std=c++11 flag below as this will lead to an error with C files:
             file.write(f"using clang : : {comp_path} : ")
@@ -106,6 +116,11 @@ class BoostBuilder(NVPBuilder):
             else:
                 file.write(f"<compileflags>\"{cxxflags} -fPIC\" ")
                 file.write(f"<linkflags>\"{linkflags}\" ;\n")
+
+            # Add the entry for python:
+            file.write(f"using python : {py_vers[0]}.{py_vers[1]} : {py_path} ;\n")
+
+            # "--with-python="+pyPath+"/bin/python3", "--with-python-root="+pyPath
 
         # Note: below we need to run bjam with links to the clang libraries:
         bjam = self.get_path(build_dir, f'./b2{ext}')
