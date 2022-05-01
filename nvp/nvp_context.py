@@ -292,7 +292,7 @@ class NVPContext(NVPObject):
         # assert cname in self.components, f"Could not register component for {cname}"
         # return self.components[cname]
 
-    def get_current_project(self):
+    def get_current_project(self) -> NVPProject | None:
         """Retrieve the project details."""
 
         pname = self.settings['project']

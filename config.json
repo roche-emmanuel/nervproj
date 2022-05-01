@@ -178,7 +178,7 @@
   },
 
   // List of local blueprints that we can build:
-  "blueprints": {
+  "modules": {
     // Fastnoise2 python bindings:
     "pyfn2": {
       "url": "${NVP_ROOT_DIR}/sources/pyfn2",
