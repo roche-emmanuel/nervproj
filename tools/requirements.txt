@@ -12,3 +12,4 @@ numpy
 deep-translator
 opencv-python
 pandas
+pytest

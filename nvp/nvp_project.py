@@ -121,24 +121,6 @@ class NVPProject(NVPObject):
         """Retrieve the list of dependencies declared for this project."""
         return self.config.get("dependencies", [])
 
-    def run_script(self, script_name):
-        """Run a given script given by name if available"""
-
-        # get the script from the config:
-        if not script_name in self.scripts:
-            logger.warning("No script named %s in project %s", script_name, self.get_name())
-            return
-
-        # otherwise we get the script command and cwd:
-        script = self.scripts[script_name]
-        cmd = script['cmd']
-        cmd = cmd.replace("${PROJECT_ROOT_DIR}", self.get_root_dir())
-
-        cwd = script.get('cwd', None)
-        if cwd is not None:
-            # Ensure that we replace the path variables:
-            cwd = cwd.replace("${PROJECT_ROOT_DIR}", self.get_root_dir())
-
-        # Execute that command:
-        logger.debug("Executing script command: %s (cwd=%s)", cmd, cwd)
-        self.execute(cmd, cwd=cwd)
+    def get_script(self, script_name):
+        """Retrieve a script desc by name"""
+        return self.scripts.get(script_name, None)

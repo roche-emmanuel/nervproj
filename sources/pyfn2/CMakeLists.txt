@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 include_directories(${BOOST_DIR}/include)
 link_directories(${BOOST_DIR}/lib)
 
+include_directories(${FASTNOISE2_DIR}/include)
+link_directories(${FASTNOISE2_DIR}/lib)
+
 project(
   pyfn2
   VERSION 0.9.4
@@ -11,6 +14,9 @@ project(
 set(TARGET_NAME pyfn2)
 set(TARGET_DIR "./")
 set(SOURCE_FILES bindings.cpp)
+
+# FastNoise built as static library:
+add_definitions(-DFASTNOISE_STATIC_LIB)
 
 if(WIN32)
   add_definitions(-DBOOST_PYTHON_STATIC_LIB)
@@ -33,7 +39,8 @@ endif()
 
 add_library(${TARGET_NAME} SHARED ${SOURCE_FILES})
 
-target_link_libraries(${TARGET_NAME} ${PYTHON_LIBS} ${BOOST_LIBS} ${STD_LIBS})
+target_link_libraries(${TARGET_NAME} ${PYTHON_LIBS} ${BOOST_LIBS} ${STD_LIBS}
+                      FastNoise)
 
 set_target_properties(${TARGET_NAME} PROPERTIES PREFIX "" SUFFIX ${modExt})
 

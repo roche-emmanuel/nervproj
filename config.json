@@ -25,6 +25,7 @@
       "sub_tools": {
         "autopep8": "Scripts/autopep8.exe",
         "pylint": "Scripts/pylint.exe",
+        "pytest": "Scripts/pytest.exe",
         "cmake_format": "Scripts/cmake-format.exe"
       }
     },
@@ -67,7 +68,8 @@
       "version": "3.10.2",
       "sub_tools": {
         "autopep8": "bin/autopep8",
-        "pylint": "bin/pylint"
+        "pylint": "bin/pylint",
+        "pytest": "bin/pytest"
       }
     },
     {
@@ -185,9 +187,18 @@
       "dependencies": {
         "BOOST_DIR": "boost",
         "PYTHON_DIR": "python",
+        "FASTNOISE2_DIR": "FastNoise2",
         "PY_VERS_MAJOR": "python:version_major",
         "PY_VERS_MINOR": "python:version_minor"
       }
+    }
+  },
+
+  "scripts": {
+    "test-pyfn2": {
+      "cmd": "${PYTHON} -m pytest -s",
+      "cwd": "${NVP_ROOT_DIR}/tests/pyfn2",
+      "python_path": ["${NVP_ROOT_DIR}"]
     }
   }
 }
