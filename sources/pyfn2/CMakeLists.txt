@@ -20,6 +20,7 @@ add_definitions(-DFASTNOISE_STATIC_LIB)
 
 if(WIN32)
   add_definitions(-DBOOST_PYTHON_STATIC_LIB)
+  add_definitions(-DBOOST_NUMPY_STATIC_LIB)
   include_directories(${PYTHON_DIR}/include)
   link_directories(${PYTHON_DIR}/libs)
   set(modExt ".pyd")
