@@ -49,13 +49,28 @@ class TestBindings():
         print(f"Value SIMD level: {lvl}")
         assert lvl >= 0
 
-    # def test_domain_scale(self):
-    #     """Test create a DomainScale object"""
-    #     node = pyfn2.DomainScale.New()
-    #     src = pyfn2.Simplex.New()
-    #     node.SetSource(src)
-    #     node.SetScale(3.0)
+    def test_domain_scale(self):
+        """Test create a DomainScale object"""
+        node = pyfn2.DomainScale.New()
+        src = pyfn2.Simplex.New()
+        node.SetSource(src)
+        node.SetScale(3.0)
 
-    #     lvl = node.GetSIMDLevel()
-    #     print(f"DomainScale SIMD level: {lvl}")
-    #     assert lvl >= 0
+        lvl = node.GetSIMDLevel()
+        print(f"DomainScale SIMD level: {lvl}")
+        assert lvl >= 0
+
+    def test_domain_offset(self):
+        """Test create a DomainOffset object"""
+        node = pyfn2.DomainOffset.New()
+        src = pyfn2.Simplex.New()
+        src2 = pyfn2.Perlin.New()
+        node.SetSource(src)
+        node.SetOffsetFloat(pyfn2.Dim.X, 2.0)
+        node.SetOffsetFloat(pyfn2.Dim.Y, 2.5)
+        node.SetOffsetFloat(pyfn2.Dim.Z, 3.5)
+        node.SetOffsetSource(pyfn2.Dim.Z, src2)
+
+        lvl = node.GetSIMDLevel()
+        print(f"DomainOffset SIMD level: {lvl}")
+        assert lvl >= 0

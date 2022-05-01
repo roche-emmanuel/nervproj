@@ -24,9 +24,9 @@ namespace boost {
 
     // here comes the magic
     template <typename T> T* get_pointer(SmartNode<T> const& p) {
-    //notice the const_cast<> at this point
-    //for some unknown reason, bp likes to have it like that
-    return const_cast<T*>(p.get());
+        //notice the const_cast<> at this point
+        //for some unknown reason, bp likes to have it like that
+        return const_cast<T*>(p.get());
     }
 
     template <typename T> struct pointee<SmartNode<T> > {
@@ -44,22 +44,38 @@ static SmartNode<T> NewNode()
     return New<T>();
 }
 
-// static SmartNode<Simplex> new_simplex()
-// {
-//     return New<Simplex>();
-// }
-// static SmartNode<OpenSimplex2> new_open_simplex2()
-// {
-//     return New<OpenSimplex2>();
-// }
-// static SmartNode<Perlin> new_perlin()
-// {
-//     return New<Perlin>();
-// }
-// static SmartNode<Value> new_value()
-// {
-//     return New<Value>();
-// }
+template<typename T>
+static void SetSource(T* dest_node, Generator* src_node)
+{
+    SmartNode<Generator> sptr;
+    sptr.reset(src_node);
+    dest_node->SetSource(sptr);
+}
+
+static void SetDomainOffsetFloat(DomainOffset* self, Dim dim, float value)
+{
+    switch(dim)
+    {
+    case Dim::X: return self->SetOffset<Dim::X>(value);
+    case Dim::Y: return self->SetOffset<Dim::Y>(value);
+    case Dim::Z: return self->SetOffset<Dim::Z>(value);
+    default: return self->SetOffset<Dim::W>(value);
+    }
+}
+
+static void SetDomainOffsetSource(DomainOffset* self, Dim dim, Generator* src_node)
+{
+    SmartNode<Generator> sptr;
+    sptr.reset(src_node);
+
+    switch(dim)
+    {
+    case Dim::X: return self->SetOffset<Dim::X>(sptr);
+    case Dim::Y: return self->SetOffset<Dim::Y>(sptr);
+    case Dim::Z: return self->SetOffset<Dim::Z>(sptr);
+    default: return self->SetOffset<Dim::W>(sptr);
+    }
+}
 
 BOOST_PYTHON_MODULE(pyfn2)
 {
@@ -79,6 +95,12 @@ BOOST_PYTHON_MODULE(pyfn2)
         .value("AVX2", FastSIMD::Level_AVX2)
         .value("AVX512", FastSIMD::Level_AVX512)
         .value("NEON", FastSIMD::Level_NEON);
+
+    enum_<FastNoise::Dim>("Dim")
+        .value("X", FastNoise::Dim::X)
+        .value("Y", FastNoise::Dim::Y)
+        .value("Z", FastNoise::Dim::Z)
+        .value("W", FastNoise::Dim::W);
 
     class_<Generator, SmartNode<Generator>, boost::noncopyable>("Generator", no_init)
         .def("GetSIMDLevel", &Generator::GetSIMDLevel)
@@ -100,8 +122,22 @@ BOOST_PYTHON_MODULE(pyfn2)
         .def("New", &NewNode<Value>).staticmethod("New")
         ;
 
-    implicitly_convertible< SmartNode<Simplex>, SmartNode<Generator> >();
-    implicitly_convertible< SmartNode<OpenSimplex2>, SmartNode<Generator> >();
-    implicitly_convertible< SmartNode<Perlin>, SmartNode<Generator> >();
-    implicitly_convertible< SmartNode<Value>, SmartNode<Generator> >();
+    class_<DomainScale, SmartNode<DomainScale>, bases<Generator>, boost::noncopyable>("DomainScale", no_init)
+        .def("New", &NewNode<DomainScale>).staticmethod("New")
+        .def("SetSource", &SetSource<DomainScale>)
+        .def("SetScale", &DomainScale::SetScale)
+        ;
+
+    class_<DomainOffset, SmartNode<DomainOffset>, bases<Generator>, boost::noncopyable>("DomainOffset", no_init)
+        .def("New", &NewNode<DomainOffset>).staticmethod("New")
+        .def("SetSource", &SetSource<DomainOffset>)
+        .def("SetOffsetFloat", &SetDomainOffsetFloat)
+        .def("SetOffsetSource", &SetDomainOffsetSource)
+        ;
+
+    // implicitly_convertible< SmartNode<Simplex>, SmartNode<Generator> >();
+    // implicitly_convertible< SmartNode<OpenSimplex2>, SmartNode<Generator> >();
+    // implicitly_convertible< SmartNode<Perlin>, SmartNode<Generator> >();
+    // implicitly_convertible< SmartNode<Value>, SmartNode<Generator> >();
+    // implicitly_convertible< SmartNode<DomainScale>, SmartNode<Generator> >();
 };
