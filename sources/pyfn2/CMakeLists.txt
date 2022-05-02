@@ -28,14 +28,15 @@ if(WIN32)
   set(PYTHON_LIBS)
   set(STD_LIBS)
 else()
-  include_directories(${PYTHON_DIR}/include/python3.6)
+  include_directories(
+    ${PYTHON_DIR}/include/python${PY_VERS_MAJOR}.${PY_VERS_MINOR})
   link_directories(${PYTHON_DIR}/lib)
   set(modExt ".so")
-  set(BOOST_LIBS boost_python3)
-  set(PYTHON_LIBS pthread dl util python3.6)
+  set(BOOST_LIBS boost_python${PY_VERS_MAJOR}${PY_VERS_MINOR}-clang
+                 boost_numpy${PY_VERS_MAJOR}${PY_VERS_MINOR}-clang)
+  set(PYTHON_LIBS pthread dl util python${PY_VERS_MAJOR}.${PY_VERS_MINOR})
   # cf. link options at: https://gcc.gnu.org/onlinedocs/gcc/Link-Options.html
-  # SET(STD_LIBS -static-libgcc -static-libstdc++)
-  set(STD_LIBS -shared-libgcc)
+  # SET(STD_LIBS -static-libgcc -static-libstdc++) set(STD_LIBS -shared-libgcc)
 endif()
 
 add_library(${TARGET_NAME} SHARED ${SOURCE_FILES})

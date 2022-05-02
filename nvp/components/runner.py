@@ -69,7 +69,9 @@ class ScriptRunner(NVPComponent):
             logger.warning("No script named %s found", script_name)
             return
 
-        cmd = self.fill_placeholders(desc['cmd'], proj)
+        cmd = self.fill_placeholders(desc['cmd'], proj).split(" ")
+        cmd = [el for el in cmd if el!=""]
+        
         cwd = self.fill_placeholders(desc.get('cwd', None), proj)
 
         env = None

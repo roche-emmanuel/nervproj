@@ -1,42 +1,58 @@
-#include <boost/python.hpp>
-#include <boost/python/numpy.hpp>
 #include <iostream>
-
-#include <FastNoise/FastNoise.h>
-
-using namespace boost::python;
-using namespace FastNoise;
-namespace np = boost::python::numpy;
 
 static void hello()
 {
     std::cout << "Hello from pyfn2 binding module!"<< std::endl;
 }
 
-
 // cf. https://stackoverflow.com/questions/14355441/using-custom-smart-pointers-in-boost-python
 // cf. http://pyplusplus.readthedocs.io/en/latest/troubleshooting_guide/smart_ptrs/bindings.cpp.html
 // cf. http://boost.org/libs/python/doc/v2/register_ptr_to_python.html
 // cf. https://stackoverflow.com/questions/18720165/smart-pointer-casting-in-boostpython
 
+namespace FastNoise {
+    template <typename T>
+    class SmartNode;
+}
+
+// // here comes the magic
+// template <typename T> T* get_pointer(FastNoise::SmartNode<T> const& p) {
+//     //notice the const_cast<> at this point
+//     //for some unknown reason, bp likes to have it like that
+//     return const_cast<T*>(p.get());
+// }
 
 // some boost.python plumbing is required as you already know
 namespace boost {
     namespace python {
 
     // here comes the magic
-    template <typename T> T* get_pointer(SmartNode<T> const& p) {
+    template <typename T> T* get_pointer(FastNoise::SmartNode<T> const& p) {
         //notice the const_cast<> at this point
         //for some unknown reason, bp likes to have it like that
         return const_cast<T*>(p.get());
     }
 
-    template <typename T> struct pointee<SmartNode<T> > {
+    } 
+}
+
+#include <boost/python.hpp>
+#include <boost/python/numpy.hpp>
+
+namespace boost {
+    namespace python {
+
+    template <typename T> struct pointee<FastNoise::SmartNode<T> > {
         typedef T type;
     };
 
-    } 
+    }
 }
+
+#include <FastNoise/FastNoise.h>
+using namespace FastNoise;
+using namespace boost::python;
+namespace np = boost::python::numpy;
 
 // auto fnSimplex = FastNoise::New<FastNoise::Simplex>();
 
