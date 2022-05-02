@@ -200,3 +200,78 @@ class TestBindings():
         maxi = np.amax(arr)
         assert nrange[0] == mini
         assert nrange[1] == maxi
+
+    def test_fractal_fbm(self):
+        """Test generate a fractal FBm"""
+
+        node = pyfn2.FractalFBm.New()
+        src = pyfn2.Simplex.New()
+        node.SetSource(src)
+
+        node.SetGain(3.0)
+        node.SetGain(pyfn2.Perlin.New())
+        node.SetWeightedStrength(1.2)
+        node.SetWeightedStrength(pyfn2.Value.New())
+        node.SetOctaveCount(10)
+        node.SetLacunarity(0.5)
+
+    def test_fractal_ridged(self):
+        """Test generate a fractal Ridged"""
+
+        node = pyfn2.FractalRidged.New()
+        src = pyfn2.Simplex.New()
+        node.SetSource(src)
+
+        node.SetGain(3.0)
+        node.SetGain(pyfn2.Perlin.New())
+        node.SetWeightedStrength(1.2)
+        node.SetWeightedStrength(pyfn2.Value.New())
+        node.SetOctaveCount(10)
+        node.SetLacunarity(0.5)
+
+    def test_fractal_pingpong(self):
+        """Test generate a fractal PingPong"""
+
+        node = pyfn2.FractalPingPong.New()
+        src = pyfn2.Simplex.New()
+        node.SetSource(src)
+
+        node.SetGain(3.0)
+        node.SetGain(pyfn2.Perlin.New())
+        node.SetWeightedStrength(1.2)
+        node.SetWeightedStrength(pyfn2.Value.New())
+        node.SetOctaveCount(10)
+        node.SetLacunarity(0.5)
+
+    def test_cellular_value(self):
+        """Test generate a cellular value"""
+
+        node = pyfn2.CellularValue.New()
+
+        node.SetJitterModifier(3.0)
+        node.SetJitterModifier(pyfn2.Perlin.New())
+        node.SetDistanceFunction(pyfn2.DistanceFunction.Euclidean)
+        node.SetValueIndex(2)
+
+    def test_cellular_distance(self):
+        """Test generate a cellular distance"""
+
+        node = pyfn2.CellularDistance.New()
+
+        node.SetJitterModifier(3.0)
+        node.SetJitterModifier(pyfn2.Perlin.New())
+        node.SetDistanceFunction(pyfn2.DistanceFunction.Euclidean)
+        node.SetDistanceIndex0(1)
+        node.SetDistanceIndex1(0)
+        node.SetReturnType(pyfn2.CellDistReturnType.Index0Add1)
+
+    def test_cellular_lookup(self):
+        """Test generate a cellular lookup"""
+
+        node = pyfn2.CellularLookup.New()
+
+        node.SetJitterModifier(3.0)
+        node.SetJitterModifier(pyfn2.Perlin.New())
+        node.SetDistanceFunction(pyfn2.DistanceFunction.Euclidean)
+        node.SetLookup(pyfn2.Perlin.New())
+        node.SetLookupFrequency(0.5)

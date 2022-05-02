@@ -97,6 +97,41 @@ static void SetNewDimensionPosition(AddDimension* self, Generator* src_node)
     self->SetNewDimensionPosition(sptr);
 }
 
+static void FractalSetGain(Fractal<>* self, Generator* src_node)
+{
+    SmartNode<Generator> sptr;
+    sptr.reset(src_node);
+    self->SetGain(sptr);
+}
+
+static void FractalSetWeightedStrength(Fractal<>* self, Generator* src_node)
+{
+    SmartNode<Generator> sptr;
+    sptr.reset(src_node);
+    self->SetWeightedStrength(sptr);
+}
+
+static void FractalSetPingPongStrength(FractalPingPong* self, Generator* src_node)
+{
+    SmartNode<Generator> sptr;
+    sptr.reset(src_node);
+    self->SetPingPongStrength(sptr);
+}
+
+static void CellularSetJitterModifier(Cellular* self, Generator* src_node)
+{
+    SmartNode<Generator> sptr;
+    sptr.reset(src_node);
+    self->SetJitterModifier(sptr);
+}
+
+static void CellularSetLookup(CellularLookup* self, Generator* src_node)
+{
+    SmartNode<Generator> sptr;
+    sptr.reset(src_node);
+    self->SetLookup(sptr);
+}
+
 // cf. https://cosmiccoding.com.au/tutorials/boost
 static tuple GenUniformGrid2D(Generator* self, np::ndarray & array, 
                              int xStart, int yStart,
@@ -142,6 +177,20 @@ BOOST_PYTHON_MODULE(pyfn2)
         .value("Y", FastNoise::Dim::Y)
         .value("Z", FastNoise::Dim::Z)
         .value("W", FastNoise::Dim::W);
+
+    enum_<FastNoise::DistanceFunction>("DistanceFunction")
+        .value("Euclidean", FastNoise::DistanceFunction::Euclidean)
+        .value("EuclideanSquared", FastNoise::DistanceFunction::EuclideanSquared)
+        .value("Manhattan", FastNoise::DistanceFunction::Manhattan)
+        .value("Hybrid", FastNoise::DistanceFunction::Hybrid)
+        .value("MaxAxis", FastNoise::DistanceFunction::MaxAxis);
+
+    enum_<FastNoise::CellularDistance::ReturnType>("CellDistReturnType")
+        .value("Index0", CellularDistance::ReturnType::Index0)
+        .value("Index0Add1", CellularDistance::ReturnType::Index0Add1)
+        .value("Index0Sub1", CellularDistance::ReturnType::Index0Sub1)
+        .value("Index0Mul1", CellularDistance::ReturnType::Index0Mul1)
+        .value("Index0Div1", CellularDistance::ReturnType::Index0Div1);
 
     class_<Generator, SmartNode<Generator>, boost::noncopyable>("Generator", no_init)
         .def("GetSIMDLevel", &Generator::GetSIMDLevel)
@@ -232,6 +281,57 @@ BOOST_PYTHON_MODULE(pyfn2)
     class_<GeneratorCache, SmartNode<GeneratorCache>, bases<Generator>, boost::noncopyable>("GeneratorCache", no_init)
         .def("New", &NewNode<GeneratorCache>).staticmethod("New")
         .def("SetSource", &SetSource<GeneratorCache>)
+        ;
+
+    class_<Fractal<>, SmartNode<Fractal<>>, bases<Generator>, boost::noncopyable>("Fractal", no_init)
+        // .def("New", &NewNode<Fractal<>>).staticmethod("New")
+        .def("SetSource", &SetSource<Fractal<>>)
+        .def<void (Fractal<>::*)(float)>("SetGain", &Fractal<>::SetGain)
+        .def("SetGain", &FractalSetGain)
+        .def<void (Fractal<>::*)(float)>("SetWeightedStrength", &Fractal<>::SetWeightedStrength)
+        .def("SetWeightedStrength", &FractalSetWeightedStrength)
+        .def("SetOctaveCount", &Fractal<>::SetOctaveCount)
+        .def("SetLacunarity", &Fractal<>::SetLacunarity)
+        ;
+
+    class_<FractalFBm, SmartNode<FractalFBm>, bases<Fractal<>>, boost::noncopyable>("FractalFBm", no_init)
+        .def("New", &NewNode<FractalFBm>).staticmethod("New")
+        ;
+
+    class_<FractalRidged, SmartNode<FractalRidged>, bases<Fractal<>>, boost::noncopyable>("FractalRidged", no_init)
+        .def("New", &NewNode<FractalRidged>).staticmethod("New")
+        ;
+
+    class_<FractalPingPong, SmartNode<FractalPingPong>, bases<Fractal<>>, boost::noncopyable>("FractalPingPong", no_init)
+        .def("New", &NewNode<FractalPingPong>).staticmethod("New")
+        .def<void (FractalPingPong::*)(float)>("SetPingPongStrength", &FractalPingPong::SetPingPongStrength)
+        .def("SetPingPongStrength", &FractalSetPingPongStrength)
+        ;
+
+    class_<Cellular, SmartNode<Cellular>, bases<Generator>, boost::noncopyable>("Cellular", no_init)
+        // .def("New", &NewNode<Cellular>).staticmethod("New")
+        .def<void (Cellular::*)(float)>("SetJitterModifier", &Cellular::SetJitterModifier)
+        .def("SetJitterModifier", &CellularSetJitterModifier)
+        .def("SetDistanceFunction", &Cellular::SetDistanceFunction)
+        ;
+
+    class_<CellularValue, SmartNode<CellularValue>, bases<Cellular>, boost::noncopyable>("CellularValue", no_init)
+        .def("New", &NewNode<CellularValue>).staticmethod("New")
+        .def("SetValueIndex", &CellularValue::SetValueIndex)
+        ;
+
+    class_<CellularDistance, SmartNode<CellularDistance>, bases<Cellular>, boost::noncopyable>("CellularDistance", no_init)
+        .def("New", &NewNode<CellularDistance>).staticmethod("New")
+        .def("SetDistanceIndex0", &CellularDistance::SetDistanceIndex0)
+        .def("SetDistanceIndex1", &CellularDistance::SetDistanceIndex1)
+        .def("SetReturnType", &CellularDistance::SetReturnType)
+        ;
+
+
+    class_<CellularLookup, SmartNode<CellularLookup>, bases<Cellular>, boost::noncopyable>("CellularLookup", no_init)
+        .def("New", &NewNode<CellularLookup>).staticmethod("New")
+        .def("SetLookup", &CellularSetLookup)
+        .def("SetLookupFrequency", &CellularLookup::SetLookupFrequency)
         ;
 
     // implicitly_convertible< SmartNode<Simplex>, SmartNode<Generator> >();
