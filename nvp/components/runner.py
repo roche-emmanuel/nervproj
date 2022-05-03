@@ -50,8 +50,6 @@ class ScriptRunner(NVPComponent):
         my_entry = my_entry.replace("${PROJECT_ROOT_DIR}", root_dir)
         my_entry = my_entry.replace("${NVP_ROOT_DIR}", self.ctx.get_root_dir())
 
-        tools = self.get_component('tools')
-        my_entry = my_entry.replace("${PYTHON}", tools.get_tool_path('python'))
         return my_entry
 
     def run_script(self, script_name: str, proj: NVPProject | None):
@@ -63,15 +61,41 @@ class ScriptRunner(NVPComponent):
             desc = proj.get_script(script_name)
 
         if desc is None:
+            # Then search in all projects:
+            projs = self.ctx.get_projects()
+            for proj in projs:
+                desc = proj.get_script(script_name)
+                if desc is not None:
+                    break
+
+        if desc is None:
             desc = self.scripts.get(script_name, None)
 
         if desc is None:
             logger.warning("No script named %s found", script_name)
             return
 
-        cmd = self.fill_placeholders(desc['cmd'], proj).split(" ")
-        cmd = [el for el in cmd if el!=""]
-        
+        cmd = self.fill_placeholders(desc['cmd'], proj)
+
+        # check if we should use python in this command:
+        tools = self.get_component('tools')
+        env_name = desc.get("custom_python_env", None)
+
+        if env_name is not None:
+            # Get the environment dir:
+            pyenv = self.get_component("pyenvs")
+
+            env_dir = pyenv.get_py_env_dir(env_name)
+            pdesc = tools.get_tool_desc("python")
+            py_path = self.get_path(env_dir, env_name, pdesc['sub_path'])
+        else:
+            # use the default python path:
+            py_path = tools.get_tool_path('python')
+
+        cmd = cmd.replace("${PYTHON}", py_path)
+        cmd = cmd.split(" ")
+        cmd = [el for el in cmd if el != ""]
+
         cwd = self.fill_placeholders(desc.get('cwd', None), proj)
 
         env = None
@@ -80,7 +104,7 @@ class ScriptRunner(NVPComponent):
             elems = [self.fill_placeholders(el, proj).replace("\\", "/") for el in elems]
             sep = ";" if self.is_windows else ":"
             pypath = sep.join(elems)
-            logger.info("Using python path: %s", pypath)
+            logger.debug("Using pythonpath: %s", pypath)
             env = os.environ.copy()
             env['PYTHONPATH'] = pypath
 

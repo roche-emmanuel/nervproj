@@ -194,11 +194,15 @@
     }
   },
 
+  // list of scripts commands:
   "scripts": {
     "test-pyfn2": {
       "cmd": "${PYTHON} -m pytest -s",
       "cwd": "${NVP_ROOT_DIR}/tests/pyfn2",
       "python_path": ["${NVP_ROOT_DIR}"]
     }
-  }
+  },
+
+  // Available custom python environments:
+  "custom_python_envs": {}
 }

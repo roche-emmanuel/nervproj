@@ -18,5 +18,8 @@ libraries/*
 # Ignore dist/bin:
 dist/bin/*
 
-#  Ignore build folder:
+# Ignore build folder:
 build/
+
+# Ignore the python envs
+.pyenvs/

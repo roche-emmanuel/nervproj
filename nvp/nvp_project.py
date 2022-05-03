@@ -124,3 +124,8 @@ class NVPProject(NVPObject):
     def get_script(self, script_name):
         """Retrieve a script desc by name"""
         return self.scripts.get(script_name, None)
+
+    def get_custom_python_env(self, env_name):
+        """Try to retrieve a custom python env from this project"""
+        all_envs = self.config.get("custom_python_envs", {})
+        return all_envs.get(env_name, None)

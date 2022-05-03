@@ -86,6 +86,7 @@ class ToolsManager(NVPComponent):
                 # Store the tool path:
                 tdesc = {
                     'base_path': install_path,
+                    "sub_path": desc['sub_path'],
                     'path': tpath.replace("/", sep),
                     'name': tname,
                     'version': desc['version'],
@@ -100,6 +101,7 @@ class ToolsManager(NVPComponent):
                 for sub_name, sub_path in subs.items():
                     sdesc = {
                         'base_path': install_path,
+                        'sub_path': sub_path,
                         'name': sub_name,
                         'path': self.get_path(install_path, sub_path).replace("/", sep)
                     }
