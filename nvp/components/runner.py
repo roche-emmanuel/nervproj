@@ -80,19 +80,23 @@ class ScriptRunner(NVPComponent):
         # check if we should use python in this command:
         tools = self.get_component('tools')
         env_name = desc.get("custom_python_env", None)
+        pdesc = tools.get_tool_desc("python")
 
         if env_name is not None:
             # Get the environment dir:
             pyenv = self.get_component("pyenvs")
 
             env_dir = pyenv.get_py_env_dir(env_name)
-            pdesc = tools.get_tool_desc("python")
-            py_path = self.get_path(env_dir, env_name, pdesc['sub_path'])
+
+            pyenv_dir = self.get_path(env_dir, env_name)
+            py_path = self.get_path(pyenv_dir, pdesc['sub_path'])
         else:
             # use the default python path:
+            pyenv_dir = pdesc["base_path"]
             py_path = tools.get_tool_path('python')
 
         cmd = cmd.replace("${PYTHON}", py_path)
+        cmd = cmd.replace("${ENV_DIR}", pyenv_dir)
         cmd = cmd.split(" ")
         cmd = [el for el in cmd if el != ""]
 
