@@ -75,7 +75,10 @@ class ScriptRunner(NVPComponent):
             logger.warning("No script named %s found", script_name)
             return
 
-        cmd = self.fill_placeholders(desc['cmd'], proj)
+        key = f"{self.platform}_cmd"
+        cmd = desc[key] if key in desc else desc['cmd']
+
+        cmd = self.fill_placeholders(cmd, proj)
 
         # check if we should use python in this command:
         tools = self.get_component('tools')
