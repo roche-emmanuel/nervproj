@@ -123,7 +123,37 @@ class NVPProject(NVPObject):
 
     def get_script(self, script_name):
         """Retrieve a script desc by name"""
-        return self.scripts.get(script_name, None)
+        desc = self.scripts.get(script_name, None)
+
+        if desc is not None and desc.get("use_local_python", False):
+            # Update the python path in the command
+            plat = self.ctx.get_platform()
+            key = f"{plat}_cmd"
+            if key in desc:
+                cmd = desc[key]
+                # Remove the platform specific key value,
+                # we will put that directly in the 'cmd' slot
+                del desc[key]
+            else:
+                cmd = desc['cmd']
+
+            bdir = self.get_path(self.get_root_dir(), "tools", plat)
+            folders = self.get_all_folders(bdir)
+            pypath = None
+            pdesc = self.ctx.get_component('tools').get_tool_desc('python')
+
+            for fname in folders:
+                if fname.startswith("python-"):
+                    pydir = self.get_path(bdir, fname)
+                    logger.info("Using python install dir %s", pydir)
+                    pypath = self.get_path(pydir, pdesc["sub_path"])
+                    break
+
+            assert pypath is not None, f"Cannot find local python path in project {self.get_name()}"
+            cmd = cmd.replace("${PYTHON}", pypath)
+            desc['cmd'] = cmd
+
+        return desc
 
     def get_custom_python_env(self, env_name):
         """Try to retrieve a custom python env from this project"""

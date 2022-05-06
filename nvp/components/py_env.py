@@ -23,8 +23,11 @@ class PyEnvManager(NVPComponent):
         self.scripts = ctx.get_config().get("scripts", {})
 
         # Also extend the parser:
-        ctx.define_subparsers("main", {'setup-pyenv': None})
-        psr = ctx.get_parser('main.setup-pyenv')
+        ctx.define_subparsers("main", {'pyenv': {
+            "setup": None,
+            "remove": None
+        }})
+        psr = ctx.get_parser('main.pyenv.setup')
         psr.add_argument("env_name", type=str,
                          help="Name of the python environment to setup/deploy")
         psr.add_argument("--dir", dest='env_dir', type=str,
@@ -34,14 +37,27 @@ class PyEnvManager(NVPComponent):
         psr.add_argument("--update-pip", dest='update_pip', action='store_true',
                          help="Update pip module")
 
+        psr = ctx.get_parser('main.pyenv.remove')
+        psr.add_argument("env_name", type=str,
+                         help="Name of the python environment to remove")
+        psr.add_argument("--dir", dest='env_dir', type=str,
+                         help="Location where to install the environment")
+
     def process_command(self, cmd):
         """Check if this component can process the given command"""
 
-        if cmd == 'setup-pyenv':
+        if cmd == 'pyenv':
 
-            env_name = self.get_param('env_name')
-            self.setup_py_env(env_name)
-            return True
+            cmd1 = self.ctx.get_command(1)
+            if cmd1 == 'setup':
+                env_name = self.get_param('env_name')
+                self.setup_py_env(env_name)
+                return True
+
+            if cmd1 == 'remove':
+                env_name = self.get_param('env_name')
+                self.remove_py_env(env_name)
+                return True
 
         return False
 
@@ -75,6 +91,22 @@ class PyEnvManager(NVPComponent):
 
         default_env_dir = self.get_path(self.ctx.get_root_dir(), ".pyenvs")
         return desc.get("install_dir", default_env_dir)
+
+    def remove_py_env(self, env_name):
+        """Remove a pyenv given by name"""
+        desc = self.get_py_env_desc(env_name)
+        env_dir = self.get_param("env_dir")
+
+        if env_dir is None:
+            # try to use the install dir from the desc if any or use the default install dir:
+            env_dir = self.get_py_env_dir(env_name, desc)
+
+        # create the env folder if it doesn't exist yet:
+        dest_folder = self.get_path(env_dir, env_name)
+
+        if self.dir_exists(dest_folder):
+            logger.info("Removing python environment at %s", dest_folder)
+            self.remove_folder(dest_folder)
 
     def setup_py_env(self, env_name):
         """Setup a given python environment"""
