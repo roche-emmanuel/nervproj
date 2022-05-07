@@ -92,6 +92,12 @@ class ScriptRunner(NVPComponent):
             env_dir = pyenv.get_py_env_dir(env_name)
 
             pyenv_dir = self.get_path(env_dir, env_name)
+
+            # Check if the pyenv already exist, and otherwise we automatically create it here:
+            if not self.dir_exists(pyenv_dir):
+                logger.info("Creating python env %s...", env_name)
+                pyenv.setup_py_env(env_name)
+
             py_path = self.get_path(pyenv_dir, pdesc['sub_path'])
         else:
             # use the default python path:
