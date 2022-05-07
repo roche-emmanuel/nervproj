@@ -9,6 +9,7 @@ import time
 import unicodedata
 import re
 import sys
+import urllib3
 import subprocess
 import shutil
 import json
@@ -500,3 +501,35 @@ class NVPObject(object):
             value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
         value = re.sub(r'[^\w\s-]', '', value.lower())
         return re.sub(r'[-\s]+', '-', value).strip('-_')
+
+    def make_get_request(self, url, params=None, timeout=None, max_retries=20, headers=None):
+        """Make a get request"""
+
+        count = 0
+        while count < max_retries:
+            try:
+                logger.debug("Sending request...")
+                resp = requests.get(url, timeout=timeout, params=params, headers=headers)
+
+                if resp is None:
+                    count += 1
+                    logger.error("No response received from get request to %s, retrying (%d/%d)...",
+                                 url, count, max_retries)
+                    continue
+
+                if resp.status_code != 200:
+                    count += 1
+                    logger.error("Received bad status %d from get request to %s, retrying (%d/%d)...",
+                                 resp.status_code, url, count, max_retries)
+                    continue
+
+                return resp
+
+            except (urllib3.exceptions.ReadTimeoutError,
+                    requests.exceptions.ConnectionError,
+                    requests.exceptions.ReadTimeout,
+                    requests.exceptions.Timeout):
+                count += 1
+                logger.error("Exception occured in get request to %s, retrying (%d/%d)...", url, count, max_retries)
+
+        return None
