@@ -39,6 +39,16 @@ class NVPComponent(NVPObject):
             val = defval
         return val
 
+    def load_config(self, cfgname, base_dir=None):
+        """Load a configuration file from a given subpath"""
+        if base_dir is None:
+            base_dir = self.ctx.get_base_dir()
+        cfg_file = self.get_path(base_dir, cfgname)
+
+        # Load the configuration from that file:
+        cfg = self.read_json(cfg_file)
+        return cfg
+
     def is_initialized(self):
         """Return initialization state."""
         return self.initialized

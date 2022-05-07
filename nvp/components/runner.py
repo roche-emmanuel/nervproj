@@ -121,6 +121,10 @@ class ScriptRunner(NVPComponent):
             env = os.environ.copy()
             env['PYTHONPATH'] = pypath
 
+        # If we have an environment created, we should ensure that we set the PWD correctly:
+        if env is not None:
+            env['PWD'] = cwd
+
         # Execute that command:
         logger.debug("Executing script command: %s (cwd=%s)", cmd, cwd)
         self.execute(cmd, cwd=cwd, env=env)

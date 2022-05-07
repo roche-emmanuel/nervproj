@@ -13,9 +13,14 @@ logger = logging.getLogger(__name__)
 
 class NVPContext(NVPObject):
     """Main NVP context class"""
+    instance = None
 
-    def __init__(self):
+    def __init__(self, base_dir=None, is_main=False):
         """Initialize the NVP context."""
+
+        assert NVPContext.instance is None, "NVPContext already initialized."
+
+        NVPContext.instance = self
 
         verbose = os.getenv("NVP_VERBOSE", '0')
         lvl = logging.DEBUG if verbose == '1' else logging.INFO
@@ -27,8 +32,14 @@ class NVPContext(NVPObject):
                             format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
                             datefmt='%Y/%m/%d %H:%M:%S')
 
+        self.is_master = is_main
+
         self.root_dir = os.path.dirname(os.path.abspath(__file__))
         self.root_dir = os.path.abspath(os.path.join(self.root_dir, os.pardir))
+
+        # Store the current working directory:
+        self.base_dir = self.get_cwd() if base_dir is None else base_dir
+        # logger.info("Context base dir: %s", self.base_dir)
 
         # Also retrieve the home directory here:
         self.home_dir = os.getenv("HOME")
@@ -63,14 +74,21 @@ class NVPContext(NVPObject):
         self.setup_paths()
 
         self.parsers = None
+        self.settings = None
+
         self.sub_parsers = {}
-        self.setup_parsers()
+        self.setup_parsers(is_main)
 
-        self.load_default_components()
+        if is_main:
+            self.load_default_components()
 
-        self.load_projects()
+            self.load_projects()
 
-        self.settings = vars(self.parsers['main'].parse_args())
+    @staticmethod
+    def get():
+        """Return instance of this class"""
+        assert NVPContext.instance is not None, "NVPContext not created yet."
+        return NVPContext.instance
 
     def define_subparsers(self, pname, desc):
         """define subparsers recursively."""
@@ -112,7 +130,7 @@ class NVPContext(NVPObject):
         base_dir = self.get_root_dir()
         self.tools_dir = self.get_path(base_dir, "tools", self.platform)
 
-    def setup_parsers(self):
+    def setup_parsers(self, is_main):
         """Setup the command line parsers to use in this context"""
 
         parser = argparse.ArgumentParser()
@@ -120,8 +138,9 @@ class NVPContext(NVPObject):
         # cf. https://stackoverflow.com/questions/15301147/python-argparse-default-value-or-specified-value
         parser.add_argument("-v", "--verbose", dest='verbose', action='store_true',
                             help="Enable display of verbose debug outputs.")
-        parser.add_argument("-p", "--project", dest='project', type=str, default="none",
-                            help="Select the current sub-project")
+        if is_main:
+            parser.add_argument("-p", "--project", dest='project', type=str, default="none",
+                                help="Select the current sub-project")
 
         self.parsers = {'main': parser}
 
@@ -186,6 +205,10 @@ class NVPContext(NVPObject):
 
         return None
 
+    def is_master_context(self):
+        """Check if this configured as a master context"""
+        return self.is_master
+
     def is_cygwin(self):
         """Check if we are running from cygwin environment."""
         return self.cyg_home_dir is not None
@@ -193,6 +216,11 @@ class NVPContext(NVPObject):
     def get_platform(self):
         """Retrieve the current platform"""
         return self.platform
+
+    def get_base_dir(self):
+        """Retrieve the base directory for this context.
+        This is the current working dir at the time the context is created by default"""
+        return self.base_dir
 
     def get_root_dir(self):
         """Retrieve the root directory of the NVP project"""
@@ -295,6 +323,10 @@ class NVPContext(NVPObject):
     def get_current_project(self) -> NVPProject | None:
         """Retrieve the project details."""
 
+        if 'project' not in self.settings:
+            # No project assigned here:
+            return None
+
         pname = self.settings['project']
 
         return self.get_project(pname)
@@ -303,8 +335,14 @@ class NVPContext(NVPObject):
         """Retrieve the command at a given level"""
         return self.settings.get(f"l{lvl}_cmd", None)
 
+    def parse_args(self):
+        """Parse the command line arguments"""
+        self.settings = vars(self.parsers['main'].parse_args())
+
     def run(self):
         """Run this context."""
+        self.parse_args()
+
         cmd = self.get_command(0)
 
         proj = self.get_current_project()
