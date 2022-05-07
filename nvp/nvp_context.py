@@ -279,6 +279,7 @@ class NVPContext(NVPObject):
     def register_component(self, cname, comp):
         """Register a component with a given name"""
         self.components[cname] = comp
+        return comp
 
     def get_component(self, cname, do_init=True):
         """Retrieve a component by name or create it if missing"""

@@ -61,3 +61,11 @@ class NVPComponent(NVPObject):
         """Default implementation of process_command,
         returns False here by default."""
         return False
+
+    def run(self):
+        """Run this component as main"""
+        self.ctx.parse_args()
+        cmd = self.ctx.get_command(0)
+        res = self.process_command(cmd)
+        if res is not True:
+            logger.warning("Cannot process command '%s'", cmd)

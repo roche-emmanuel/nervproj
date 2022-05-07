@@ -62,6 +62,14 @@ class NVPObject(object):
 
         return printer.pformat(obj)
 
+    def get_time(self):
+        """Retrieve the current time"""
+        return time.time()
+
+    def get_timestamp(self):
+        """Retrieve the current unix timestamp"""
+        return int(self.get_time())
+
     def get_method(self, method_name):
         """Retrieve a method by name in self, or return None if not found"""
         return getattr(self, method_name, None)
