@@ -118,6 +118,9 @@ class PyEnvManager(NVPComponent):
             # try to use the install dir from the desc if any or use the default install dir:
             env_dir = self.get_py_env_dir(env_name, desc)
 
+        # Ensure the parent folder exists:
+        self.make_folder(env_dir)
+
         # create the env folder if it doesn't exist yet:
         dest_folder = self.get_path(env_dir, env_name)
 
