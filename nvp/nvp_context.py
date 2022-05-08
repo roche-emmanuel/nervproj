@@ -75,6 +75,7 @@ class NVPContext(NVPObject):
 
         self.parsers = None
         self.settings = None
+        self.additional_args = None
 
         self.sub_parsers = {}
         self.setup_parsers(is_main)
@@ -238,6 +239,10 @@ class NVPContext(NVPObject):
         """Retrieve the input settings used to created this context"""
         return self.settings
 
+    def get_additional_args(self):
+        """Retrieve additional args to a script if any"""
+        return self.additional_args
+
     def select_first_valid_path(self, allpaths):
         """Select the first valid path in a given list.
         The list may also contain URLs. May return None if no valid path is found."""
@@ -338,7 +343,10 @@ class NVPContext(NVPObject):
 
     def parse_args(self):
         """Parse the command line arguments"""
-        self.settings = vars(self.parsers['main'].parse_args())
+        # self.settings = vars(self.parsers['main'].parse_args())
+        # cf. https://docs.python.org/3.4/library/argparse.html#partial-parsing
+        self.settings, self.additional_args = self.parsers['main'].parse_known_args()
+        self.settings = vars(self.settings)
 
     def run(self):
         """Run this context."""

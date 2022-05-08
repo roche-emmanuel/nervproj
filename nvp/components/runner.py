@@ -125,6 +125,11 @@ class ScriptRunner(NVPComponent):
         if env is not None:
             env['PWD'] = cwd
 
+        # Check if we have additional args to pass to the command:
+        args = self.ctx.get_additional_args()
+        if len(args) > 0:
+            cmd += args
+
         # Execute that command:
         logger.debug("Executing script command: %s (cwd=%s)", cmd, cwd)
         self.execute(cmd, cwd=cwd, env=env)
