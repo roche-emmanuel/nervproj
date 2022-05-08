@@ -30,6 +30,8 @@ class ScriptRunner(NVPComponent):
         psr = ctx.get_parser('main.run')
         psr.add_argument("script_name", type=str, default="run",
                          help="Name of the script to execute")
+        psr.add_argument("--show-help", dest="show_script_help", action="store_true",
+                         help="Display the help from the script command itself")
 
     def process_command(self, cmd):
         """Check if this component can process the given command"""
@@ -133,6 +135,9 @@ class ScriptRunner(NVPComponent):
         # args = sys.argv[idx+1:]
         if len(args) > 0:
             cmd += args
+
+        if self.get_param("show_script_help", False):
+            cmd += ["--help"]
 
         # Execute that command:
         logger.debug("Executing script command: %s (cwd=%s)", cmd, cwd)

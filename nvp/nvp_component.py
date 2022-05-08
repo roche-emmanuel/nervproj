@@ -68,4 +68,5 @@ class NVPComponent(NVPObject):
         cmd = self.ctx.get_command(0)
         res = self.process_command(cmd)
         if res is not True:
-            logger.warning("Cannot process command '%s'", cmd)
+            args = self.ctx.get_additional_args()
+            logger.warning("Cannot process command '%s' (additional args: %s)", cmd, args)
