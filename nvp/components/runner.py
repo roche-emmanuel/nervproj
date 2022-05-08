@@ -1,6 +1,7 @@
 """Collection of admin utility functions"""
 import logging
 import os
+import sys
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -127,6 +128,9 @@ class ScriptRunner(NVPComponent):
 
         # Check if we have additional args to pass to the command:
         args = self.ctx.get_additional_args()
+        # Manually collect the additional args: (same results as above)
+        # idx = sys.argv.index(script_name)
+        # args = sys.argv[idx+1:]
         if len(args) > 0:
             cmd += args
 
