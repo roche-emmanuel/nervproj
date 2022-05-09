@@ -168,6 +168,11 @@ class NVPObject(object):
         infos = os.lstat(my_path)
         return infos.st_size
 
+    def get_file_mtime(self, my_path):
+        """Retrieve the size of a given file"""
+        infos = os.lstat(my_path)
+        return int(infos.st_mtime)
+
     def get_cwd(self):
         """Return the current CWD"""
         cwd = os.getenv("PWD", os.getcwd())
@@ -397,19 +402,14 @@ class NVPObject(object):
         stdout = None if verbose else subprocess.DEVNULL
         stderr = None if verbose else subprocess.DEVNULL
 
-        def do_exec():
-            # logger.info("Executing command: %s", cmd)
-            if check:
-                subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
-            else:
-                subprocess.run(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, check=False)
-
         if outfile is not None:
-            with open(outfile, "w", encoding="utf-8") as file:
-                stdout = file
-                do_exec()
+            stdout = outfile
+
+        # logger.info("Executing command: %s", cmd)
+        if check:
+            subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
         else:
-            do_exec()
+            subprocess.run(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, check=False)
 
     def get_all_files(self, folder, exp=".*", recursive=False):
         """Get all the files matching a given pattern in a folder."""
