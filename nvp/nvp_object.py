@@ -9,14 +9,15 @@ import time
 import unicodedata
 import re
 import sys
-import urllib3
 import subprocess
 import shutil
 import json
 import urllib
+from datetime import date, datetime
 import jstyleson
 import requests
 import xxhash
+import urllib3
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,14 @@ class NVPObject(object):
     def get_time(self):
         """Retrieve the current time"""
         return time.time()
+
+    def get_date(self):
+        """Retrieve the current date"""
+        return date.today()
+
+    def get_now(self):
+        """Retrieve the current datetime"""
+        return datetime.now()
 
     def get_timestamp(self):
         """Retrieve the current unix timestamp"""
@@ -382,16 +391,25 @@ class NVPObject(object):
         assert home_drive is not None and home_path is not None, "Invalid windows home drive or path"
         return home_drive+home_path
 
-    def execute(self, cmd, verbose=True, cwd=None, env=None, check=True):
+    def execute(self, cmd, verbose=True, cwd=None, env=None, check=True, outfile=None):
         """Execute a command optionally displaying the outputs."""
 
         stdout = None if verbose else subprocess.DEVNULL
         stderr = None if verbose else subprocess.DEVNULL
-        # logger.info("Executing command: %s", cmd)
-        if check:
-            subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
+
+        def do_exec():
+            # logger.info("Executing command: %s", cmd)
+            if check:
+                subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
+            else:
+                subprocess.run(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, check=False)
+
+        if outfile is not None:
+            with open(outfile, "w", encoding="utf-8") as file:
+                stdout = file
+                do_exec()
         else:
-            subprocess.run(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, check=False)
+            do_exec()
 
     def get_all_files(self, folder, exp=".*", recursive=False):
         """Get all the files matching a given pattern in a folder."""
