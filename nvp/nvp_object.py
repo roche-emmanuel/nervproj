@@ -228,18 +228,25 @@ class NVPObject(object):
         if self.file_exists(fname):
             os.remove(fname)
 
-    def move_path(self, src_path, dest_path):
+    def move_path(self, src_path, dest_path, create_parent=False):
         """Move the source path to the destination path"""
-        if src_path != dest_path:
-            shutil.move(src_path, dest_path)
+        if src_path == dest_path:
+            return
 
-    def rename_folder(self, src_path, dest_path):
+        if create_parent:
+            parent_dir = self.get_parent_folder(dest_path)
+            if not self.dir_exists(parent_dir):
+                self.make_folder(parent_dir)
+
+        shutil.move(src_path, dest_path)
+
+    def rename_folder(self, src_path, dest_path, create_parent=False):
         """Rename a folder"""
-        self.move_path(src_path, dest_path)
+        self.move_path(src_path, dest_path, create_parent=create_parent)
 
-    def rename_file(self, src_path, dest_path):
+    def rename_file(self, src_path, dest_path, create_parent=False):
         """Rename a file"""
-        self.move_path(src_path, dest_path)
+        self.move_path(src_path, dest_path, create_parent=create_parent)
 
     def is_folder_empty(self, fpath):
         """Check if a given folder is empty"""

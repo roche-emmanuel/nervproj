@@ -125,7 +125,7 @@ class ScriptRunner(NVPComponent):
             env['PYTHONPATH'] = pypath
 
         # If we have an environment created, we should ensure that we set the PWD correctly:
-        if env is not None:
+        if env is not None and cwd is not None:
             env['PWD'] = cwd
 
         # Check if we have additional args to pass to the command:
