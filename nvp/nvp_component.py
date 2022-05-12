@@ -64,7 +64,7 @@ class NVPComponent(NVPObject):
 
     def run(self):
         """Run this component as main"""
-        self.ctx.parse_args()
+        self.ctx.parse_args(False)
         cmd = self.ctx.get_command(0)
         res = self.process_command(cmd)
         if res is not True:

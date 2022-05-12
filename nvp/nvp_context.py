@@ -341,16 +341,19 @@ class NVPContext(NVPObject):
         """Retrieve the command at a given level"""
         return self.settings.get(f"l{lvl}_cmd", None)
 
-    def parse_args(self):
+    def parse_args(self, allow_additionals):
         """Parse the command line arguments"""
-        # self.settings = vars(self.parsers['main'].parse_args())
         # cf. https://docs.python.org/3.4/library/argparse.html#partial-parsing
-        self.settings, self.additional_args = self.parsers['main'].parse_known_args()
-        self.settings = vars(self.settings)
+        if allow_additionals:
+            self.settings, self.additional_args = self.parsers['main'].parse_known_args()
+            self.settings = vars(self.settings)
+        else:
+            self.settings = vars(self.parsers['main'].parse_args())
 
     def run(self):
         """Run this context."""
-        self.parse_args()
+        # We allow additional args by default if this is the master context:
+        self.parse_args(self.is_master)
 
         cmd = self.get_command(0)
 
