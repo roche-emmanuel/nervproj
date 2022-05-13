@@ -299,7 +299,27 @@ class NVPContext(NVPObject):
                 comp.initialize()
             return comp
 
-        logger.warning("Cannot find component %s", cname)
+        # If the requested component is not found, then it might be a dynamic component:
+        # So we search for it in our config:
+        dyn_comps = self.config.get("components", {})
+
+        if cname not in dyn_comps:
+            logger.warning("Cannot find component %s", cname)
+            return None
+
+        # We have a dyn component module name, so we try to load it:
+        mname = dyn_comps[cname]
+        logger.debug("Loading dynamic component %s from module %s", cname, mname)
+
+        comp_module = import_module(mname)
+        comp = comp_module.create_component(self)
+
+        # And we register that component now:
+        self.register_component(cname, comp)
+
+        if do_init:
+            comp.initialize()
+        return comp
 
         # # logger.info("Component list: %s", self.components.keys())
         # # logger.info("proj_comp_name: %s", proj_comp_name)
@@ -318,8 +338,6 @@ class NVPContext(NVPObject):
         # #     logger.debug("Adding %s to python sys.path", base_dir)
 
         # sys.path.insert(0, base_dir)
-        # comp_module = import_module(cname)
-        # comp_module.register_component(self)
         # sys.path.pop(0)
 
         # # Should now have the component name in the dict:

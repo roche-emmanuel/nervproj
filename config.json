@@ -204,5 +204,8 @@
   },
 
   // Available custom python environments:
-  "custom_python_envs": {}
+  "custom_python_envs": {},
+
+  // Available dynamic components:
+  "components": {}
 }
