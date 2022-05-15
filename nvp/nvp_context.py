@@ -286,6 +286,12 @@ class NVPContext(NVPObject):
         self.components[cname] = comp
         return comp
 
+    def update_dynamic_components(self, comps):
+        """Update the dict of dynamic components"""
+        dyn_comps = self.config.get("components", {})
+        dyn_comps.update(comps)
+        self.config["components"] = dyn_comps
+
     def get_component(self, cname, do_init=True):
         """Retrieve a component by name or create it if missing"""
 

@@ -8,6 +8,7 @@ import pprint
 import time
 import unicodedata
 import re
+import threading
 import sys
 import subprocess
 import shutil
@@ -63,6 +64,10 @@ class NVPObject(object):
             return "None"
 
         return printer.pformat(obj)
+
+    def get_thread_id(self):
+        """Retrieve the current thread id"""
+        return threading.get_ident()
 
     def get_time(self):
         """Retrieve the current time"""
