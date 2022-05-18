@@ -55,6 +55,17 @@ class ScriptRunner(NVPComponent):
 
         return my_entry
 
+    def has_script(self, script_name):
+        """Check if a given script name is available."""
+        projs = self.ctx.get_projects()
+        for proj in projs:
+            desc = proj.get_script(script_name)
+            if desc is not None:
+                return True
+
+        desc = self.scripts.get(script_name, None)
+        return desc is not None
+
     def run_script(self, script_name: str, proj: NVPProject | None):
         """Run a given script on a given project"""
 

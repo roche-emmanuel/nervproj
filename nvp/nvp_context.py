@@ -369,8 +369,22 @@ class NVPContext(NVPObject):
         """Parse the command line arguments"""
         # cf. https://docs.python.org/3.4/library/argparse.html#partial-parsing
         if allow_additionals:
+            # before starting the regular parsing, we check if the first argument is a script name,
+            # in which case we should caller the runner directly with the remaining args.
+            if len(sys.argv) >= 2:
+                script_name = sys.argv[1]
+                self.settings = {}
+                runner = self.get_component('runner')
+                if runner.has_script(script_name):
+                    # This is a valid script name, so we should add the "run" command
+                    # before this script name:
+                    sys.argv.insert(1, "run")
+
+            # logger.info("Parsing args: %s", sys.argv)
             self.settings, self.additional_args = self.parsers['main'].parse_known_args()
             self.settings = vars(self.settings)
+            # logger.info("Got settings: %s", self.settings)
+            # logger.info("Got additional args: %s", self.additional_args)
         else:
             self.settings = vars(self.parsers['main'].parse_args())
 
