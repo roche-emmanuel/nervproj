@@ -8,5 +8,6 @@
   "python.formatting.provider": "autopep8",
   "python.formatting.autopep8Args": ["--max-line-length=120", "--experimental"],
   "editor.formatOnSave": true,
-  "python.envFile": "${workspaceFolder}/.vs_env"
+  "python.envFile": "${workspaceFolder}/.vs_env",
+  "cmake.configureOnOpen": false
 }
