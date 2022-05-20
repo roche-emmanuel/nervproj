@@ -532,7 +532,7 @@ class NVPObject(object):
         value = re.sub(r'[^\w\s-]', '', value.lower())
         return re.sub(r'[-\s]+', '-', value).strip('-_')
 
-    def make_get_request(self, url, params=None, timeout=None, max_retries=20, headers=None):
+    def make_get_request(self, url, params=None, timeout=None, max_retries=20, headers=None, retry_delay=0.1):
         """Make a get request"""
 
         count = 0
@@ -551,6 +551,7 @@ class NVPObject(object):
                     count += 1
                     logger.error("Received bad status %d from get request to %s (params=%s), retrying (%d/%d)...",
                                  resp.status_code, url, params or "None", count, max_retries)
+                    time.sleep(retry_delay)
                     continue
 
                 return resp
