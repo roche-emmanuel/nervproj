@@ -197,15 +197,38 @@
   // list of scripts commands:
   "scripts": {
     "test-pyfn2": {
+      "help": "Test the bindings generated for the fastnoise2 library",
       "cmd": "${PYTHON} -m pytest -s",
       "cwd": "${NVP_ROOT_DIR}/tests/pyfn2",
+      "python_path": ["${NVP_ROOT_DIR}"]
+    },
+    "rchat": {
+      "help": "Send a message on the configured rocketchat server",
+      "custom_python_env": "social_env",
+      "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/communication/rocketchat.py send",
+      "python_path": ["${NVP_ROOT_DIR}"]
+    },
+    "email": {
+      "help": "Send an email",
+      "custom_python_env": "min_env",
+      "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/communication/email_handler.py send",
       "python_path": ["${NVP_ROOT_DIR}"]
     }
   },
 
   // Available custom python environments:
-  "custom_python_envs": {},
+  "custom_python_envs": {
+    "min_env": {
+      "packages": ["requests", "jstyleson", "xxhash"]
+    },
+    "social_env": {
+      "packages": ["requests", "jstyleson", "xxhash", "requests-oauthlib"]
+    }
+  },
 
   // Available dynamic components:
-  "components": {}
+  "components": {
+    "rchat": "nvp.communication.rocketchat",
+    "email": "nvp.communication.email_handler"
+  }
 }

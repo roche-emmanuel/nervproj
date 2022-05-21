@@ -12,10 +12,9 @@ from nvp.nvp_context import NVPContext
 logger = logging.getLogger(__name__)
 
 
-def register_component(ctx: NVPContext):
-    """Register this component in the given context"""
-    comp = EmailHandler(ctx)
-    ctx.register_component('email', comp)
+def create_component(ctx: NVPContext):
+    """Create an instance of the component"""
+    return EmailHandler(ctx)
 
 
 class EmailHandler(NVPComponent):
@@ -28,26 +27,15 @@ class EmailHandler(NVPComponent):
         # Get the config for this component:
         self.config = ctx.get_config().get("email", None)
 
-        # Also extend the parser:
-        ctx.define_subparsers("main", {'email': None})
-        psr = ctx.get_parser('main.email')
-        psr.add_argument("message", type=str,
-                         help="HTML message that should be sent by email")
-        psr.add_argument("-t", "--title", type=str,
-                         help="Message title")
-        psr.add_argument("-d", "--dest", type=str, dest='to_addrs',
-                         help="Destination addresses")
-        psr.add_argument("-f", "--from", type=str, dest='from_addr',
-                         help="From address")
-
     def process_command(self, cmd):
         """Check if this component can process the given command"""
 
-        if cmd == 'email':
-            msg = self.ctx.get_settings()['message']
-            title = self.ctx.get_settings().get('title', None)
-            to_addrs = self.ctx.get_settings().get('to_addrs', None)
-            from_addr = self.ctx.get_settings().get('from_addr', None)
+        if cmd == 'send':
+            msg = self.get_param('message')
+            assert msg is not None, "Invalid email message."
+            title = self.get_param('title', None)
+            to_addrs = self.get_param('to_addrs', None)
+            from_addr = self.get_param('from_addr', None)
 
             self.send_message(title, msg, to_addrs, from_addr)
             return True
@@ -101,3 +89,27 @@ class EmailHandler(NVPComponent):
             logger.error("SMTP auth not supported: %s", err)
         except smtplib.SMTPException as err:
             logger.error("SMTP exception occured: %s", err)
+
+
+if __name__ == "__main__":
+    # Create the context:
+    context = NVPContext()
+
+    # Add our component:
+    comp = context.register_component("email", EmailHandler(context))
+
+    context.define_subparsers("main", {
+        'send': None,
+    })
+
+    psr = context.get_parser('main.send')
+    psr.add_argument("message", type=str,
+                     help="HTML message that should be sent by email")
+    psr.add_argument("-t", "--title", type=str,
+                     help="Message title")
+    psr.add_argument("-d", "--dest", type=str, dest='to_addrs',
+                     help="Destination addresses")
+    psr.add_argument("-f", "--from", type=str, dest='from_addr',
+                     help="From address")
+
+    comp.run()

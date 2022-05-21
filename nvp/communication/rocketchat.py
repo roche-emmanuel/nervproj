@@ -1,9 +1,8 @@
 """Rocketchat utility functions"""
 import logging
-import os
+import time
 import json
 import requests
-import time
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -11,10 +10,9 @@ from nvp.nvp_context import NVPContext
 logger = logging.getLogger(__name__)
 
 
-def register_component(ctx: NVPContext):
-    """Register this component in the given context"""
-    comp = RocketChat(ctx)
-    ctx.register_component('rocketchat', comp)
+def create_component(ctx: NVPContext):
+    """Create an instance of the component"""
+    return RocketChat(ctx)
 
 
 class RocketChat(NVPComponent):
@@ -30,17 +28,11 @@ class RocketChat(NVPComponent):
         self.token = None
         self.base_url = None
 
-        # Also extend the parser:
-        ctx.define_subparsers("main", {'rchat': None})
-        psr = ctx.get_parser('main.rchat')
-        psr.add_argument("message", type=str,
-                         help="Message that should be send on the rocketchat server")
-
     def process_command(self, cmd):
         """Check if this component can process the given command"""
 
-        if cmd == 'rchat':
-            msg = self.ctx.get_settings()['message']
+        if cmd == 'send':
+            msg = self.get_param('message')
             self.send_message(msg)
             return True
 
@@ -136,3 +128,21 @@ class RocketChat(NVPComponent):
         if res['success']:
             return res['group']
         return None
+
+
+if __name__ == "__main__":
+    # Create the context:
+    context = NVPContext()
+
+    # Add our component:
+    comp = context.register_component("rchat", RocketChat(context))
+
+    context.define_subparsers("main", {
+        'send': None,
+    })
+
+    psr = context.get_parser('main.send')
+    psr.add_argument("message", type=str,
+                     help="Simple message that we should send")
+
+    comp.run()
