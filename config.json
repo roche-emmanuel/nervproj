@@ -213,6 +213,18 @@
       "custom_python_env": "min_env",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/communication/email_handler.py send",
       "python_path": ["${NVP_ROOT_DIR}"]
+    },
+    "python": {
+      "help": "Run a python command",
+      "use_local_python": true,
+      "cmd": "${PYTHON}",
+      "python_path": ["${PROJECT_ROOT_DIR}"]
+    },
+    "pip": {
+      "help": "Run a pip command",
+      "use_local_python": true,
+      "cmd": "${PYTHON} -m pip",
+      "python_path": ["${PROJECT_ROOT_DIR}"]
     }
   },
 

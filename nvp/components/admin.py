@@ -195,6 +195,14 @@ _${PROJ_NAME}_run_cli_linux() {
     if [ "$1" == "--install-py-reqs" ]; then
         echo "Installing python requirements..."
         $python_path -m pip install -r $root_dir/tools/requirements.txt
+    elif [ "$1" == "python" ]; then
+        # shift the args by one:
+        shift
+        $python_path "$@"
+    elif [ "$1" == "pip" ]; then
+        # shift the args by one:
+        shift
+        $python_path -m pip "$@"
     else
         # Execute the command in python:
         $python_path $root_dir/cli.py "$@"
@@ -263,12 +271,30 @@ if not exist "%PYTHON%" (
 )
 
 @REM check if the first argument is "--install-py-reqs"
-if "%~1" == "--install-py-reqs" (
-    %PYTHON% -m pip install -r %${PROJ_NAME}_DIR%\\tools\\requirements.txt
-) else (
-    @REM call the python app with the provided arguments:
-    %PYTHON% %${PROJ_NAME}_DIR%\\cli.py %*
-)
+IF /i "%~1" == "--install-py-reqs" goto install_reqs
+IF /i "%~1" == "python" goto run_python
+IF /i "%~1" == "pip" goto run_pip
+
+%PYTHON% %NERVHOME_DIR%\cli.py %*
+goto common_exit
+
+:install_reqs
+%PYTHON% -m pip install -r %NERVHOME_DIR%\tools\requirements.txt
+goto common_exit
+
+@REM cannot rely on %* when we use shift below:
+
+:run_python
+shift
+%PYTHON% %1 %2 %3 %4 %5 %6 %7 %8 %9
+goto common_exit
+
+:run_pip
+shift
+%PYTHON% -m pip %1 %2 %3 %4 %5 %6 %7 %8 %9
+goto common_exit
+
+:common_exit
 
 '''
 
