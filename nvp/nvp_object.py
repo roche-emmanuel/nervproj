@@ -536,7 +536,7 @@ class NVPObject(object):
         """Make a get request"""
 
         count = 0
-        while count < max_retries:
+        while max_retries == 0 or count < max_retries:
             try:
                 logger.debug("Sending request...")
                 resp = requests.get(url, timeout=timeout, params=params, headers=headers)
@@ -562,5 +562,39 @@ class NVPObject(object):
                     requests.exceptions.Timeout):
                 count += 1
                 logger.error("Exception occured in get request to %s, retrying (%d/%d)...", url, count, max_retries)
+
+        return None
+
+    def make_post_request(self, url, data=None, timeout=None, max_retries=20, headers=None, retry_delay=0.1):
+        """Make a post request"""
+
+        count = 0
+        while max_retries == 0 or count < max_retries:
+            try:
+                logger.debug("Sending request...")
+                resp = requests.post(url, timeout=timeout, data=data, headers=headers)
+
+                if resp is None:
+                    count += 1
+                    logger.error("No response received from post request to %s, retrying (%d/%d)...",
+                                 url, count, max_retries)
+                    continue
+
+                if resp.status_code != 200:
+                    count += 1
+                    logger.error("Received bad status %d from post request to %s (data=%s), retrying (%d/%d)...",
+                                 resp.status_code, url, data or "None", count, max_retries)
+                    time.sleep(retry_delay)
+                    continue
+
+                return resp
+
+            # note: could cache generic requests exception requests.exceptions.RequestException below.
+            except (urllib3.exceptions.ReadTimeoutError,
+                    requests.exceptions.ConnectionError,
+                    requests.exceptions.ReadTimeout,
+                    requests.exceptions.Timeout):
+                count += 1
+                logger.error("Exception occured in post request to %s, retrying (%d/%d)...", url, count, max_retries)
 
         return None
