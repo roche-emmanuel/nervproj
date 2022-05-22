@@ -25,6 +25,10 @@ logger = logging.getLogger(__name__)
 printer = pprint.PrettyPrinter(indent=2)
 
 
+class NVPCheckError(Exception):
+    pass
+
+
 def onerror(func, path, _exc_info):
     """
     Error handler for ``shutil.rmtree``.
@@ -57,6 +61,11 @@ class NVPObject(object):
     def is_linux(self):
         """chekc if we are on linux"""
         return sys.platform.startswith('linux')
+
+    def check(self, cond, fmt, *args):
+        """Check that a condition is true or raise an exception"""
+        if cond != True:
+            raise NVPCheckError(fmt.format(*args))
 
     def pretty_print(self, obj):
         """Pretty print an object"""
@@ -158,10 +167,15 @@ class NVPObject(object):
         """Get a relative path from the given base dir"""
         return os.path.relpath(my_path, start=base_dir)
 
-    def get_parent_folder(self, *parts):
+    def get_parent_folder(self, *parts, level=0):
         """Retrieve the parent folder from any path."""
         my_path = self.get_path(*parts)
-        return os.path.dirname(my_path)
+        pdir = os.path.dirname(my_path)
+        while level > 0:
+            pdir = os.path.abspath(self.get_path(pdir, os.pardir))
+            level -= 1
+
+        return pdir
 
     def get_filename(self, *parts):
         """Retrieve the filename from a given full path"""
