@@ -74,7 +74,7 @@ class NVPContext(NVPObject):
         self.setup_paths()
 
         self.parsers = None
-        self.settings = None
+        self.settings = {}
         self.additional_args = None
 
         self.sub_parsers = {}

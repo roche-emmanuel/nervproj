@@ -228,6 +228,8 @@
     }
   },
 
+  "notify_script_errors": true,
+
   // Available custom python environments:
   "custom_python_envs": {
     "min_env": {

@@ -156,19 +156,23 @@ class ScriptRunner(NVPComponent):
         try:
             self.execute(cmd, cwd=cwd, env=env)
         except subprocess.SubprocessError:
-            # And exception occured in the sub process, so we should send a notification:
-            msg = ":warning: **WARNING:** an exception occured in the following command:\n"
-            msg += f"{cmd}\n"
-            msg += f"cwd={cwd}\n\n"
-            msg += "=> Check the logs for details."
+            notify = self.config.get("notify_script_errors", True)
+            if notify:
+                # And exception occured in the sub process, so we should send a notification:
+                msg = ":warning: **WARNING:** an exception occured in the following command:\n"
+                msg += f"{cmd}\n"
+                msg += f"cwd={cwd}\n\n"
+                msg += "=> Check the logs for details."
 
-            rchat = self.get_component("rchat")
-            rchat.send_message(msg)
+                rchat = self.get_component("rchat")
+                rchat.send_message(msg)
 
-            msg = "<p style=\"color: #fd0202;\">**WARNING:** an exception occured in the following command:</p>"
-            msg += f"<p><em>{cmd}</em></p>"
-            msg += f"<p>cwd={cwd}</p>"
-            msg += "<p >=> Check the logs for details.</p>"
+                msg = "<p style=\"color: #fd0202;\">**WARNING:** an exception occured in the following command:</p>"
+                msg += f"<p><em>{cmd}</em></p>"
+                msg += f"<p>cwd={cwd}</p>"
+                msg += "<p >=> Check the logs for details.</p>"
 
-            email = self.get_component("email")
-            email.send_message("[NervProj] Exception notification", msg)
+                email = self.get_component("email")
+                email.send_message("[NervProj] Exception notification", msg)
+
+            logger.error("Error occured in script command: %s (cwd=%s)", cmd, cwd)

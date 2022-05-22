@@ -64,8 +64,8 @@ class NVPObject(object):
 
     def check(self, cond, fmt, *args):
         """Check that a condition is true or raise an exception"""
-        if cond != True:
-            raise NVPCheckError(fmt.format(*args))
+        if cond is not True:
+            raise NVPCheckError(fmt % args)
 
     def pretty_print(self, obj):
         """Pretty print an object"""
