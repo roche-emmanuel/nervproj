@@ -33,12 +33,13 @@ class RocketChat(NVPComponent):
 
         if cmd == 'send':
             msg = self.get_param('message')
-            self.send_message(msg)
+            channel = self.get_param('channel')
+            self.send_message(msg, channel=channel)
             return True
 
         return False
 
-    def send_message(self, message):
+    def send_message(self, message, channel=None):
         """Method used to send a message on the configured rocketchat server."""
         # logger.info("Should send the rocketchat message: '%s'", message)
 
@@ -48,7 +49,8 @@ class RocketChat(NVPComponent):
         self.token = self.config['token']
         self.base_url = self.config['base_url']
 
-        channel = self.config['default_channel']
+        if channel is None:
+            channel = self.config['default_channel']
 
         infos = self.get_channel_infos(channel)
         if infos is None:
@@ -144,5 +146,7 @@ if __name__ == "__main__":
     psr = context.get_parser('main.send')
     psr.add_argument("message", type=str,
                      help="Simple message that we should send")
+    psr.add_argument("-c", "--channel", dest="channel", type=str,
+                     help="Channel where to send the message.")
 
     comp.run()

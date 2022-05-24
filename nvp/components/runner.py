@@ -165,7 +165,7 @@ class ScriptRunner(NVPComponent):
                 msg += "=> Check the logs for details."
 
                 rchat = self.get_component("rchat")
-                rchat.send_message(msg)
+                rchat.send_message(msg, channel="problem-reports")
 
                 msg = "<p style=\"color: #fd0202;\">**WARNING:** an exception occured in the following command:</p>"
                 msg += f"<p><em>{cmd}</em></p>"
