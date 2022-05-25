@@ -443,7 +443,10 @@ class AdminManager(NVPComponent):
         config["python.linting.pylintEnabled"] = True
         config["python.linting.enabled"] = True
         config["python.linting.pylintPath"] = tools.get_tool_path('pylint')
-        config["python.linting.pylintArgs"] = ["--max-line-length=120"]
+        config["python.linting.pylintArgs"] = [
+            "--max-line-length=120",
+            "--good-names=i,j,k,ex,Run,_,x,y,z,w,t,dt",
+            "--good-names-rgxs=[a-z][0-9]$"]
         config["python.defaultInterpreterPath"] = tools.get_tool_path('python')
         config["python.formatting.autopep8Path"] = tools.get_tool_path("autopep8")
         config["python.formatting.provider"] = "autopep8"
