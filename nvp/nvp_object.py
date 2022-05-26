@@ -67,6 +67,10 @@ class NVPObject(object):
         if cond is not True:
             raise NVPCheckError(fmt % args)
 
+    def throw(self, fmt, *args):
+        """raise an exception"""
+        raise NVPCheckError(fmt % args)
+
     def pretty_print(self, obj):
         """Pretty print an object"""
         if obj is None:
