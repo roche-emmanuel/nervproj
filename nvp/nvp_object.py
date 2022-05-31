@@ -88,9 +88,8 @@ class NVPObject(object):
                             found = err_cb(err)
                         else:
 
-                            logger.error(
-                                "Exception occured in safe block:\n%s", traceback.format_exc()
-                            )
+                            logger.error("Exception occured in safe block (trial %d/%d):\n%s",
+                                         count+1, retries, traceback.format_exc())
                             # wait a moment
                             time.sleep(delay)
                         count += 1
