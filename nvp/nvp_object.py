@@ -77,7 +77,7 @@ class NVPObject(object):
         temporary errors and retrying as needed."""
 
         count = 0
-        while count < retries:
+        while True:
             try:
                 return func()
             except Exception as err:  # pylint: disable=broad-except
@@ -90,13 +90,14 @@ class NVPObject(object):
 
                             logger.error("Exception occured in safe block (trial %d/%d):\n%s",
                                          count+1, retries, traceback.format_exc())
-                            # wait a moment
-                            time.sleep(delay)
+                            # wait a moment if needed:
+                            if delay > 0.0:
+                                time.sleep(delay)
                         count += 1
                         found = True
                         break
 
-                if not found:
+                if not found or count > retries:
                     # re-raise the exception:
                     raise err
 
