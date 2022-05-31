@@ -1,6 +1,7 @@
 """NVP base object class"""
 import configparser
 
+import traceback
 import logging
 import os
 import stat
@@ -70,6 +71,35 @@ class NVPObject(object):
     def throw(self, fmt, *args):
         """raise an exception"""
         raise NVPCheckError(fmt % args)
+
+    def safe_call(self, func, excepts, delay=2.0, retries=10, err_cb=None):
+        """Execute a given code block safely, catching potential
+        temporary errors and retrying as needed."""
+
+        count = 0
+        while count < retries:
+            try:
+                return func()
+            except Exception as err:  # pylint: disable=broad-except
+                found = False
+                for ecls in excepts:
+                    if isinstance(err, ecls):
+                        if err_cb is not None:
+                            found = err_cb(err)
+                        else:
+
+                            logger.error(
+                                "Exception occured in safe block:\n%s", traceback.format_exc()
+                            )
+                            # wait a moment
+                            time.sleep(delay)
+                        count += 1
+                        found = True
+                        break
+
+                if not found:
+                    # re-raise the exception:
+                    raise err
 
     def pretty_print(self, obj):
         """Pretty print an object"""
