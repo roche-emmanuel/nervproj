@@ -466,10 +466,13 @@ class NVPObject(object):
             stdout = outfile
 
         # logger.info("Executing command: %s", cmd)
-        if check:
-            subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
-        else:
-            subprocess.run(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, check=False)
+        try:
+            if check:
+                subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
+            else:
+                subprocess.run(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, check=False)
+        except KeyboardInterrupt:
+            logger.info("Subprocess was interrupted.")
 
     def get_all_files(self, folder, exp=".*", recursive=False):
         """Get all the files matching a given pattern in a folder."""

@@ -1,24 +1,29 @@
 #!/usr/bin/env bash
 
-# cf. https://stackoverflow.com/questions/59895/how-can-i-get-the-source-directory-of-a-bash-script-from-within-the-script-itsel
-ROOT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# trap ctrl-c and call ctrl_c()
+# trap ctrl_c INT
 
-_nvp_run_cli_windows()
-{
+# function ctrl_c() {
+#     echo "** Trapped CTRL-C"
+# }
+
+# cf. https://stackoverflow.com/questions/59895/how-can-i-get-the-source-directory-of-a-bash-script-from-within-the-script-itsel
+ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+
+_nvp_run_cli_windows() {
     # On windows we should simply rely on the cli.bat script below:
-    ROOT_DIR="`cygpath -w $ROOT_DIR`"
+    ROOT_DIR="$(cygpath -w $ROOT_DIR)"
     cmd /C "$ROOT_DIR\\cli.bat" "$@"
 }
 
-_nvp_run_cli_linux()
-{
+_nvp_run_cli_linux() {
     local python_version="3.10.2"
 
     # On linux we should call the python cli directly:
-    # Get the project root folder: 
-    local root_dir=`readlink -f $ROOT_DIR/`
+    # Get the project root folder:
+    local root_dir=$(readlink -f $ROOT_DIR/)
     # echo "NervLand root dir is: $root_dir"
-    
+
     # Check if we already have python:
     local tools_dir=$root_dir/tools/linux
     if [[ ! -d $tools_dir ]]; then
@@ -30,15 +35,15 @@ _nvp_run_cli_linux()
     local python_path=$python_dir/bin/python3
 
     if [[ ! -d $python_dir ]]; then
-        # Check if we already have the python.7z 
+        # Check if we already have the python.7z
         local python_pkg=$root_dir/tools/packages/python-$python_version-linux.tar.xz
 
         if [[ -e "$python_pkg" ]]; then
             echo "Extracting $python_pkg..."
             # $unzip_path x -o"$tools_dir" "$python_pkg" > /dev/null
-            pushd $tools_dir > /dev/null
+            pushd $tools_dir >/dev/null
             tar xvJf $python_pkg
-            popd > /dev/null
+            popd >/dev/null
         else
             echo "Building python-$python_version from sources..."
             local pyfolder="Python-$python_version"
@@ -51,7 +56,7 @@ _nvp_run_cli_linux()
                 mkdir $tmp_dir
             fi
 
-            pushd $tmp_dir > /dev/null
+            pushd $tmp_dir >/dev/null
 
             # Remove any previous build folder:
             if [[ -d $pyfolder ]]; then
@@ -68,7 +73,7 @@ _nvp_run_cli_linux()
             tar xvJf $tarfile
 
             # Enter into the python source folder:
-            pushd $pyfolder > /dev/null
+            pushd $pyfolder >/dev/null
 
             # should ensure that the dependency packages are installed (?)
             # sudo apt-get install libbz2-dev liblzma-dev
@@ -83,19 +88,18 @@ _nvp_run_cli_linux()
             echo "Installing python..."
             make install
 
-            popd > /dev/null
-            popd > /dev/null
+            popd >/dev/null
+            popd >/dev/null
 
             # Now we rename the destination folder:
             mv $python_dir.tmp $python_dir
 
-
             # And we create the 7z package:
             echo "Generating python tool package..."
-            pushd $tools_dir > /dev/null
+            pushd $tools_dir >/dev/null
             tar cJf python-$python_version-linux.tar.xz python-$python_version
             mv python-$python_version-linux.tar.xz ../packages
-            popd > /dev/null
+            popd >/dev/null
             # $unzip_path a -t7z $python_pkg $python_dir -m0=lzma2 -mx=9 -aoa -mfb=64 -md=32m -ms=on -r
 
             # removing python build folder:
@@ -113,13 +117,12 @@ _nvp_run_cli_linux()
         echo "Installing python requirements..."
         $python_path -m pip install -r $root_dir/tools/requirements.txt
     fi
-    
+
     # Execute the command in python:
     $python_path $root_dir/cli.py "$@"
 }
 
-nvp()
-{
+nvp() {
     if [ "$1" == "home" ]; then
         # check if we are requesting the home of a sub project:
         if [ "$2" == "" ]; then
@@ -127,7 +130,7 @@ nvp()
             cd "$ROOT_DIR"
         else
             # Find the home dir of the sub project:
-            local home_dir=`nvp get_dir -p $2`
+            local home_dir=$(nvp get_dir -p $2)
             if [ -d "$home_dir" ]; then
                 cd $home_dir
             else
@@ -136,7 +139,7 @@ nvp()
         fi
     else
         # Check if we are on a windows or a linux system:
-        pname=`uname -s`
+        pname=$(uname -s)
 
         case $pname in
         CYGWIN*)

@@ -2,6 +2,7 @@
 import logging
 import os
 import sys
+# import signal
 import argparse
 from importlib import import_module
 
@@ -9,6 +10,15 @@ from nvp.nvp_object import NVPObject
 from nvp.nvp_project import NVPProject
 
 logger = logging.getLogger(__name__)
+
+
+# def signal_handler(_sig, _frame):
+#     """Handler for ctrl+c signal"""
+#     logger.info("NVPContext: Ctrl+C pressed, exiting.")
+#     sys.exit(0)
+
+
+# signal.signal(signal.SIGINT, signal_handler)
 
 
 class NVPContext(NVPObject):
