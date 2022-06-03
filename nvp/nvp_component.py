@@ -39,6 +39,10 @@ class NVPComponent(NVPObject):
             val = defval
         return val
 
+    def get_config(self):
+        """Get the config from this component"""
+        return self.config
+
     def load_config(self, cfgname, base_dir=None):
         """Load a configuration file from a given subpath"""
         if base_dir is None:

@@ -208,6 +208,24 @@
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/communication/rocketchat.py send",
       "python_path": ["${NVP_ROOT_DIR}"]
     },
+    "encrypter": {
+      "help": "Generate a pair of RSA key",
+      "custom_python_env": "min_env",
+      "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/encrypter.py",
+      "python_path": ["${NVP_ROOT_DIR}"]
+    },
+    "encrypt": {
+      "help": "Generate a pair of RSA key",
+      "custom_python_env": "min_env",
+      "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/encrypter.py encrypt",
+      "python_path": ["${NVP_ROOT_DIR}"]
+    },
+    "decrypt": {
+      "help": "Generate a pair of RSA key",
+      "custom_python_env": "min_env",
+      "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/encrypter.py decrypt",
+      "python_path": ["${NVP_ROOT_DIR}"]
+    },
     "email": {
       "help": "Send an email",
       "custom_python_env": "min_env",
@@ -233,7 +251,7 @@
   // Available custom python environments:
   "custom_python_envs": {
     "min_env": {
-      "packages": ["requests", "jstyleson", "xxhash"]
+      "packages": ["requests", "jstyleson", "xxhash", "pycryptodome"]
     },
     "social_env": {
       "packages": ["requests", "jstyleson", "xxhash", "requests-oauthlib"]
@@ -243,6 +261,7 @@
   // Available dynamic components:
   "components": {
     "rchat": "nvp.communication.rocketchat",
-    "email": "nvp.communication.email_handler"
+    "email": "nvp.communication.email_handler",
+    "encrypter": "nvp.core.encrypter"
   }
 }

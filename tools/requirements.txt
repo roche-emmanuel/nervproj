@@ -13,3 +13,6 @@ deep-translator
 opencv-python
 pandas
 pytest
+# cryptography
+# rsa
+pycryptodome
