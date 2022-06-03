@@ -64,6 +64,7 @@ class NVPContext(NVPObject):
         self.projects = []
 
         self.platform = None
+        self.commands = None
 
         pname = sys.platform
         if pname.startswith('win32'):
@@ -104,6 +105,10 @@ class NVPContext(NVPObject):
     def define_subparsers(self, pname, desc):
         """define subparsers recursively."""
 
+        # If desc is a list then we convert that to a dict with None values:
+        if isinstance(desc, list):
+            desc = {key: None for key in desc}
+
         parent = self.parsers[pname]
 
         # level is the number of '.' we have in the parent parser name:
@@ -119,6 +124,12 @@ class NVPContext(NVPObject):
 
         for key, sub_desc in desc.items():
             # logger.info("Adding parser for %s", key)
+            # The key may contain a point, in which case we should split it here:
+            if "." in key:
+                parts = key.split(".", 1)
+                key = parts[0]
+                sub_desc = {parts[1]: sub_desc}
+
             sub_name = f"{pname}.{key}"
 
             if sub_name not in self.parsers:
@@ -371,9 +382,30 @@ class NVPContext(NVPObject):
 
         return self.get_project(pname)
 
+    def get_commands(self):
+        """Get all the command elements"""
+        if self.commands is None:
+            self.commands = []
+            lvl = 0
+            while True:
+                val = self.settings.get(f"l{lvl}_cmd", None)
+                if val is not None:
+                    self.commands.append(val)
+                    lvl += 1
+                else:
+                    break
+
+        return self.commands
+
     def get_command(self, lvl):
         """Retrieve the command at a given level"""
-        return self.settings.get(f"l{lvl}_cmd", None)
+        cmds = self.get_commands()
+        return cmds[lvl] if lvl < len(cmds) else None
+
+    def get_command_path(self):
+        """Return the full command path"""
+        cmds = self.get_commands()
+        return ".".join(cmds)
 
     def parse_args(self, allow_additionals):
         """Parse the command line arguments"""

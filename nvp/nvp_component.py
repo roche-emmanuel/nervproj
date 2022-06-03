@@ -63,7 +63,11 @@ class NVPComponent(NVPObject):
 
     def process_command(self, _cmd0):
         """Default implementation of process_command,
-        returns False here by default."""
+        process the full command path."""
+        return self.process_cmd_path(self.ctx.get_command_path())
+
+    def process_cmd_path(self, _cmd):
+        """Process the full command path"""
         return False
 
     def run(self):
