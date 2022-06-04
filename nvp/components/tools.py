@@ -12,6 +12,11 @@ from nvp.nvp_context import NVPContext
 logger = logging.getLogger(__name__)
 
 
+def create_component(ctx: NVPContext):
+    """Create an instance of the component"""
+    return ToolsManager(ctx)
+
+
 def register_component(ctx: NVPContext):
     """Register this component in the given context"""
     comp = ToolsManager(ctx)
@@ -299,6 +304,22 @@ class ToolsManager(NVPComponent):
         logger.error("Cannot download file from %s in %d retries", url, max_retries)
         return False
 
+    def unzip_package(self, src_pkg_path, dest_dir, target_name=None):
+        """Unzip a package"""
+
+        # check if this is a tar.xz archive:
+        if src_pkg_path.endswith(".tar.xz"):
+            cmd = ["tar", "-xvJf", src_pkg_path, "-C", dest_dir]
+        elif src_pkg_path.endswith(".tar.gz") or src_pkg_path.endswith(".tgz"):
+            cmd = ["tar", "-xvzf", src_pkg_path, "-C", dest_dir]
+        elif src_pkg_path.endswith(".7z.exe"):
+            if target_name is None:
+                target_name = self.remove_file_extension(os.path.basename(src_pkg_path))
+            cmd = [self.get_unzip_path(), "x", "-o"+dest_dir+"/"+target_name, src_pkg_path]
+        else:
+            cmd = [self.get_unzip_path(), "x", "-o"+dest_dir, src_pkg_path]
+        self.execute(cmd, self.settings['verbose'])
+
     def extract_package(self, src_pkg_path, dest_dir, target_dir=None, extracted_dir=None):
         """Extract source package into the target dir folder."""
 
@@ -316,16 +337,7 @@ class ToolsManager(NVPComponent):
         assert not self.path_exists(dst_dir), f"Unexpected existing path: {dst_dir}"
         assert not self.path_exists(src_dir), f"Unexpected existing path: {src_dir}"
 
-        # check if this is a tar.xz archive:
-        if src_pkg_path.endswith(".tar.xz"):
-            cmd = ["tar", "-xvJf", src_pkg_path, "-C", dest_dir]
-        elif src_pkg_path.endswith(".tar.gz") or src_pkg_path.endswith(".tgz"):
-            cmd = ["tar", "-xvzf", src_pkg_path, "-C", dest_dir]
-        elif src_pkg_path.endswith(".7z.exe"):
-            cmd = [self.get_unzip_path(), "x", "-o"+dest_dir+"/"+target_name, src_pkg_path]
-        else:
-            cmd = [self.get_unzip_path(), "x", "-o"+dest_dir, src_pkg_path]
-        self.execute(cmd, self.settings['verbose'])
+        self.unzip_package(src_pkg_path, dest_dir, target_name)
         # self.execute(cmd, True)
 
         # Check if renaming is necessary:
