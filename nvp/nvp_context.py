@@ -60,6 +60,7 @@ class NVPContext(NVPObject):
         # Load the manager config:
         self.load_config()
 
+        self.construct_frames = []
         self.components = {}
         self.projects = []
 
@@ -336,10 +337,21 @@ class NVPContext(NVPObject):
 
         # We have a dyn component module name, so we try to load it:
         mname = dyn_comps[cname]
+        args = mname.split(":")
+        mname = args.pop(0)
         logger.debug("Loading dynamic component %s from module %s", cname, mname)
 
         comp_module = import_module(mname)
+
+        # Add a construct frame for this component:
+        self.construct_frames.append({
+            "component_name": cname,
+            "module": mname,
+            "args": args
+        })
         comp = comp_module.create_component(self)
+        # Remove the construct frame:
+        self.construct_frames.pop()
 
         # And we register that component now:
         self.register_component(cname, comp)
@@ -370,6 +382,21 @@ class NVPContext(NVPObject):
         # # Should now have the component name in the dict:
         # assert cname in self.components, f"Could not register component for {cname}"
         # return self.components[cname]
+
+    def get_construct_frames(self):
+        """Retrieve the current list of construct frames"""
+        return self.construct_frames
+
+    def get_construct_frame(self, idx=-1):
+        """Retrieve a given construct frame"""
+        return self.construct_frames[idx]
+
+    def get_construct_args(self, idx=-1):
+        """Retrieve the construct arguments from a given frame"""
+        args = self.construct_frames[idx]['args']
+        if len(args) == 0:
+            return None
+        return args
 
     def get_current_project(self) -> NVPProject | None:
         """Retrieve the project details."""
