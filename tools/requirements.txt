@@ -16,3 +16,4 @@ pytest
 # cryptography
 # rsa
 pycryptodome
+psutil

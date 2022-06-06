@@ -263,6 +263,7 @@
     "tools": "nvp.components.tools",
     "rchat": "nvp.communication.rocketchat",
     "email": "nvp.communication.email_handler",
+    "psutils": "nvp.core.process_utils",
     "encrypter": "nvp.core.encrypter"
   }
 }
