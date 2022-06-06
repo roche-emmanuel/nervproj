@@ -7,6 +7,7 @@ import os
 import stat
 import pprint
 import time
+import psutil
 import unicodedata
 import re
 import threading
@@ -649,3 +650,14 @@ class NVPObject(object):
                 logger.error("Exception occured in post request to %s, retrying (%d/%d)...", url, count, max_retries)
 
         return None
+
+    def get_cpu_usage_15mins(self):
+        """Retrieve the CPU usage percent over the last 15 mins"""
+        _, _, load15 = psutil.getloadavg()
+
+        cpu_usage = (load15/os.cpu_count()) * 100.0
+        return cpu_usage
+
+    def get_ram_usage(self):
+        """Retrieve RAM usage percent"""
+        return psutil.virtual_memory()[2]
