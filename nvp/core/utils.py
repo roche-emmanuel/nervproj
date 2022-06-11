@@ -1,6 +1,8 @@
 """Utility functions"""
 import base64
 
+from nvp.nvp_context import NVPContext
+
 
 def bytes_to_hex(data):
     """Convert bytes to an hex string"""
@@ -43,3 +45,10 @@ def bytes_to_b64(message_bytes):
 def string_to_b64(data):
     """Convert string to base64"""
     return bytes_to_b64(data.encode('utf-8'))
+
+
+def send_rocketchat_message(msg):
+    """Send a message on rocket chat"""
+    ctx = NVPContext.get()
+    rchat = ctx.get_component('rchat')
+    rchat.send_message(msg)

@@ -329,35 +329,14 @@ class NVPContext(NVPObject):
 
         # If the requested component is not found, then it might be a dynamic component:
         # So we search for it in our config:
-        dyn_comps = self.config.get("components", {})
+        comp = self.create_component(cname, do_init=do_init)
 
-        if cname not in dyn_comps:
-            logger.warning("Cannot find component %s", cname)
+        if comp is None:
             return None
-
-        # We have a dyn component module name, so we try to load it:
-        mname = dyn_comps[cname]
-        args = mname.split(":")
-        mname = args.pop(0)
-        logger.debug("Loading dynamic component %s from module %s", cname, mname)
-
-        comp_module = import_module(mname)
-
-        # Add a construct frame for this component:
-        self.construct_frames.append({
-            "component_name": cname,
-            "module": mname,
-            "args": args
-        })
-        comp = comp_module.create_component(self)
-        # Remove the construct frame:
-        self.construct_frames.pop()
 
         # And we register that component now:
         self.register_component(cname, comp)
 
-        if do_init:
-            comp.initialize()
         return comp
 
         # # logger.info("Component list: %s", self.components.keys())
@@ -382,6 +361,40 @@ class NVPContext(NVPObject):
         # # Should now have the component name in the dict:
         # assert cname in self.components, f"Could not register component for {cname}"
         # return self.components[cname]
+
+    def create_component(self, cname, args=None, do_init=True):
+        """Create a new dynamic component given it's name and optional arguments"""
+        dyn_comps = self.config.get("components", {})
+
+        if cname not in dyn_comps:
+            logger.warning("Cannot find component %s", cname)
+            return None
+
+        # We have a dyn component module name, so we try to load it:
+        mname = dyn_comps[cname]
+        def_args = mname.split(":")
+        mname = def_args.pop(0)
+        logger.debug("Loading dynamic component %s from module %s", cname, mname)
+
+        if args is None:
+            args = def_args
+
+        comp_module = import_module(mname)
+
+        # Add a construct frame for this component:
+        self.construct_frames.append({
+            "component_name": cname,
+            "module": mname,
+            "args": args
+        })
+        comp = comp_module.create_component(self)
+        # Remove the construct frame:
+        self.construct_frames.pop()
+
+        if do_init:
+            comp.initialize()
+
+        return comp
 
     def get_construct_frames(self):
         """Retrieve the current list of construct frames"""

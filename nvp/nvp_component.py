@@ -30,6 +30,10 @@ class NVPComponent(NVPObject):
         """Retrieve a component from the context"""
         return self.ctx.get_component(cname, do_init)
 
+    def create_component(self, cname, args=None, do_init=True):
+        """Create a new instance of a component"""
+        return self.ctx.create_component(cname, args=args, do_init=do_init)
+
     def get_param(self, pname, defval=None):
         """Retrieve a given parameter from the context
         or the default value."""
