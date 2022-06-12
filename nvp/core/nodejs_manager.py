@@ -90,7 +90,7 @@ class NodeJsManager(NVPComponent):
         cmd = [node_path, npm_script] + args
         self.execute(cmd)
 
-    def setup_nodejs_env(self, env_name, env_dir=None, renew_env=False, do_update=False):
+    def setup_nodejs_env(self, env_name, env_dir=None, renew_env=False, update_npm=False):
         """Setup a given nodejs environment"""
 
         desc = self.get_env_desc(env_name)
@@ -129,7 +129,9 @@ class NodeJsManager(NVPComponent):
 
             logger.info("Installing nodejs version %s...", vers)
             tools.extract_package(pkg_file, env_dir, target_dir=dest_folder, extracted_dir=base_name)
+            new_env = True
 
+        if new_env or update_npm:
             # Update the npm installation:
             self.run_npm(env_name, args=["update", "-g", "npm"])
 
@@ -147,9 +149,9 @@ class NodeJsManager(NVPComponent):
             env_name = self.get_param("env_name")
             env_dir = self.get_param("env_dir")
             renew_env = self.get_param("renew_env", False)
-            do_update = self.get_param("do_update", False)
+            update_npm = self.get_param("update_npm", False)
             # logger.info("Should setup environment %s here.", env_name)
-            self.setup_nodejs_env(env_name, env_dir, renew_env, do_update)
+            self.setup_nodejs_env(env_name, env_dir, renew_env, update_npm)
             return True
 
         if cmd == "remove":
@@ -176,6 +178,10 @@ if __name__ == "__main__":
                      help="Name of the environment to setup")
     psr.add_argument("--dir", dest="env_dir", type=str,
                      help="Environments root dir")
+    psr.add_argument("--update-npm", dest="update_npm", action="store_true",
+                     help="Request the update of npm")
+    psr.add_argument("--renew", dest="renew_env", action="store_true",
+                     help="Renew the environment completely")
 
     psr = context.get_parser('main.remove')
     psr.add_argument("env_name", type=str,
