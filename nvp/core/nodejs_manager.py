@@ -1,5 +1,6 @@
 """NodeJs manager component"""
 import logging
+import os
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -88,7 +89,12 @@ class NodeJsManager(NVPComponent):
         node_path = self.get_path(root_path, f"node{ext}")
         npm_script = self.get_path(root_path, "node_modules", "npm", "bin", "npm-cli.js")
         cmd = [node_path, npm_script] + args
-        self.execute(cmd)
+
+        # We should add node to the env path:
+        env = os.environ.copy()
+        env = self.prepend_env_list(root_path, env)
+
+        self.execute(cmd, env=env)
 
     def setup_nodejs_env(self, env_name, env_dir=None, renew_env=False, update_npm=False):
         """Setup a given nodejs environment"""
@@ -133,14 +139,15 @@ class NodeJsManager(NVPComponent):
 
         if new_env or update_npm:
             # Update the npm installation:
-            self.run_npm(env_name, args=["update", "-g", "npm"])
+            self.run_npm(env_name, args=["update", "--location=global", "npm"])
 
         # self.run_node(env_name, args=["--version"])
 
         # trigger the update of pip:
         packages = desc['packages']
         logger.info("Installing packages: %s", packages)
-        self.run_npm(env_name, args=["update", "-g"]+packages)
+        self.run_npm(env_name, args=["install", "--location=global"]+packages)
+        # self.run_npm(env_name, args=["update", "--location=global"])
 
     def process_cmd_path(self, cmd):
         """Process a given command path"""

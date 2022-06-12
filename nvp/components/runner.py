@@ -44,14 +44,13 @@ class ScriptRunner(NVPComponent):
 
         return False
 
-    def fill_placeholders(self, my_entry, proj: NVPProject):
+    def fill_placeholders(self, my_entry, hlocs):
         """Fill the placeholders in a given entry"""
         if my_entry is None:
             return None
 
-        root_dir = proj.get_root_dir() if proj is not None else self.ctx.get_root_dir()
-        my_entry = my_entry.replace("${PROJECT_ROOT_DIR}", root_dir)
-        my_entry = my_entry.replace("${NVP_ROOT_DIR}", self.ctx.get_root_dir())
+        for loc, rep in hlocs.items():
+            my_entry = my_entry.replace(loc, rep)
 
         return my_entry
 
@@ -92,7 +91,9 @@ class ScriptRunner(NVPComponent):
         key = f"{self.platform}_cmd"
         cmd = desc[key] if key in desc else desc['cmd']
 
-        cmd = self.fill_placeholders(cmd, proj)
+        hlocs = {}
+        hlocs["${PROJECT_ROOT_DIR}"] = proj.get_root_dir() if proj is not None else self.ctx.get_root_dir()
+        hlocs["${NVP_ROOT_DIR}"] = self.ctx.get_root_dir()
 
         # check if we should use python in this command:
         tools = self.get_component('tools')
@@ -118,17 +119,30 @@ class ScriptRunner(NVPComponent):
             pyenv_dir = pdesc["base_path"]
             py_path = tools.get_tool_path('python')
 
-        cmd = cmd.replace("${PYTHON}", py_path)
-        cmd = cmd.replace("${ENV_DIR}", pyenv_dir)
+        hlocs["${PYTHON}"] = py_path
+        hlocs["${PY_ENV_DIR}"] = pyenv_dir
+
+        if "nodejs_env" in desc:
+            nodejs = self.get_component("nodejs")
+            env_name = desc['nodejs_env']
+            env_dir = nodejs.get_env_dir(env_name)
+            node_root_dir = self.get_path(env_dir, env_name)
+            hlocs["${NODE_ENV_DIR}"] = node_root_dir
+            node_path = nodejs.get_node_path(env_name)
+            hlocs["${NODE}"] = node_path
+            hlocs["${NPM}"] = f"{node_path} {node_root_dir}/node_modules/npm/bin/npm-cli.js"
+
+        cmd = self.fill_placeholders(cmd, hlocs)
+
         cmd = cmd.split(" ")
         cmd = [el for el in cmd if el != ""]
 
-        cwd = self.fill_placeholders(desc.get('cwd', None), proj)
+        cwd = self.fill_placeholders(desc.get('cwd', None), hlocs)
 
         env = None
         if "python_path" in desc:
             elems = desc["python_path"]
-            elems = [self.fill_placeholders(el, proj).replace("\\", "/") for el in elems]
+            elems = [self.fill_placeholders(el, hlocs).replace("\\", "/") for el in elems]
             sep = ";" if self.is_windows else ":"
             pypath = sep.join(elems)
             logger.debug("Using pythonpath: %s", pypath)
