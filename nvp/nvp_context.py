@@ -95,7 +95,7 @@ class NVPContext(NVPObject):
         if is_main:
             self.load_default_components()
 
-            self.load_projects()
+        self.load_projects()
 
     @staticmethod
     def get():

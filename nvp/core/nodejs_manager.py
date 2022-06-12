@@ -50,6 +50,46 @@ class NodeJsManager(NVPComponent):
         default_env_dir = self.get_path(self.ctx.get_root_dir(), ".nodeenvs")
         return desc.get("install_dir", default_env_dir)
 
+    def remove_nodejs_env(self, env_name, env_dir=None):
+        """Remove a nodejs env given by name"""
+        desc = self.get_env_desc(env_name)
+
+        if env_dir is None:
+            # try to use the install dir from the desc if any or use the default install dir:
+            env_dir = self.get_env_dir(env_name, desc)
+
+        # create the env folder if it doesn't exist yet:
+        dest_folder = self.get_path(env_dir, env_name)
+
+        if self.dir_exists(dest_folder):
+            logger.info("Removing nodejs environment at %s", dest_folder)
+            self.remove_folder(dest_folder)
+
+    def get_node_path(self, env_name):
+        """Retrieve the full path to node in a given environment."""
+        env_dir = self.get_env_dir(env_name)
+        ext = ".exe" if self.is_windows else ""
+        node_path = self.get_path(env_dir, env_name, f"node{ext}")
+        self.check(self.file_exists(node_path), "Invalid node path: %s", node_path)
+        return node_path
+
+    def run_node(self, env_name, args):
+        """Execute a node command"""
+        node_path = self.get_node_path(env_name)
+        cmd = [node_path] + args
+        self.execute(cmd)
+
+    def run_npm(self, env_name, args):
+        """Execute a npm command"""
+        desc = self.get_env_desc(env_name)
+        env_dir = self.get_env_dir(env_name, desc)
+        root_path = self.get_path(env_dir, env_name)
+        ext = ".exe" if self.is_windows else ""
+        node_path = self.get_path(root_path, f"node{ext}")
+        npm_script = self.get_path(root_path, "node_modules", "npm", "bin", "npm-cli.js")
+        cmd = [node_path, npm_script] + args
+        self.execute(cmd)
+
     def setup_nodejs_env(self, env_name, env_dir=None, renew_env=False, do_update=False):
         """Setup a given nodejs environment"""
 
@@ -89,38 +129,34 @@ class NodeJsManager(NVPComponent):
 
             logger.info("Installing nodejs version %s...", vers)
             tools.extract_package(pkg_file, env_dir, target_dir=dest_folder, extracted_dir=base_name)
-            new_env = True
 
-        # py_path = self.get_path(dest_folder, pdesc['sub_path'])
+            # Update the npm installation:
+            self.run_npm(env_name, args=["update", "-g", "npm"])
 
-        # if new_env or do_update:
-        #     # trigger the update of pip:
-        #     logger.info("Updating pip...")
-        #     self.execute([py_path, "-m", "pip", "install", "--upgrade", "pip"])
+        # self.run_node(env_name, args=["--version"])
 
-        # # Next we should prepare the requirements file:
-        # req_file = self.get_path(dest_folder, "requirements.txt")
-        # content = "\n".join(desc["packages"])
-        # self.write_text_file(content, req_file)
-
-        # logger.info("Installing python requirements...")
-        # self.execute([py_path, "-m", "pip", "install", "-r", req_file])
+        # trigger the update of pip:
+        packages = desc['packages']
+        logger.info("Installing packages: %s", packages)
+        self.run_npm(env_name, args=["update", "-g"]+packages)
 
     def process_cmd_path(self, cmd):
         """Process a given command path"""
 
         if cmd == "setup":
             env_name = self.get_param("env_name")
-            logger.info("Should setup environment %s here.", env_name)
             env_dir = self.get_param("env_dir")
             renew_env = self.get_param("renew_env", False)
             do_update = self.get_param("do_update", False)
+            # logger.info("Should setup environment %s here.", env_name)
             self.setup_nodejs_env(env_name, env_dir, renew_env, do_update)
             return True
 
         if cmd == "remove":
             env_name = self.get_param("env_name")
-            logger.info("Should remove environment %s here.", env_name)
+            env_dir = self.get_param("env_dir")
+            # logger.info("Should remove environment %s here.", env_name)
+            self.remove_nodejs_env(env_name, env_dir)
             return True
 
         return False
@@ -138,8 +174,13 @@ if __name__ == "__main__":
     psr = context.get_parser('main.setup')
     psr.add_argument("env_name", type=str,
                      help="Name of the environment to setup")
+    psr.add_argument("--dir", dest="env_dir", type=str,
+                     help="Environments root dir")
+
     psr = context.get_parser('main.remove')
     psr.add_argument("env_name", type=str,
                      help="Name of the environment to remove")
+    psr.add_argument("--dir", dest="env_dir", type=str,
+                     help="Environments root dir")
 
     comp.run()

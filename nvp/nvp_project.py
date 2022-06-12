@@ -35,7 +35,8 @@ class NVPProject(NVPObject):
             # Update the scripts from what we just read from the config:
             self.scripts.update(self.config.get("scripts", {}))
 
-            if self.file_exists(proj_path, "nvp_plug.py"):
+            # Note: the nvp_plug system bellow is obsolete and should be removed eventually:
+            if ctx.is_master_context() and self.file_exists(proj_path, "nvp_plug.py"):
                 # logger.info("Loading NVP plugin from %s...", proj_name)
                 try:
                     sys.path.insert(0, proj_path)
