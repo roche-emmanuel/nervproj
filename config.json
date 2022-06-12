@@ -232,6 +232,12 @@
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/communication/email_handler.py send",
       "python_path": ["${NVP_ROOT_DIR}"]
     },
+    "nodejs": {
+      "help": "Run nodejs manager",
+      "custom_python_env": "min_env",
+      "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/nodejs_manager.py",
+      "python_path": ["${NVP_ROOT_DIR}"]
+    },
     "python": {
       "help": "Run a python command",
       "use_local_python": true,
@@ -264,6 +270,7 @@
     "rchat": "nvp.communication.rocketchat",
     "email": "nvp.communication.email_handler",
     "psutils": "nvp.core.process_utils",
+    "nodejs": "nvp.core.nodejs_manager",
     "encrypter": "nvp.core.encrypter"
   }
 }

@@ -159,3 +159,8 @@ class NVPProject(NVPObject):
         """Try to retrieve a custom python env from this project"""
         all_envs = self.config.get("custom_python_envs", {})
         return all_envs.get(env_name, None)
+
+    def get_nodejs_env(self, env_name):
+        """Try to retrieve a custom nodejs env from this project"""
+        all_envs = self.config.get("nodejs_envs", {})
+        return all_envs.get(env_name, None)
