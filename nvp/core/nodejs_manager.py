@@ -66,6 +66,11 @@ class NodeJsManager(NVPComponent):
             logger.info("Removing nodejs environment at %s", dest_folder)
             self.remove_folder(dest_folder)
 
+    def get_root_dir(self, env_name):
+        """Retrieve the root directory for a given environment"""
+        env_dir = self.get_env_dir(env_name)
+        return self.get_path(env_dir, env_name)
+
     def get_node_path(self, env_name):
         """Retrieve the full path to node in a given environment."""
         env_dir = self.get_env_dir(env_name)

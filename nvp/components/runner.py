@@ -2,7 +2,6 @@
 import logging
 import os
 import subprocess
-
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
 from nvp.nvp_project import NVPProject
@@ -132,9 +131,12 @@ class ScriptRunner(NVPComponent):
             hlocs["${NODE}"] = node_path
             hlocs["${NPM}"] = f"{node_path} {node_root_dir}/node_modules/npm/bin/npm-cli.js"
 
-        cmd = self.fill_placeholders(cmd, hlocs)
+        if isinstance(cmd, str):
+            cmd = self.fill_placeholders(cmd, hlocs)
+            cmd = cmd.split(" ")
+        else:
+            cmd = [self.fill_placeholders(elem, hlocs) for elem in cmd]
 
-        cmd = cmd.split(" ")
         cmd = [el for el in cmd if el != ""]
 
         cwd = self.fill_placeholders(desc.get('cwd', None), hlocs)
