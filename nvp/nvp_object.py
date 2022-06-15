@@ -459,11 +459,17 @@ class NVPObject(object):
     def execute(self, cmd, verbose=True, cwd=None, env=None, check=True, outfile=None):
         """Execute a command optionally displaying the outputs."""
 
-        stdout = None if verbose else subprocess.DEVNULL
-        stderr = None if verbose else subprocess.DEVNULL
+        # stdout = None if verbose else subprocess.DEVNULL
+        # stderr = None if verbose else subprocess.DEVNULL
+        stdout = sys.stdout if verbose else subprocess.DEVNULL
+        stderr = sys.stderr if verbose else subprocess.DEVNULL
 
         if outfile is not None:
             stdout = outfile
+
+        # flush the output here:
+        sys.stdout.flush()
+        sys.stderr.flush()
 
         # logger.info("Executing command: %s", cmd)
         try:
