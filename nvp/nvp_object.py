@@ -511,9 +511,9 @@ class NVPObject(object):
                             outfile.write(sline+'\n')
                             outfile.flush()
 
-            logger.info("Waiting for subprocess to finish...")
+            logger.debug("Waiting for subprocess to finish...")
             proc.wait()
-            logger.info("Returncode: %d", proc.returncode)
+            logger.debug("Returncode: %d", proc.returncode)
 
             if proc.returncode < 0:
                 msg = f"Subprocess terminated with error code {proc.returncode} (cmd={cmd})"
