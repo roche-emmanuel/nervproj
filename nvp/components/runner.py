@@ -1,7 +1,7 @@
 """Collection of admin utility functions"""
 import logging
 import os
-import subprocess
+import time
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
 from nvp.nvp_project import NVPProject
@@ -166,14 +166,27 @@ class ScriptRunner(NVPComponent):
         if self.get_param("show_script_help", False):
             cmd += ["--help"]
 
+        logfile = None
+        if "log_file" in desc:
+            filename = self.fill_placeholders(desc["log_file"], hlocs)
+            logfile = open(filename, "w", encoding="utf-8")
+
         # Execute that command:
         logger.debug("Executing script command: %s (cwd=%s)", cmd, cwd)
 
-        try:
-            self.execute(cmd, cwd=cwd, env=env)
-        except subprocess.SubprocessError:
-            notify = self.config.get("notify_script_errors", True)
-            if notify:
+        auto_restart = desc.get("auto_restart", False)
+        notify = self.config.get("notify_script_errors", True)
+
+        while True:
+            success, rcode, outputs = self.execute(cmd, cwd=cwd, env=env, outfile=logfile)
+
+            if not success:
+                outs = "\n".join(outputs)
+                logger.error(
+                    "Error occured in script command:\ncmd=%s\ncwd=%s\nreturn code=%s\nlastest outputs:\n%s", cmd, cwd,
+                    rcode or "None", outs)
+
+            if not success and notify:
                 # And exception occured in the sub process, so we should send a notification:
                 msg = ":warning: **WARNING:** an exception occured in the following command:\n"
                 msg += f"{cmd}\n"
@@ -191,4 +204,13 @@ class ScriptRunner(NVPComponent):
                 email = self.get_component("email")
                 email.send_message("[NervProj] Exception notification", msg)
 
-            logger.error("Error occured in script command: %s (cwd=%s)", cmd, cwd)
+            if success or not auto_restart:
+                break
+
+            # Check if we have a restart delay:
+            delay = desc.get("restart_delay", None)
+            if delay is not None:
+                time.sleep(delay)
+
+        if logfile is not None:
+            logfile.close()

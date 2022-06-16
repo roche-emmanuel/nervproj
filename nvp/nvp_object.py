@@ -13,16 +13,17 @@ import threading
 import sys
 import subprocess
 import shutil
+import collections
+from threading import Thread
+from queue import Queue
+import signal
 import json
 import urllib
 from datetime import date, datetime
 import jstyleson
-from queue import Queue
-import signal
 import requests
 import xxhash
 import urllib3
-from threading import Thread
 
 logger = logging.getLogger(__name__)
 
@@ -469,14 +470,12 @@ class NVPObject(object):
         outfile = kwargs.get("outfile", None)
         print_outputs = kwargs.get("print_outputs", True)
         output_buffer = kwargs.get("output_buffer", None)
+        num_last_outputs = kwargs.get("num_last_outputs", 20)
 
         # stdout = None if verbose else subprocess.DEVNULL
         # stderr = None if verbose else subprocess.DEVNULL
         stdout = subprocess.PIPE if verbose else subprocess.DEVNULL
         stderr = subprocess.PIPE if verbose else subprocess.DEVNULL
-
-        if outfile is not None:
-            stdout = outfile
 
         # cf. https://stackoverflow.com/questions/31833897/
         # python-read-from-subprocess-stdout-and-stderr-separately-while-preserving-order
@@ -489,22 +488,28 @@ class NVPObject(object):
             finally:
                 queue.put(None)
 
+        # Keep the latest outputs to report in case of error:
+        lastest_outputs = collections.deque(maxlen=num_last_outputs)
+
         # logger.info("Executing command: %s", cmd)
         try:
             proc = subprocess.Popen(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, bufsize=0)
-            if verbose and (print_outputs or outfile is not None):
+            if verbose:
                 myq = Queue()
                 Thread(target=reader, args=[proc.stdout, myq, 0]).start()
                 Thread(target=reader, args=[proc.stderr, myq, 1]).start()
                 for _ in range(2):
                     for _source, line in iter(myq.get, None):
+                        sline = line.strip()
+                        lastest_outputs.append(sline)
                         if print_outputs:
-                            # print(f"{source}: {line.strip()}")
-                            print(line.strip())
+                            # print(f"{source}: {sline}")
+                            print(sline)
                         if output_buffer is not None:
-                            output_buffer.append(line.strip())
+                            output_buffer.append(sline)
                         if outfile is not None:
-                            outfile.write(line)
+                            outfile.write(sline+'\n')
+                            outfile.flush()
 
             logger.info("Waiting for subprocess to finish...")
             proc.wait()
@@ -517,10 +522,15 @@ class NVPObject(object):
                 else:
                     logger.error(msg)
 
-            # if check:
-            #     subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
-            # else:
-            #     subprocess.run(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, check=False)
+                # This operation seems to be a failure, so we return the latest outputs:
+                return False, proc.returncode, lastest_outputs
+
+            return True, proc.returncode, None
+
+        except subprocess.SubprocessError as err:
+            logger.error("Error occured in subprocess for %s:\n%s", cmd, str(err))
+            return False, None, lastest_outputs
+
         except KeyboardInterrupt:
             logger.info("Interrupting subprocess...")
             os.kill(proc.pid, signal.SIGINT)
@@ -528,6 +538,7 @@ class NVPObject(object):
             logger.info("Waiting for subprocess to finish...")
             proc.wait()
             logger.info("Returncode: %d", proc.returncode)
+            return True, proc.returncode, None
 
     def get_all_files(self, folder, exp=".*", recursive=False):
         """Get all the files matching a given pattern in a folder."""
