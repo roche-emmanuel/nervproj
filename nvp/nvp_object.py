@@ -17,9 +17,12 @@ import json
 import urllib
 from datetime import date, datetime
 import jstyleson
+from queue import Queue
+import signal
 import requests
 import xxhash
 import urllib3
+from threading import Thread
 
 logger = logging.getLogger(__name__)
 
@@ -456,29 +459,75 @@ class NVPObject(object):
         assert home_drive is not None and home_path is not None, "Invalid windows home drive or path"
         return home_drive+home_path
 
-    def execute(self, cmd, verbose=True, cwd=None, env=None, check=True, outfile=None):
+    def execute(self, cmd, **kwargs):
         """Execute a command optionally displaying the outputs."""
+
+        verbose = kwargs.get("verbose", True)
+        cwd = kwargs.get("cwd", None)
+        env = kwargs.get("env", None)
+        check = kwargs.get("check", True)
+        outfile = kwargs.get("outfile", None)
+        print_outputs = kwargs.get("print_outputs", True)
+        output_buffer = kwargs.get("output_buffer", None)
 
         # stdout = None if verbose else subprocess.DEVNULL
         # stderr = None if verbose else subprocess.DEVNULL
-        stdout = sys.stdout if verbose else subprocess.DEVNULL
-        stderr = sys.stderr if verbose else subprocess.DEVNULL
+        stdout = subprocess.PIPE if verbose else subprocess.DEVNULL
+        stderr = subprocess.PIPE if verbose else subprocess.DEVNULL
 
         if outfile is not None:
             stdout = outfile
 
-        # flush the output here:
-        sys.stdout.flush()
-        sys.stderr.flush()
+        # cf. https://stackoverflow.com/questions/31833897/
+        # python-read-from-subprocess-stdout-and-stderr-separately-while-preserving-order
+        def reader(pipe, queue, id):
+            """Reader function for a stream"""
+            try:
+                with pipe:
+                    for line in iter(pipe.readline, b''):
+                        queue.put((id, line.decode('utf-8')))
+            finally:
+                queue.put(None)
 
         # logger.info("Executing command: %s", cmd)
         try:
-            if check:
-                subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
-            else:
-                subprocess.run(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, check=False)
+            proc = subprocess.Popen(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, bufsize=0)
+            if verbose and (print_outputs or outfile is not None):
+                myq = Queue()
+                Thread(target=reader, args=[proc.stdout, myq, 0]).start()
+                Thread(target=reader, args=[proc.stderr, myq, 1]).start()
+                for _ in range(2):
+                    for _source, line in iter(myq.get, None):
+                        if print_outputs:
+                            # print(f"{source}: {line.strip()}")
+                            print(line.strip())
+                        if output_buffer is not None:
+                            output_buffer.append(line.strip())
+                        if outfile is not None:
+                            outfile.write(line)
+
+            logger.info("Waiting for subprocess to finish...")
+            proc.wait()
+            logger.info("Returncode: %d", proc.returncode)
+
+            if proc.returncode < 0:
+                msg = f"Subprocess terminated with error code {proc.returncode} (cmd={cmd})"
+                if check:
+                    raise NVPCheckError(msg)
+                else:
+                    logger.error(msg)
+
+            # if check:
+            #     subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
+            # else:
+            #     subprocess.run(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, check=False)
         except KeyboardInterrupt:
-            logger.info("Subprocess was interrupted.")
+            logger.info("Interrupting subprocess...")
+            os.kill(proc.pid, signal.SIGINT)
+
+            logger.info("Waiting for subprocess to finish...")
+            proc.wait()
+            logger.info("Returncode: %d", proc.returncode)
 
     def get_all_files(self, folder, exp=".*", recursive=False):
         """Get all the files matching a given pattern in a folder."""

@@ -44,7 +44,7 @@ class EmailHandler(NVPComponent):
 
     def send_message(self, title, message, to_addrs=None, from_addr=None, username=None, password=None):
         """Method used to send an email with a given SMTP server"""
-        logger.info("Should send the email message %s", message)
+        logger.debug("Should send the email message %s", message)
 
         assert self.config is not None, "No configuration provided for rocketchat."
 
