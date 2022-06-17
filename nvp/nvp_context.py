@@ -64,6 +64,8 @@ class NVPContext(NVPObject):
         self.components = {}
         self.projects = []
 
+        self.handlers = {}
+
         self.platform = None
         self.commands = None
 
@@ -382,12 +384,15 @@ class NVPContext(NVPObject):
         comp_module = import_module(mname)
 
         # Add a construct frame for this component:
-        self.construct_frames.append({
+        frame = {
             "component_name": cname,
             "module": mname,
             "args": args
-        })
+        }
+        self.construct_frames.append(frame)
         comp = comp_module.create_component(self)
+        comp.set_construct_frame(frame)
+
         # Remove the construct frame:
         self.construct_frames.pop()
 
@@ -497,3 +502,19 @@ class NVPContext(NVPObject):
     def get_projects(self):
         """Retrieve the list of available projects"""
         return self.projects
+
+    def get_handler(self, hname):
+        """Get a handler by name"""
+        if hname in self.handlers:
+            return self.handlers[hname]
+
+        # otherwise we have to search for that handler:
+        comp_module = import_module(hname)
+        handler = comp_module.handle
+        self.handlers[hname] = handler
+        return handler
+
+    def call_handler(self, hname, *args, **kwargs):
+        """Call a given handler with arguments"""
+        handler = self.get_handler(hname)
+        return handler(*args, **kwargs)

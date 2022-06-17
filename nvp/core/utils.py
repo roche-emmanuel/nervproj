@@ -3,6 +3,29 @@ import base64
 
 from nvp.nvp_context import NVPContext
 
+_F64 = 1 << 63
+_F32 = 1 << 31
+
+
+def to_int64(val):
+    """Convert an uint64 value to a int64"""
+    return val if (val & _F64) == 0 else val-2*_F64
+
+
+def to_int32(val):
+    """Convert an uint32 value to a int32"""
+    return val if (val & _F32) == 0 else val-2*_F32
+
+
+def to_uint64(val):
+    """Convert an int64 to an uint64 value"""
+    return val if val >= 0 else val+2*_F64
+
+
+def to_uint32(val):
+    """Convert an int32 to an uint32 value"""
+    return val if val >= 0 else val+2*_F32
+
 
 def bytes_to_hex(data):
     """Convert bytes to an hex string"""

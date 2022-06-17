@@ -15,6 +15,8 @@ class NVPComponent(NVPObject):
         self.ctx = ctx
         self.config = ctx.get_config()
         self.initialized = False
+        self.construct_frame = None
+        self.handlers_path = None
 
     @property
     def settings(self):
@@ -25,6 +27,16 @@ class NVPComponent(NVPObject):
     def platform(self):
         """retrieve the platform from the context."""
         return self.ctx.get_platform()
+
+    def set_construct_frame(self, frame):
+        """Assign a construct frame to this component"""
+        self.construct_frame = frame
+        # setup the default handlers path:
+        parts = self.construct_frame["module"].split(".")
+
+        # Replace the last name on the module path with "handlers"
+        parts[-1] = "handlers"
+        self.handlers_path = ".".join(parts)
 
     def get_component(self, cname, do_init=True):
         """Retrieve a component from the context"""
@@ -82,3 +94,12 @@ class NVPComponent(NVPObject):
         if res is not True:
             args = self.ctx.get_additional_args()
             logger.warning("Cannot process command '%s' (additional args: %s)", cmd, args)
+
+    def call_handler(self, hname, *args, **kwargs):
+        """Call a given handler"""
+        return self.ctx.call_handler(hname, *args, **kwargs)
+
+    def handle(self, hname, *args, **kwargs):
+        """Call an handler specific to this component, should be found
+        in a sub folder called 'handlers'"""
+        return self.call_handler(f"{self.handlers_path}.{hname}", self, *args, **kwargs)
