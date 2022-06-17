@@ -515,11 +515,9 @@ class NVPObject(object):
             proc.wait()
             logger.debug("Returncode: %d", proc.returncode)
 
-            if proc.returncode < 0:
-                msg = f"Subprocess terminated with error code {proc.returncode} (cmd={cmd})"
+            if proc.returncode != 0 and check:
                 if check:
-                    raise NVPCheckError(msg)
-                else:
+                    msg = f"Subprocess terminated with error code {proc.returncode} (cmd={cmd})"
                     logger.error(msg)
 
                 # This operation seems to be a failure, so we return the latest outputs:
