@@ -5,6 +5,7 @@ import time
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
 from nvp.nvp_project import NVPProject
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +172,20 @@ class ScriptRunner(NVPComponent):
             filename = self.fill_placeholders(desc["log_file"], hlocs)
             logfile = open(filename, "w", encoding="utf-8")
 
+        lockfile = None
+        if "lock_file" in desc:
+            lockfile = self.fill_placeholders(desc["lock_file"], hlocs)
+            folder = self.get_parent_folder(lockfile)
+            self.make_folder(folder)
+
+        if lockfile is not None and self.file_exists(lockfile):
+            logger.warning("'%s' prevented: lock file exists (%s). ", script_name, lockfile)
+            return
+
+        # Create the lockfile otherwise if applicable:
+        if lockfile is not None:
+            Path(lockfile).touch()
+
         # Execute that command:
         logger.debug("Executing script command: %s (cwd=%s)", cmd, cwd)
 
@@ -214,3 +229,7 @@ class ScriptRunner(NVPComponent):
 
         if logfile is not None:
             logfile.close()
+
+        # Remove the lock file if any:
+        if lockfile is not None:
+            self.remove_file(lockfile)
