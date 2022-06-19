@@ -70,8 +70,8 @@ def string_to_b64(data):
     return bytes_to_b64(data.encode('utf-8'))
 
 
-def send_rocketchat_message(msg):
+def send_rocketchat_message(msg, channel=None):
     """Send a message on rocket chat"""
     ctx = NVPContext.get()
     rchat = ctx.get_component('rchat')
-    rchat.send_message(msg)
+    rchat.send_message(msg, channel=channel)

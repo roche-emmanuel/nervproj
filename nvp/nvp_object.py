@@ -651,8 +651,10 @@ class NVPObject(object):
         value = re.sub(r'[^\w\s-]', '', value.lower())
         return re.sub(r'[-\s]+', '-', value).strip('-_')
 
-    def make_get_request(self, url, params=None, timeout=None, max_retries=20, headers=None, retry_delay=0.1):
+    def make_get_request(self, url, params=None, timeout=None, max_retries=20, headers=None, retry_delay=0.1, **kwargs):
         """Make a get request"""
+
+        status_codes = kwargs.get("status_codes", [200])
 
         count = 0
         while max_retries == 0 or count < max_retries:
@@ -666,7 +668,7 @@ class NVPObject(object):
                                  url, count, max_retries)
                     continue
 
-                if resp.status_code != 200:
+                if resp.status_code not in status_codes:
                     count += 1
                     logger.error("Received bad status %d from get request to %s (params=%s): %s, retrying (%d/%d)...",
                                  resp.status_code, url, params or "None", resp.text, count, max_retries)
