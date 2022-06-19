@@ -10,10 +10,9 @@ from nvp.nvp_context import NVPContext
 logger = logging.getLogger(__name__)
 
 
-def register_component(ctx: NVPContext):
-    """Register this component in the given context"""
-    comp = GitManager(ctx)
-    ctx.register_component('git', comp)
+def create_component(ctx: NVPContext):
+    """Create an instance of the component"""
+    return GitManager(ctx)
 
 
 class GitManager(NVPComponent):
@@ -22,21 +21,6 @@ class GitManager(NVPComponent):
     def __init__(self, ctx: NVPContext):
         """Git commands manager constructor"""
         NVPComponent.__init__(self, ctx)
-
-        desc = {
-            "git": {
-                "clone": None,
-                "status": None,
-                "diff": None,
-                "setup": None,
-                "push": None,
-                "pull": None,
-            }
-        }
-        ctx.define_subparsers("main", desc)
-        psr = ctx.get_parser('main.git.clone')
-        psr.add_argument("dest_folder", type=str, nargs='?', default=None,
-                         help="Name of the folder where to checkout the project")
 
     def get_canonical_cwd(self):
         """Retrieve canonical root folder to use depending on if we have a current
@@ -159,39 +143,34 @@ class GitManager(NVPComponent):
             # Get/use the canonical windows home:
             self.validate_git_global_config(self.get_win_home_dir())
 
-    def process_command(self, cmd0):
-        """Re-implementation of the process_command method."""
+    def process_cmd_path(self, cmd):
+        """Process a given command path"""
 
-        if cmd0 != 'git':
-            return False
-
-        cmd1 = self.ctx.get_command(1)
-        # cmd2 = self.ctx.get_command(2)
-        if cmd1 == 'clone':
+        if cmd == 'clone':
             self.clone_project_repository(self.settings['dest_folder'])
             return True
 
-        if cmd1 == 'status':
+        if cmd == 'status':
             cwd = self.get_canonical_cwd()
             self.git_status(cwd)
             return True
 
-        if cmd1 == 'diff':
+        if cmd == 'diff':
             cwd = self.get_canonical_cwd()
             self.git_diff(cwd)
             return True
 
-        if cmd1 == 'push':
+        if cmd == 'push':
             cwd = self.get_canonical_cwd()
             self.git_push(cwd)
             return True
 
-        if cmd1 == 'pull':
+        if cmd == 'pull':
             cwd = self.get_canonical_cwd()
             self.git_pull(cwd)
             return True
 
-        if cmd1 == 'setup':
+        if cmd == 'setup':
             # Setup the git configuration
             self.setup_global_config()
             return True
@@ -269,3 +248,19 @@ class GitManager(NVPComponent):
 
         if do_push:
             self.git_push(folder)
+
+
+if __name__ == "__main__":
+    # Create the context:
+    context = NVPContext()
+
+    # Add our component:
+    comp = context.get_component("git")
+
+    context.define_subparsers("main", ["clone", "status", "diff", "setup", "push", "pull"])
+
+    psr = context.get_parser('main.clone')
+    psr.add_argument("dest_folder", type=str, nargs='?', default=None,
+                     help="Name of the folder where to checkout the project")
+
+    comp.run()

@@ -249,6 +249,11 @@
       "use_local_python": true,
       "cmd": "${PYTHON} -m pip",
       "python_path": ["${PROJECT_ROOT_DIR}"]
+    },
+    "git": {
+      "help": "Run a git command",
+      "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/git_manager.py",
+      "python_path": ["${NVP_ROOT_DIR}"]
     }
   },
 
@@ -270,6 +275,7 @@
     "rchat": "nvp.communication.rocketchat",
     "email": "nvp.communication.email_handler",
     "psutils": "nvp.core.process_utils",
+    "git": "nvp.core.git_manager",
     "nodejs": "nvp.core.nodejs_manager",
     "encrypter": "nvp.core.encrypter"
   }
