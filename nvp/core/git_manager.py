@@ -175,6 +175,20 @@ class GitManager(NVPComponent):
             self.setup_global_config()
             return True
 
+        if cmd == 'pullall':
+            # Pull all the known repositories:
+            # We start with the NVP framework itself:
+            logger.info("Pulling NVP framework...")
+            self.git_pull(self.ctx.get_root_dir())
+
+            # Next we iterate on all the projects:
+            for proj in self.ctx.get_projects():
+                ppath = proj.get_root_dir()
+                if ppath is not None:
+                    logger.info("Pulling %s...", proj.get_name())
+                    self.git_pull(ppath)
+            return True
+
         return False
 
     def execute_git(self, args, cwd=None):
@@ -257,7 +271,7 @@ if __name__ == "__main__":
     # Add our component:
     comp = context.get_component("git")
 
-    context.define_subparsers("main", ["clone", "status", "diff", "setup", "push", "pull"])
+    context.define_subparsers("main", ["clone", "status", "diff", "setup", "push", "pull", "pullall"])
 
     psr = context.get_parser('main.clone')
     psr.add_argument("dest_folder", type=str, nargs='?', default=None,
