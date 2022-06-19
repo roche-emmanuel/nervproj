@@ -318,7 +318,7 @@ class ToolsManager(NVPComponent):
             cmd = [self.get_unzip_path(), "x", "-o"+dest_dir+"/"+target_name, src_pkg_path]
         else:
             cmd = [self.get_unzip_path(), "x", "-o"+dest_dir, src_pkg_path]
-        self.execute(cmd, self.settings['verbose'])
+        self.execute(cmd, verbose=self.settings['verbose'])
 
     def extract_package(self, src_pkg_path, dest_dir, target_dir=None, extracted_dir=None):
         """Extract source package into the target dir folder."""
@@ -372,7 +372,7 @@ class ToolsManager(NVPComponent):
                    "-ms=on", "-mmt=2", "-r"]
             # "-md=32m",
 
-        self.execute(cmd, self.settings['verbose'])
+        self.execute(cmd, verbose=self.settings['verbose'])
         logger.debug("Done generating package %s", package_name)
         return True
 
@@ -417,5 +417,5 @@ class ToolsManager(NVPComponent):
             cmd = [par2, "c", f"-b{nblocks}", f"-r{redundancy}", f"{fname}.par2", fname]
 
         logger.info("Executing command %s", cmd)
-        self.execute(cmd, True, cwd=pdir)
+        self.execute(cmd, verbose=True, cwd=pdir)
         logger.info("Done creating par archives.")
