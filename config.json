@@ -254,6 +254,11 @@
       "help": "Run a git command",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/git_manager.py",
       "python_path": ["${NVP_ROOT_DIR}"]
+    },
+    "gitlab": {
+      "help": "Run a gitlab command",
+      "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/gitlab_manager.py",
+      "python_path": ["${NVP_ROOT_DIR}"]
     }
   },
 
@@ -276,6 +281,7 @@
     "email": "nvp.communication.email_handler",
     "psutils": "nvp.core.process_utils",
     "git": "nvp.core.git_manager",
+    "gitlab": "nvp.core.gitlab_manager",
     "nodejs": "nvp.core.nodejs_manager",
     "encrypter": "nvp.core.encrypter"
   }

@@ -1,6 +1,5 @@
 """Collection of gitlab utility functions"""
 import logging
-import sys
 import re
 import time
 import json
@@ -12,10 +11,10 @@ from nvp.nvp_context import NVPContext
 logger = logging.getLogger(__name__)
 
 
-def register_component(ctx: NVPContext):
-    """Register this component in the given context"""
-    comp = GitlabManager(ctx)
-    ctx.register_component('gitlab', comp)
+def create_component(ctx: NVPContext):
+    """Create an instance of the component"""
+    return GitlabManager(ctx)
+
 
 # cf. Gitlab REST API documentation: https://docs.gitlab.com/ee/api/api_resources.html
 
@@ -31,35 +30,6 @@ class GitlabManager(NVPComponent):
         self.base_url = None
         self.access_token = None
         self.proj_id = None
-
-        desc = {"get_dir": None, "milestone": {"add": None, "list": None, "close": None}}
-        ctx.define_subparsers("main", desc)
-
-        psr = ctx.get_parser('main.milestone.add')
-        psr.add_argument("-p", "--project", dest='project', type=str, default="none",
-                         help="Select the current sub-project")
-        psr.add_argument("-t", "--title", dest='title', type=str,
-                         help="Title for the new milestone")
-        psr.add_argument("-d", "--desc", dest='description', type=str,
-                         help="Description for the new milestone")
-        psr.add_argument("-s", "--start", dest='start_date', type=str,
-                         help="Start date for the new milestone")
-        psr.add_argument("-e", "--end", dest='end_date', type=str,
-                         help="End date for the new milestone")
-
-        psr = ctx.get_parser('main.milestone.list')
-        psr.add_argument("-t", "--title", dest='title', type=str,
-                         help="Title of the listed milestone")
-
-        psr = ctx.get_parser('main.milestone.close')
-        psr.add_argument("-t", "--title", dest='title', type=str,
-                         help="Title for the milestone to close")
-        psr.add_argument("--id", dest='milestone_id', type=int,
-                         help="ID for the milestone to close")
-
-        psr = ctx.get_parser('main.get_dir')
-        psr.add_argument("-p", "--project", dest='project', type=str, default="none",
-                         help="Select the current sub-project")
 
     def send_request(self, req_type, url, data=None, max_retries=5, auth=True):
         """Method used to send a generic request to the server."""
@@ -123,10 +93,6 @@ class GitlabManager(NVPComponent):
 
     def process_command(self, cmd0):
         """Process a command"""
-
-        if cmd0 == 'get_dir':
-            self.process_get_dir()
-            return True
 
         if cmd0 == 'milestone':
             cmd1 = self.ctx.get_command(1)
@@ -208,10 +174,11 @@ class GitlabManager(NVPComponent):
         """Setup the elements required for the gitlab API usage.
         return True on success, False otherwise."""
 
-        if project is None:
-            project = self.ctx.get_current_project()
+        proj_dir = self.ctx.resolve_root_dir(project)
 
-        proj_dir = project.get_root_dir()
+        if proj_dir is None:
+            logger.error("Cannot resolve current project root directory")
+            return False
 
         git_cfg = self.read_git_config(proj_dir, ".git", "config")
         logger.debug("Read git config: %s", git_cfg)
@@ -409,19 +376,36 @@ class GitlabManager(NVPComponent):
 
         self.close_milestone(mid)
 
-    def process_get_dir(self):
-        """Retrieve the root dir for a given sub project and
-        return that path on stdout"""
 
-        proj = self.ctx.get_current_project()
-        proj_dir = proj.get_root_dir()
+if __name__ == "__main__":
+    # Create the context:
+    context = NVPContext()
 
-        if self.is_windows:
-            proj_dir = self.to_cygwin_path(proj_dir)
+    # Add our component:
+    comp = context.get_component("gitlab")
 
-        if proj_dir is None:
-            sys.stdout.write(f"No root dir found for project {proj.get_name()}")
-        else:
-            sys.stdout.write(proj_dir)
+    context.define_subparsers("main", {"milestone": ["add", "list", "close"]})
 
-        sys.stdout.flush()
+    psr = context.get_parser('main.milestone.add')
+    psr.add_argument("-p", "--project", dest='project', type=str, default="none",
+                     help="Select the current sub-project")
+    psr.add_argument("-t", "--title", dest='title', type=str,
+                     help="Title for the new milestone")
+    psr.add_argument("-d", "--desc", dest='description', type=str,
+                     help="Description for the new milestone")
+    psr.add_argument("-s", "--start", dest='start_date', type=str,
+                     help="Start date for the new milestone")
+    psr.add_argument("-e", "--end", dest='end_date', type=str,
+                     help="End date for the new milestone")
+
+    psr = context.get_parser('main.milestone.list')
+    psr.add_argument("-t", "--title", dest='title', type=str,
+                     help="Title of the listed milestone")
+
+    psr = context.get_parser('main.milestone.close')
+    psr.add_argument("-t", "--title", dest='title', type=str,
+                     help="Title for the milestone to close")
+    psr.add_argument("--id", dest='milestone_id', type=int,
+                     help="ID for the milestone to close")
+
+    comp.run()

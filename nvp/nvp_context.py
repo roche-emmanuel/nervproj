@@ -164,10 +164,16 @@ class NVPContext(NVPObject):
         parser.add_argument("-v", "--verbose", dest='verbose', action='store_true',
                             help="Enable display of verbose debug outputs.")
         if is_main:
-            parser.add_argument("-p", "--project", dest='project', type=str, default="none",
+            parser.add_argument("-p", "--project", dest='project', type=str,
                                 help="Select the current sub-project")
 
         self.parsers = {'main': parser}
+
+        if is_main:
+            self.define_subparsers("main", ["get_dir"])
+            psr = self.get_parser('main.get_dir')
+            psr.add_argument("-p", "--project", dest='project', type=str,
+                             help="Select the current sub-project")
 
     def get_parser(self, name):
         """Retrieve a parser by name"""
@@ -416,16 +422,56 @@ class NVPContext(NVPObject):
             return None
         return args
 
-    def get_current_project(self) -> NVPProject | None:
+    def get_current_project(self, resolve_cwd=False) -> NVPProject | None:
         """Retrieve the project details."""
+        pname = self.settings.get("project", None)
+        if pname is not None:
+            return self.get_project(pname)
 
-        if 'project' not in self.settings:
-            # No project assigned here:
-            return None
+        if resolve_cwd:
+            # Check the current project from the CWD:
+            cwd = self.get_cwd()
+            cwd = self.to_absolute_path(cwd)
+            for proj in self.get_projects():
+                ppath = self.to_absolute_path(proj.get_root_dir())
+                # logger.error("Checking %s against %s", cwd, ppath)
+                if cwd.startswith(ppath):
+                    return proj
 
-        pname = self.settings['project']
+        return None
 
-        return self.get_project(pname)
+    def resolve_root_dir(self, project=None):
+        """Resolve a root directory either from project or CWD"""
+        if project is None:
+            project = self.get_current_project(True)
+
+        if project:
+            return project.get_root_dir()
+
+        # We might still be in the NVP project itself:
+        cwd = self.to_absolute_path(self.get_cwd())
+
+        root_dir = self.to_absolute_path(self.get_root_dir())
+        if cwd.startswith(root_dir):
+            return root_dir
+
+        return None
+
+    def process_get_dir(self):
+        """Retrieve the root dir for a given sub project and
+        return that path on stdout"""
+        proj_dir = self.resolve_root_dir()
+
+        if proj_dir is None:
+            sys.stdout.write("No root dir found.")
+            sys.stdout.flush()
+            return
+
+        if self.is_windows:
+            proj_dir = self.to_cygwin_path(proj_dir)
+
+        sys.stdout.write(proj_dir)
+        sys.stdout.flush()
 
     def get_commands(self):
         """Get all the command elements"""
@@ -481,6 +527,10 @@ class NVPContext(NVPObject):
         self.parse_args(self.is_master)
 
         cmd = self.get_command(0)
+
+        if cmd == 'get_dir':
+            self.process_get_dir()
+            return
 
         proj = self.get_current_project()
         if proj is not None and proj.process_command(cmd):
