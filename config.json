@@ -276,7 +276,7 @@
 
   // Available dynamic components:
   "components": {
-    "tools": "nvp.components.tools",
+    "tools": "nvp.core.tools",
     "rchat": "nvp.communication.rocketchat",
     "email": "nvp.communication.email_handler",
     "psutils": "nvp.core.process_utils",

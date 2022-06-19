@@ -17,12 +17,6 @@ def create_component(ctx: NVPContext):
     return ToolsManager(ctx)
 
 
-def register_component(ctx: NVPContext):
-    """Register this component in the given context"""
-    comp = ToolsManager(ctx)
-    ctx.register_component('tools', comp)
-
-
 class ToolsManager(NVPComponent):
     """Tools command manager class"""
 
@@ -34,11 +28,6 @@ class ToolsManager(NVPComponent):
         self.tools_dir = self.get_path(base_dir, "tools", self.platform)
 
         self.tools = {}
-
-        desc = {
-            "tools": {"install": None},
-        }
-        ctx.define_subparsers("main", desc)
 
     def initialize(self):
         """Initialize this component as needed before usage."""
@@ -201,14 +190,11 @@ class ToolsManager(NVPComponent):
         """Retrieve par2 tool path."""
         return self.get_tool_path('par2')
 
-    def process_command(self, cmd0):
+    def process_cmd_path(self, cmd):
         """Re-implementation of the process_command method."""
 
-        if cmd0 == 'tools':
-            cmd1 = self.ctx.get_command(1)
-            if cmd1 == "install":
-                self.initialize()
-
+        if cmd == 'install':
+            self.initialize()
             return True
 
         return False
@@ -419,3 +405,15 @@ class ToolsManager(NVPComponent):
         logger.info("Executing command %s", cmd)
         self.execute(cmd, verbose=True, cwd=pdir)
         logger.info("Done creating par archives.")
+
+
+if __name__ == "__main__":
+    # Create the context:
+    context = NVPContext()
+
+    # Add our component:
+    comp = context.get_component("tools")
+
+    context.define_subparsers("main", ["install"])
+
+    comp.run()
