@@ -668,8 +668,8 @@ class NVPObject(object):
 
                 if resp.status_code != 200:
                     count += 1
-                    logger.error("Received bad status %d from get request to %s (params=%s), retrying (%d/%d)...",
-                                 resp.status_code, url, params or "None", count, max_retries)
+                    logger.error("Received bad status %d from get request to %s (params=%s): %s, retrying (%d/%d)...",
+                                 resp.status_code, url, params or "None", resp.text, count, max_retries)
                     time.sleep(retry_delay)
                     continue
 
