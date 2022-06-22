@@ -65,6 +65,7 @@ class NVPContext(NVPObject):
         self.projects = []
 
         self.handlers = {}
+        self.handler_hashes = {}
 
         self.platform = None
         self.commands = None
@@ -553,14 +554,47 @@ class NVPContext(NVPObject):
         """Retrieve the list of available projects"""
         return self.projects
 
+    def resolve_module_file(self, hname):
+        """Resolve a file path for a given python module name"""
+        sep = "\\" if self.is_windows else "/"
+
+        hfile = hname.replace(".", sep) + ".py"
+
+        for base_path in sys.path:
+            filepath = self.get_path(base_path, hfile)
+            if self.file_exists(filepath):
+                return filepath
+
+        self.throw("Cannot resolve file for module %s", hname)
+
     def get_handler(self, hname):
         """Get a handler by name"""
+
+        # Adding support for hot reloading of handlers here:
+        # Given a module name, we should try to find the corresponding file:
+        filepath = self.resolve_module_file(hname)
+
+        # Compute the hash of that file:
+        fhash = self.compute_file_hash(filepath)
+        prev_hash = self.handler_hashes.get(filepath, None)
+        if prev_hash is not None and prev_hash != fhash:
+            logger.debug("Detected change in %s, reloading handler %s", filepath, hname)
+
+            # Remove the already loaded function:
+            self.check(hname in self.handlers, "Expected handler to be loader already: %s", hname)
+            del self.handlers[hname]
+
+        # Store the new file hash anyway:
+        self.handler_hashes[filepath] = fhash
+
         if hname in self.handlers:
             return self.handlers[hname]
 
         # otherwise we have to search for that handler:
         comp_module = import_module(hname)
         handler = comp_module.handle
+        del sys.modules[hname]
+
         self.handlers[hname] = handler
         return handler
 
