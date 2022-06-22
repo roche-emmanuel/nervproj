@@ -475,6 +475,7 @@ class NVPObject(object):
         print_outputs = kwargs.get("print_outputs", True)
         output_buffer = kwargs.get("output_buffer", None)
         num_last_outputs = kwargs.get("num_last_outputs", 20)
+        encoding = kwargs.get("encoding", 'utf-8')
 
         # stdout = None if verbose else subprocess.DEVNULL
         # stderr = None if verbose else subprocess.DEVNULL
@@ -488,7 +489,10 @@ class NVPObject(object):
             try:
                 with pipe:
                     for line in iter(pipe.readline, b''):
-                        queue.put((id, line.decode('utf-8')))
+                        # try:
+                        queue.put((id, line.decode(encoding)))
+                        # except UnicodeDecodeError:
+                        #     logger.error("Unicode error on subprocess output line: %s", line)
             finally:
                 queue.put(None)
 

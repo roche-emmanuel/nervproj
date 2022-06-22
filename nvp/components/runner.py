@@ -191,9 +191,10 @@ class ScriptRunner(NVPComponent):
 
         auto_restart = desc.get("auto_restart", False)
         notify = self.config.get("notify_script_errors", True)
+        encoding = desc.get("output_encoding", "utf-8")
 
         while True:
-            success, rcode, outputs = self.execute(cmd, cwd=cwd, env=env, outfile=logfile)
+            success, rcode, outputs = self.execute(cmd, cwd=cwd, env=env, outfile=logfile, encoding=encoding)
 
             if not success:
                 outs = "\n".join(outputs)
