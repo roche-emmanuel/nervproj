@@ -489,10 +489,7 @@ class NVPObject(object):
             try:
                 with pipe:
                     for line in iter(pipe.readline, b''):
-                        # try:
-                        queue.put((id, line.decode(encoding)))
-                        # except UnicodeDecodeError:
-                        #     logger.error("Unicode error on subprocess output line: %s", line)
+                        queue.put((id, line))
             finally:
                 queue.put(None)
 
@@ -508,6 +505,11 @@ class NVPObject(object):
                 Thread(target=reader, args=[proc.stderr, myq, 1]).start()
                 for _ in range(2):
                     for _source, line in iter(myq.get, None):
+                        try:
+                            line = line.decode(encoding)
+                        except UnicodeDecodeError:
+                            logger.error("Unicode error on subprocess output line: %s", line)
+                            continue
                         sline = line.strip()
                         lastest_outputs.append(sline)
                         if print_outputs:
