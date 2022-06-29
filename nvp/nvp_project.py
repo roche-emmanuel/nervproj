@@ -148,7 +148,7 @@ class NVPProject(NVPObject):
             for fname in folders:
                 if fname.startswith("python-"):
                     pydir = self.get_path(bdir, fname)
-                    logger.info("Using python install dir %s", pydir)
+                    logger.debug("Using python install dir %s", pydir)
                     pypath = self.get_path(pydir, pdesc["sub_path"])
                     break
 

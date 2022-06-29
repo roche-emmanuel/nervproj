@@ -30,6 +30,10 @@ DEFAULT_GITIGNORE_CONTENT = """# Ignore python compiled files:
 
 # Ignore log files:
 *.log
+
+# Ignore notebook checkpoints:
+*-checkpoint.ipynb
+
 """
 
 # Default python .env content:
@@ -185,16 +189,16 @@ _${PROJ_NAME}_run_cli_linux() {
 
         # Once we have deployed the base python tool package we start with upgrading pip:
         echo "Upgrading pip..."
-        $python_path -m pip install --upgrade pip
+        $python_path -m pip install --upgrade pip --no-warn-script-location
 
         # Finally we install the python requirements:
         echo "Installing python requirements..."
-        $python_path -m pip install -r $root_dir/tools/requirements.txt
+        $python_path -m pip install -r $root_dir/tools/requirements.txt --no-warn-script-location
     fi
 
     if [ "$1" == "--install-py-reqs" ]; then
         echo "Installing python requirements..."
-        $python_path -m pip install -r $root_dir/tools/requirements.txt
+        $python_path -m pip install -r $root_dir/tools/requirements.txt --no-warn-script-location
     elif [ "$1" == "python" ]; then
         # shift the args by one:
         shift
@@ -264,10 +268,10 @@ if not exist "%PYTHON%" (
     %UNZIP% x -o"%TOOLS_DIR%" "%${PROJ_NAME}_DIR%\\tools\\packages\\python-%py_vers%-windows.7z" > nul
 
     @REM Upgrade pip:
-    %PYTHON% -m pip install --upgrade pip
+    %PYTHON% -m pip install --upgrade pip --no-warn-script-location
 
     @REM Install requirements:
-    %PYTHON% -m pip install -r %${PROJ_NAME}_DIR%\\tools\\requirements.txt
+    %PYTHON% -m pip install -r %${PROJ_NAME}_DIR%\\tools\\requirements.txt --no-warn-script-location
 )
 
 @REM check if the first argument is "--install-py-reqs"
@@ -275,11 +279,11 @@ IF /i "%~1" == "--install-py-reqs" goto install_reqs
 IF /i "%~1" == "python" goto run_python
 IF /i "%~1" == "pip" goto run_pip
 
-%PYTHON% %NERVHOME_DIR%\cli.py %*
+%PYTHON% %${PROJ_NAME}_DIR%\cli.py %*
 goto common_exit
 
 :install_reqs
-%PYTHON% -m pip install -r %NERVHOME_DIR%\tools\requirements.txt
+%PYTHON% -m pip install -r %${PROJ_NAME}_DIR%\\tools\\requirements.txt --no-warn-script-location
 goto common_exit
 
 @REM cannot rely on %* when we use shift below:
@@ -574,7 +578,7 @@ class AdminManager(NVPComponent):
                            "flake8",
                            "isort",
                            "pylint",
-                           "//autopep8",
+                           "#autopep8",
                            ""]
                 content = "\n".join(content)
                 self.write_text_file(content, dest_file)
