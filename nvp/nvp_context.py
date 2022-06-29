@@ -6,7 +6,7 @@ import sys
 import argparse
 from importlib import import_module
 
-from nvp.nvp_object import NVPObject
+from nvp.nvp_object import NVPCheckError, NVPObject
 from nvp.nvp_project import NVPProject
 
 logger = logging.getLogger(__name__)
@@ -19,6 +19,73 @@ logger = logging.getLogger(__name__)
 
 
 # signal.signal(signal.SIGINT, signal_handler)
+
+class ParserContext(object):
+    """Simple class used to setup an argparse parser conviniently"""
+
+    def __init__(self, parser, pname):
+        """Start with a parser to add arguments on it"""
+        self.parser = parser
+        self.pname = pname
+        self.cur_state = None
+
+    def __del__(self):
+        """Destructor for this parser context"""
+        if self.cur_state is not None:
+            raise NVPCheckError(f"Parser context for {self.pname} was not closed properly.")
+
+    def end(self):
+        """Finish the current argument"""
+        if self.cur_state is not None:
+            args = self.cur_state['args']
+            del self.cur_state['args']
+            self.parser.add_argument(*args, **self.cur_state)
+            self.cur_state = None
+
+    def add_str(self, *args, **kwargs):
+        """Add a string argument"""
+        # finish previous arg if any:
+        self.end()
+
+        self.cur_state = {"args": args, "type": str}
+        self.cur_state.update(kwargs)
+        return self
+
+    def add_int(self, *args, **kwargs):
+        """Add an int argument"""
+        # finish previous arg if any:
+        self.end()
+
+        self.cur_state = {"args": args, "type": int}
+        self.cur_state.update(kwargs)
+        return self
+
+    def add_float(self, *args, **kwargs):
+        """Add a float argument"""
+        # finish previous arg if any:
+        self.end()
+
+        self.cur_state = {"args": args, "type": float}
+        self.cur_state.update(kwargs)
+        return self
+
+    def add_flag(self, *args, **kwargs):
+        """Add a flag argument"""
+        # finish previous arg if any:
+        self.end()
+
+        self.cur_state = {"args": args, "action": "store_true"}
+        self.cur_state.update(kwargs)
+        return self
+
+    def help(self, help_msg):
+        """Add an help message."""
+        self.cur_state["help"] = help_msg
+
+    def __call__(self, **kwargs):
+        """Add elements and finish the arg."""
+        self.cur_state.update(kwargs)
+        self.end()
 
 
 class NVPContext(NVPObject):
@@ -175,6 +242,13 @@ class NVPContext(NVPObject):
             psr = self.get_parser('main.get_dir')
             psr.add_argument("-p", "--project", dest='project', type=str,
                              help="Select the current sub-project")
+
+    def build_parser(self, pname, parent="main"):
+        """Build a parser and return an associated parser context"""
+        self.define_subparsers(parent, [pname])
+        pname = f"{parent}.{pname}"
+        psr = self.get_parser(pname)
+        return ParserContext(psr, pname)
 
     def get_parser(self, name):
         """Retrieve a parser by name"""
