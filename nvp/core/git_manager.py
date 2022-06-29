@@ -147,7 +147,10 @@ class GitManager(NVPComponent):
         """Process a given command path"""
 
         if cmd == 'clone':
-            self.clone_project_repository(self.settings['dest_folder'])
+            pname = self.get_param("project")
+            proj = self.ctx.get_project(pname)
+            dest_dir = self.get_param("dest_folder")
+            self.clone_project_repository(dest_dir, proj)
             return True
 
         if cmd == 'status':
@@ -231,6 +234,25 @@ class GitManager(NVPComponent):
 
         self.clone_repository(url, dest_folder)
 
+        # Here we should also setup the git user as needed:
+        user_name = proj.get_config().get("git_user_name", None)
+        user_email = proj.get_config().get("git_user_email", None)
+
+        if user_name is None and user_email is None:
+            return
+
+        logger.info("Adding user section in git config.")
+        cfg_file = self.get_path(dest_folder, ".git", "config")
+        assert self.file_exists(cfg_file), f"Cannot fine git config file at {cfg_file}"
+        # Load that config:
+        config = self.read_ini(cfg_file)
+        config['user'] = {
+            "email": user_email,
+            "name": user_name,
+        }
+
+        self.write_ini(config, cfg_file)
+
     def git_status(self, folder):
         """Retrieve the git status from a given folder"""
         self.execute_git(["status"], cwd=folder)
@@ -271,10 +293,12 @@ if __name__ == "__main__":
     # Add our component:
     comp = context.get_component("git")
 
-    context.define_subparsers("main", ["clone", "status", "diff", "setup", "push", "pull", "pullall"])
+    context.define_subparsers("main", ["status", "diff", "setup", "push", "pull", "pullall"])
 
-    psr = context.get_parser('main.clone')
-    psr.add_argument("dest_folder", type=str, nargs='?', default=None,
-                     help="Name of the folder where to checkout the project")
+    psr = context.build_parser("clone")
+    psr.add_str("dest_folder", nargs='?', default=None)(
+        help="Name of the folder where to checkout the project")
+    psr.add_str("-p", "--project", dest="project")(
+        help="The project that should be cloned.")
 
     comp.run()

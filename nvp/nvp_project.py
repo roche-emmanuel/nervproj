@@ -21,6 +21,8 @@ class NVPProject(NVPObject):
         self.config = {}
         self.root_dir = None
 
+        self.config.update(desc)
+
         # We might have some "scripts" already registered for that project from the desc:
         self.scripts = self.desc.get("scripts", {})
 
@@ -30,7 +32,7 @@ class NVPProject(NVPObject):
             # Load the additional project config elements:
             cfg_file = self.get_path(proj_path, "nvp_config.json")
             if self.file_exists(cfg_file):
-                self.config = self.read_json(cfg_file)
+                self.config.update(self.read_json(cfg_file))
 
             # Update the scripts from what we just read from the config:
             self.scripts.update(self.config.get("scripts", {}))

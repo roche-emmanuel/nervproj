@@ -515,14 +515,38 @@ class AdminManager(NVPComponent):
 
             ext = ".exe" if self.is_windows else ""
 
-            config["python.linting.pylintEnabled"] = True
-            config["python.linting.enabled"] = True
-            config["python.linting.pylintPath"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/pylint{ext}"
-            config["python.linting.pylintArgs"] = ["--max-line-length=120"]
             config["python.defaultInterpreterPath"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/python{ext}"
-            config["python.formatting.autopep8Path"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/autopep8{ext}"
-            config["python.formatting.provider"] = "autopep8"
-            config["python.formatting.autopep8Args"] = ["--max-line-length=120", "--experimental"]
+
+            config["python.linting.enabled"] = True
+
+            config["python.linting.flake8Enabled"] = True
+            config["python.linting.flake8Path"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/flake8{ext}"
+            config["python.linting.flake8Args"] = ["--max-line-length=120",
+                                                   "--ignore=E203,W503",
+                                                   "--per-file-ignores=\"__init__.py:F401\""]
+
+            config["python.linting.pylintEnabled"] = True
+            config["python.linting.pylintPath"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/pylint{ext}"
+            config["python.linting.pylintArgs"] = ["--max-line-length=120",
+                                                   "--good-names=i,j,k,ex,Run,_,x,y,z,w,t,dt",
+                                                   "--good-names-rgxs=[a-z][0-9]$"]
+
+            config["//python.formatting.provider"] = "autopep8"
+            config["//python.formatting.autopep8Path"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/autopep8{ext}"
+            config["//python.formatting.autopep8Args"] = ["--max-line-length=120", "--experimental"]
+            config["python.formatting.provider"] = "black"
+            config["python.formatting.blackPath"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/black{ext}"
+            config["python.formatting.blackArgs"] = ["--line-length", "120"]
+
+            config["python.sortImports.path"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/isort{ext}"
+            config["python.sortImports.args"] = ["--profile", "black"]
+            config["[python]"] = {
+                "editor.codeActionsOnSave": {
+                    "source.organizeImports": True
+                }
+            }
+
+            config["editor.formatOnSave"] = True
 
             # Next, for the windows part we need to deploy the 7zip package too:
             folder_name = f"7zip-{sevenzip_vers['windows']}"
@@ -546,8 +570,11 @@ class AdminManager(NVPComponent):
                 content = ["# List here all the required python packages",
                            "# Then call cli.{sh/bat} --install-py-reqs",
                            "",
+                           "black",
+                           "flake8",
+                           "isort",
                            "pylint",
-                           "autopep8",
+                           "//autopep8",
                            ""]
                 content = "\n".join(content)
                 self.write_text_file(content, dest_file)
