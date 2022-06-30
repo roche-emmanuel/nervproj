@@ -153,10 +153,18 @@ DEFAULT_CLI_SH_CONTENT = '''#!/bin/bash
 # cf. https://stackoverflow.com/questions/59895/how-can-i-get-the-source-directory-of-a-bash-script-from-within-the-script-itsel
 ROOT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 
-_${PROJ_NAME}_run_cli_windows() {
+_${PROJ_NAME}_run_cli_cygwin() {
     # On windows we should simply rely on the cli.bat script below:
     ROOT_DIR="$(cygpath -w $ROOT_DIR)"
+
     cmd /C "$ROOT_DIR\cli.bat" "$@"
+}
+
+_${PROJ_NAME}_run_cli_mingw() {
+    # On windows we should simply rely on the cli.bat script below:
+    ROOT_DIR="$(cygpath -w $ROOT_DIR)"
+
+    "$ROOT_DIR\cli.bat" "$@"
 }
 
 _${PROJ_NAME}_run_cli_linux() {
@@ -199,6 +207,19 @@ _${PROJ_NAME}_run_cli_linux() {
     if [ "$1" == "--install-py-reqs" ]; then
         echo "Installing python requirements..."
         $python_path -m pip install -r $root_dir/tools/requirements.txt --no-warn-script-location
+    elif [ "$1" == "--pre-commit" ]; then
+        echo "black outputs:" >$root_dir/pre-commit.log
+        $python_path -m black --line-length 120 $root_dir/nvh 2>&1 >>$root_dir/pre-commit.log
+        echo "isort outputs:" >>$root_dir/pre-commit.log
+        $python_path -m isort $root_dir/nvh 2>&1 >>$root_dir/pre-commit.log
+        echo "flake8 outputs:" >>$root_dir/pre-commit.log
+        $python_path -m flake8 --max-line-length=120 $root_dir/nvh 2>&1 >$root_dir/pre-commit.log
+        status=$?
+        if [ "$status" == "0" ]; then
+            echo "OK"
+        else
+            echo "FAILED"
+        fi
     elif [ "$1" == "python" ]; then
         # shift the args by one:
         shift
@@ -214,6 +235,14 @@ _${PROJ_NAME}_run_cli_linux() {
 }
 
 ${PROJ_NAME}() {
+    # Install pre-commit hook if applicable:
+    if [ -d $ROOT_DIR/.git ] && [ ! -f $ROOT_DIR/.git/hooks/pre-commit ]; then
+        echo "Installing pre-commit hook..."
+        echo '#!/bin/bash' >$ROOT_DIR/.git/hooks/pre-commit
+        echo 'res=$(./cli.sh --pre-commit <src_folder_name_here>)' >>$ROOT_DIR/.git/hooks/pre-commit
+        echo '[ "$res" == "OK" ] || (echo "Pre-commit hook failed, check the pre-commit.log file for details." && exit 1)' >>$ROOT_DIR/.git/hooks/pre-commit
+    fi
+
     if [ "$1" == "home" ]; then
         # We simply go to the home of this project:
         cd "$ROOT_DIR"
@@ -223,7 +252,10 @@ ${PROJ_NAME}() {
 
         case $pname in
         CYGWIN*)
-            _${PROJ_NAME}_run_cli_windows "$@"
+            _${PROJ_NAME}_run_cli_cygwin "$@"
+            ;;
+        MINGW*)
+            _${PROJ_NAME}_run_cli_mingw "$@"
             ;;
         *)
             _${PROJ_NAME}_run_cli_linux "$@"
@@ -239,7 +271,6 @@ if [ "$sourced" == "0" ]; then
 else
     echo "${PROJ_NAME} command loaded."
 fi
-
 '''
 
 DEFAULT_CLI_BAT_CONTENT = '''
@@ -276,6 +307,7 @@ if not exist "%PYTHON%" (
 
 @REM check if the first argument is "--install-py-reqs"
 IF /i "%~1" == "--install-py-reqs" goto install_reqs
+IF /i "%~1" == "--pre-commit" goto pre_commit
 IF /i "%~1" == "python" goto run_python
 IF /i "%~1" == "pip" goto run_pip
 
@@ -284,6 +316,22 @@ goto common_exit
 
 :install_reqs
 %PYTHON% -m pip install -r %${PROJ_NAME}_DIR%\\tools\\requirements.txt --no-warn-script-location
+goto common_exit
+
+:pre_commit
+echo black outputs: >%${PROJ_NAME}_DIR%\pre_commit.log
+%PYTHON% -m black --line-length 120 %${PROJ_NAME}_DIR%\%~2 >>%${PROJ_NAME}_DIR%\pre_commit.log 2>&1
+echo: >>%${PROJ_NAME}_DIR%\pre_commit.log
+echo isort outputs: >>%${PROJ_NAME}_DIR%\pre_commit.log
+%PYTHON% -m isort %${PROJ_NAME}_DIR%\%~2 >>%${PROJ_NAME}_DIR%\pre_commit.log 2>&1
+echo: >>%${PROJ_NAME}_DIR%\pre_commit.log
+echo Flake8 outputs: >>%${PROJ_NAME}_DIR%\pre_commit.log
+%PYTHON% -m flake8 --max-line-length=120 %${PROJ_NAME}_DIR%\%~2 >>%${PROJ_NAME}_DIR%\pre_commit.log 2>&1
+IF %ERRORLEVEL% NEQ 0 (
+    echo FAILED
+) else (
+    echo OK
+)
 goto common_exit
 
 @REM cannot rely on %* when we use shift below:
