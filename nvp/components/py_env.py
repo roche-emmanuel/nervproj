@@ -148,7 +148,7 @@ class PyEnvManager(NVPComponent):
         if new_env or self.get_param("update_pip"):
             # trigger the update of pip:
             logger.info("Updating pip...")
-            self.execute([py_path, "-m", "pip", "install", "--upgrade", "pip"])
+            self.execute([py_path, "-m", "pip", "install", "--upgrade", "pip", "--no-warn-script-location"])
 
         # Next we should prepare the requirements file:
         req_file = self.get_path(dest_folder, "requirements.txt")
@@ -156,4 +156,4 @@ class PyEnvManager(NVPComponent):
         self.write_text_file(content, req_file)
 
         logger.info("Installing python requirements...")
-        self.execute([py_path, "-m", "pip", "install", "-r", req_file])
+        self.execute([py_path, "-m", "pip", "install", "-r", req_file, "--no-warn-script-location"])

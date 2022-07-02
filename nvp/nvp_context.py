@@ -78,12 +78,10 @@ class ParserContext(object):
         self.cur_state.update(kwargs)
         return self
 
-    def help(self, help_msg):
-        """Add an help message."""
-        self.cur_state["help"] = help_msg
-
-    def __call__(self, **kwargs):
+    def __call__(self, desc=None, **kwargs):
         """Add elements and finish the arg."""
+        if desc is not None:
+            self.cur_state["help"] = desc
         self.cur_state.update(kwargs)
         self.end()
 
