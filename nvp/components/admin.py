@@ -211,7 +211,7 @@ _${PROJ_NAME}_run_cli_linux() {
         echo "black outputs:" >$root_dir/pre-commit.log
         $python_path -m black --line-length 120 $root_dir/nvh 2>&1 >>$root_dir/pre-commit.log
         echo "isort outputs:" >>$root_dir/pre-commit.log
-        $python_path -m isort $root_dir/nvh 2>&1 >>$root_dir/pre-commit.log
+        $python_path -m isort --profile black $root_dir/nvh 2>&1 >>$root_dir/pre-commit.log
         echo "flake8 outputs:" >>$root_dir/pre-commit.log
         $python_path -m flake8 --max-line-length=120 $root_dir/nvh 2>&1 >$root_dir/pre-commit.log
         status=$?
@@ -323,7 +323,7 @@ echo black outputs: >%${PROJ_NAME}_DIR%\pre_commit.log
 %PYTHON% -m black --line-length 120 %${PROJ_NAME}_DIR%\%~2 >>%${PROJ_NAME}_DIR%\pre_commit.log 2>&1
 echo: >>%${PROJ_NAME}_DIR%\pre_commit.log
 echo isort outputs: >>%${PROJ_NAME}_DIR%\pre_commit.log
-%PYTHON% -m isort %${PROJ_NAME}_DIR%\%~2 >>%${PROJ_NAME}_DIR%\pre_commit.log 2>&1
+%PYTHON% -m isort --profile black %${PROJ_NAME}_DIR%\%~2 >>%${PROJ_NAME}_DIR%\pre_commit.log 2>&1
 echo: >>%${PROJ_NAME}_DIR%\pre_commit.log
 echo Flake8 outputs: >>%${PROJ_NAME}_DIR%\pre_commit.log
 %PYTHON% -m flake8 --max-line-length=120 %${PROJ_NAME}_DIR%\%~2 >>%${PROJ_NAME}_DIR%\pre_commit.log 2>&1
