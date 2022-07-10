@@ -1,4 +1,4 @@
-"""ModuleManager module"""
+"""CMakeManager module"""
 import logging
 
 from nvp.nvp_component import NVPComponent
@@ -9,59 +9,38 @@ from nvp.nvp_builder import NVPBuilder
 logger = logging.getLogger(__name__)
 
 
-def register_component(ctx: NVPContext):
-    """Register this component in the given context"""
-    comp = ModuleManager(ctx)
-    ctx.register_component('module', comp)
+def create_component(ctx: NVPContext):
+    """Create an instance of the component"""
+    return CMakeManager(ctx)
 
 
-class ModuleManager(NVPComponent):
+class CMakeManager(NVPComponent):
     """Project command manager class"""
 
     def __init__(self, ctx: NVPContext):
-        """Project commands manager constructor"""
+        """Cmake manager constructor"""
         NVPComponent.__init__(self, ctx)
-
-        desc = {
-            "mods": {"build": None, "install": None}
-        }
 
         self.modules = None
         self.builder = None
         self.build_dir = None
         self.default_install_dir = None
 
-        ctx.define_subparsers("main", desc)
+    def process_cmd_path(self, cmd):
+        """Check if this component can process the given command"""
 
-        psr = ctx.get_parser('main.mods.build')
-        psr.add_argument("mod_names", type=str,
-                         help="List of modules that we should build")
-        psr.add_argument("-d", "--dir", dest='mod_install_dir', type=str,
-                         help="Destination where to install the blue prints")
+        if cmd == 'build':
+            bprints = self.get_param("mod_names").split(",")
+            dest_dir = self.get_param("mod_install_dir", None)
+            self.build_modules(bprints, dest_dir)
+            return True
 
-        psr = ctx.get_parser('main.mods.install')
-        psr.add_argument("ctx_names", type=str, nargs="?", default="default",
-                         help="List of module contexts that we should deploy")
-
-    def process_command(self, cmd0):
-        """Re-implementation of the process_command method."""
-
-        if cmd0 == 'mods':
-
-            cmd1 = self.ctx.get_command(1)
-
-            if cmd1 == 'build':
-                bprints = self.get_param("mod_names").split(",")
-                dest_dir = self.get_param("mod_install_dir", None)
-                self.build_modules(bprints, dest_dir)
-                return True
-
-            if cmd1 == 'install':
-                bpctx = self.get_param("ctx_names").split(",")
-                proj = self.ctx.get_current_project()
-                assert proj is not None, "Invalid current project for command bprint install"
-                self.install_module_sets(proj, bpctx)
-                return True
+        if cmd == 'install':
+            bpctx = self.get_param("ctx_names").split(",")
+            proj = self.ctx.get_current_project()
+            assert proj is not None, "Invalid current project for command cmake install"
+            self.install_module_sets(proj, bpctx)
+            return True
 
         return False
 
@@ -79,7 +58,7 @@ class ModuleManager(NVPComponent):
     def collect_modules(self):
         """Collect the available modules"""
         if self.modules is None:
-            self.modules = self.config.get("modules", {})
+            self.modules = self.config.get("cmake_modules", {})
             root_dir = self.ctx.get_root_dir()
             for _name, desc in self.modules.items():
                 desc['url'] = desc['url'].replace("${NVP_ROOT_DIR}", root_dir)
@@ -164,3 +143,20 @@ class ModuleManager(NVPComponent):
                 mname = mod_desc['name']
                 dest_dir = mod_desc['dir'].replace("${PROJECT_ROOT_DIR}", proot_dir)
                 self.build_module(mname, dest_dir)
+
+
+if __name__ == "__main__":
+    # Create the context:
+    context = NVPContext()
+
+    # Add our component:
+    comp = context.get_component("cmake")
+
+    psr = context.build_parser("build")
+    psr.add_str("mod_names")("List of modules to build")
+    psr.add_str("-d", "--dir", dest="mod_install_dir")("Install folder.")
+
+    psr = context.build_parser("install")
+    psr.add_str("ctx_names", nargs="?", default="default")("List of module context to install")
+
+    comp.run()
