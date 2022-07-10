@@ -208,6 +208,12 @@
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/communication/rocketchat.py send",
       "python_path": ["${NVP_ROOT_DIR}"]
     },
+    "admin": {
+      "help": "Admin commands",
+      "custom_python_env": "min_env",
+      "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/admin.py",
+      "python_path": ["${NVP_ROOT_DIR}"]
+    },
     "encrypter": {
       "help": "Generate a pair of RSA key",
       "custom_python_env": "min_env",
@@ -277,6 +283,7 @@
   // Available dynamic components:
   "components": {
     "tools": "nvp.core.tools",
+    "admin": "nvp.core.admin",
     "rchat": "nvp.communication.rocketchat",
     "email": "nvp.communication.email_handler",
     "psutils": "nvp.core.process_utils",

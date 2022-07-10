@@ -351,10 +351,9 @@ goto common_exit
 '''
 
 
-def register_component(ctx: NVPContext):
-    """Register this component in the given context"""
-    comp = AdminManager(ctx)
-    ctx.register_component('admin', comp)
+def create_component(ctx: NVPContext):
+    """Create an instance of the component"""
+    return AdminManager(ctx)
 
 
 class AdminManager(NVPComponent):
@@ -363,23 +362,6 @@ class AdminManager(NVPComponent):
     def __init__(self, ctx: NVPContext):
         """Admin commands manager constructor"""
         NVPComponent.__init__(self, ctx)
-
-        # # Check the value of the sub command:
-        # sub_cmd = self.settings['l1_cmd']
-        # if sub_cmd == 'install-cli':
-        #     self.install_cli()
-
-        desc = {
-            "admin": {
-                "install": {"cli": None, "reqs": None, "repo": None},
-                "init": None,
-            }
-        }
-        ctx.define_subparsers("main", desc)
-
-        psr = ctx.get_parser('main.admin.init')
-        psr.add_argument("-p", "--with-py-env", dest="with_py_env", action="store_true",
-                         help="Request deployment of a full python environment.")
 
     def install_cli(self):
         """Install a CLI script in .bashrc if application"""
@@ -428,9 +410,13 @@ class AdminManager(NVPComponent):
     def install_python_requirements(self):
         """Install the requirements for the main python environment using pip"""
 
+        logger.info("Upgrading pip...")
+        cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "pip", "--no-warn-script-location"]
+        self.execute(cmd)
+
         logger.info("Installing python requirements...")
         reqfile = self.get_path(self.ctx.get_root_dir(), "tools/requirements.txt")
-        cmd = [sys.executable, "-m", "pip", "install", "-r", reqfile]
+        cmd = [sys.executable, "-m", "pip", "install", "-r", reqfile, "--no-warn-script-location"]
         # logger.info("Executing command: %s", cmd)
         self.execute(cmd)
         logger.info("Done installing python requirements.")
@@ -740,32 +726,56 @@ class AdminManager(NVPComponent):
         if save_needed:
             self.write_ini(config, cfg_file)
 
-    def process_command(self, cmd0):
-        """Re-implementation of the process_command method."""
+    def process_cmd_path(self, cmd):
+        """Check if this component can process the given command"""
 
-        if cmd0 != 'admin':
-            return False
-
-        cmd1 = self.ctx.get_command(1)
-        cmd2 = self.ctx.get_command(2)
-        if cmd1 == 'install' and cmd2 == 'cli':
+        if cmd == 'install.cli':
             self.install_cli()
             return True
 
-        if cmd1 == 'install' and cmd2 == 'reqs':
+        if cmd == 'install.reqs':
             self.install_python_requirements()
             return True
 
-        if cmd1 == 'install' and cmd2 == 'repo':
+        if cmd == 'install.repo':
             self.install_repository_bootstrap()
             return True
 
-        if cmd1 == 'init':
+        if cmd == 'init':
             self.setup_global_vscode_config()
-            proj = self.ctx.get_current_project()
-            proj_dir = proj.get_root_dir() if proj is not None else self.ctx.get_root_dir()
-            proj_name = proj.get_name(False) if proj is not None else "NervProj"
+            proj_name = self.get_param("project_name")
+
+            if proj_name is not None:
+                proj = self.ctx.get_project(proj_name)
+            else:
+                # Find the current project given our location:
+                proj = self.ctx.get_current_project(True)
+
+            # Doing some bootstrapping here:
+            # we are not accepting none project anymore:
+            self.check(proj is not None, "Cannot resolve the current project from cwd.")
+
+            proj_dir = proj.get_root_dir()
+
+            # proj_dir = proj.get_root_dir() if proj is not None else self.ctx.get_root_dir()
+            # proj_name = proj.get_name(False) if proj is not None else "NervProj"
             self.init_project_config(proj_dir, proj_name)
             return True
 
         return False
+
+
+if __name__ == "__main__":
+    # Create the context:
+    context = NVPContext()
+
+    # Add our component:
+    comp = context.get_component("admin")
+
+    context.define_subparsers("main", ["install.cli", "install.reqs", "install.repo"])
+
+    psr = context.build_parser("init")
+    psr.add_str("project_name", nargs="?", default=None)("Project to init")
+    psr.add_flag("-p", "--with-py-env", dest="with_py_env")("Deploy python env.")
+
+    comp.run()
