@@ -358,12 +358,12 @@ class AdminManager(NVPComponent):
             self.write_text_file(content, dest_file)
 
         # write a nvp_plug.py file:
-        dest_file = self.get_path(proj_dir, "nvp_plug.py")
-        if not self.file_exists(dest_file):
-            logger.info("Writting nvp_plug.py file %s", dest_file)
-            content = self.read_text_file(template_dir, "nvp_plug.py.tpl")
-            content = content.replace("${PROJ_NAME}", proj_name)
-            self.write_text_file(content, dest_file)
+        # dest_file = self.get_path(proj_dir, "nvp_plug.py")
+        # if not self.file_exists(dest_file):
+        #     logger.info("Writting nvp_plug.py file %s", dest_file)
+        #     content = self.read_text_file(template_dir, "nvp_plug.py.tpl")
+        #     content = content.replace("${PROJ_NAME}", proj_name)
+        #     self.write_text_file(content, dest_file)
 
         # Add pull rebase = false to .git/config
         cfg_file = self.get_path(proj_dir, ".git", "config")
