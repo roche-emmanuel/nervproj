@@ -80,7 +80,7 @@ class NVPObject(object):
         """Execute a given code block safely, catching potential
         temporary errors and retrying as needed."""
 
-        count = 0
+        count = 1
         while True:
             try:
                 return func()
@@ -92,8 +92,11 @@ class NVPObject(object):
                             found = err_cb(err)
                         else:
 
-                            logger.error("Exception occured in safe block (trial %d/%d):\n%s",
-                                         count+1, retries, traceback.format_exc())
+                            logger.error("Exception %s occured in safe block (trial %d/%d)",
+                                         ecls.__name__, count, retries)
+
+                            # logger.error("Exception occured in safe block (trial %d/%d):\n%s",
+                            #              count+1, retries, traceback.format_exc())
                             # wait a moment if needed:
                             if delay > 0.0:
                                 time.sleep(delay)
@@ -101,7 +104,10 @@ class NVPObject(object):
                         found = True
                         break
 
-                if not found or count > retries:
+                if count >= retries:
+                    self.throw("save_call failed.")
+
+                if not found:
                     # re-raise the exception:
                     raise err
 
