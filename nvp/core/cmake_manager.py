@@ -68,7 +68,7 @@ class CMakeManager(NVPComponent):
 
         dest_file = self.get_path(proj_dir, "CMakeLists.txt")
         if not self.file_exists(dest_file):
-            logger.info("Writting file %s", dest_file)
+            logger.info("Writing file %s", dest_file)
             content = self.read_text_file(template_dir, "main_cmakelists.txt.tpl")
             content = content.replace("${PROJ_NAME}", proj_name)
             content = content.replace("${PROJ_VERSION}", cproj['version'])
@@ -77,12 +77,12 @@ class CMakeManager(NVPComponent):
             self.write_text_file(content, dest_file)
 
         # Create the source/tests folder:
-        src_dir = self.get_path(proj_dir, "sources")
+        src_dir = self.get_path(proj_dir, "modules")
         self.make_folder(src_dir)
 
         dest_file = self.get_path(src_dir, "CMakeLists.txt")
         if not self.file_exists(dest_file):
-            logger.info("Writting file %s", dest_file)
+            logger.info("Writing file %s", dest_file)
             content = f"# CMake modules for {proj_name}\n"
             self.write_text_file(content, dest_file)
 
@@ -92,9 +92,75 @@ class CMakeManager(NVPComponent):
 
         dest_file = self.get_path(test_dir, "CMakeLists.txt")
         if not self.file_exists(dest_file):
-            logger.info("Writting file %s", dest_file)
+            logger.info("Writing file %s", dest_file)
             content = f"# Cmake tests for {proj_name} modules\n"
             self.write_text_file(content, dest_file)
+
+        # Add the libraries/executables if any:
+        mods = cproj.get("modules", [])
+        for desc in mods:
+            mtype = desc.get("type", "library")
+            if mtype == "library":
+                self.add_library(cproj, desc)
+            elif mtype == "executable":
+                self.add_executable(cproj, desc)
+            else:
+                self.throw("Unsupported cmake module type: %s", mtype)
+
+    def add_library(self, cproj, desc):
+        """Add a new library to the given project"""
+        # logger.info("Adding library %s to project %s", desc['name'], cproj['name'])
+
+        proj_dir = cproj['url']
+        prefix = cproj["prefix"]
+
+        template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
+
+        # Create the source library folder if needed:
+        lib_name = desc["name"]
+        lib_dir = self.get_path(proj_dir, "modules", f"{prefix}{lib_name}")
+        self.make_folder(lib_dir)
+        prefix = cproj['prefix']
+
+        # Add the Cmake file in the lib dir:
+        dest_file = self.get_path(lib_dir, "CMakeLists.txt")
+        if not self.file_exists(dest_file):
+            logger.info("Writing file %s", dest_file)
+            content = self.read_text_file(template_dir, "module_cmakelists.txt.tpl")
+            content = content.replace("${PROJ_PREFIX}", prefix.upper())
+            self.write_text_file(content, dest_file)
+
+        # In this library directory we should have the src/static/shared folders.
+        self.make_folder(self.get_path(lib_dir, "src"))
+
+        self.make_folder(self.get_path(lib_dir, "static"))
+
+        dest_file = self.get_path(lib_dir, "static", "CMakeLists.txt")
+        if not self.file_exists(dest_file):
+            logger.info("Writing file %s", dest_file)
+            content = self.read_text_file(template_dir, "module_static_cmakelists.txt.tpl")
+
+            content = content.replace("%TARGET_NAME%", f"{prefix}{lib_name}")
+            content = content.replace("%PROJ_PREFIX%", prefix.upper())
+            content = content.replace("%LIB_NAME%", lib_name.lower())
+            self.write_text_file(content, dest_file)
+
+        self.make_folder(self.get_path(lib_dir, "shared"))
+
+        dest_file = self.get_path(lib_dir, "shared", "CMakeLists.txt")
+        if not self.file_exists(dest_file):
+            logger.info("Writing file %s", dest_file)
+            content = self.read_text_file(template_dir, "module_shared_cmakelists.txt.tpl")
+
+            content = content.replace("%TARGET_NAME%", f"{prefix}{lib_name}")
+            content = content.replace("%PROJ_PREFIX%", prefix.upper())
+            content = content.replace("%LIB_NAME%", lib_name.lower())
+            content = content.replace("%LIB_NAME_UPPER%", lib_name.upper())
+            self.write_text_file(content, dest_file)
+
+    def add_executable(self, cproj, desc):
+        """Add an executable to the given project"""
+        logger.info("Adding executable %s to project %s", desc["name"], cproj["name"])
 
     def initialize(self):
         """Initialize this component as needed before usage."""
