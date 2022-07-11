@@ -14,10 +14,9 @@ from nvp.nvp_context import NVPContext
 logger = logging.getLogger(__name__)
 
 
-def register_component(ctx: NVPContext):
-    """Register this component in the given context"""
-    comp = BuildManager(ctx)
-    ctx.register_component('builder', comp)
+def create_component(ctx: NVPContext):
+    """Create an instance of the component"""
+    return BuildManager(ctx)
 
 
 class BuildManager(NVPComponent):
@@ -31,27 +30,6 @@ class BuildManager(NVPComponent):
         self.libs_dir = None
         self.libs_package_dir = None
         self.libs_build_dir = self.make_folder(ctx.get_root_dir(), "libraries", "build")
-
-        desc = {
-            "build": {"libs": None},
-        }
-        ctx.define_subparsers("main", desc)
-        psr = ctx.get_parser('main.build')
-        psr.add_argument("-c", "--compiler", dest='compiler_type', type=str,
-                         help="Specify which type of compiler should be selected")
-        psr = ctx.get_parser('main.build.libs')
-        psr.add_argument("lib_names", type=str, nargs='?', default="all",
-                         help="List of library names that we should build")
-        psr.add_argument("--rebuild", dest='rebuild', action='store_true',
-                         help="Force rebuilding from sources")
-        psr.add_argument("-k", "--keep-build", dest='keep_build', action='store_true',
-                         help="Keep the build folder after build")
-        psr.add_argument("-a", "--append", dest='append', action='store_true',
-                         help="Keep the target install folder if it exists.")
-        psr.add_argument("--preview", dest='preview', action='store_true',
-                         help="Preview the sources only")
-
-        psr = ctx.get_parser('main.build')
 
         # Setup the paths:
         self.compiler = None
@@ -95,8 +73,8 @@ class BuildManager(NVPComponent):
             assert msvc_setup_path is not None, "No MSVC compiler found."
 
             if msvc_setup_path is not None:
-                comp = NVPCompiler(self.ctx, {"type": "msvc", "setup_path": msvc_setup_path})
-                self.compilers.append(comp)
+                compiler = NVPCompiler(self.ctx, {"type": "msvc", "setup_path": msvc_setup_path})
+                self.compilers.append(compiler)
 
         if comp_type == "clang":
             # check if we have a library providing clang:
@@ -113,8 +91,8 @@ class BuildManager(NVPComponent):
                         vers = self.get_package_version(lib)
                         comp_dir = self.get_path(base_lib_dir, flavor, f"{lib['name']}-{vers}")
                         if self.path_exists(comp_dir):
-                            comp = NVPCompiler(self.ctx, {'type': 'clang', "root_dir": comp_dir})
-                            self.compilers.append(comp)
+                            compiler = NVPCompiler(self.ctx, {'type': 'clang', "root_dir": comp_dir})
+                            self.compilers.append(compiler)
 
             # Check if we have tools providing compilers:
             all_tools = self.config[f"{self.platform}_tools"]
@@ -123,9 +101,9 @@ class BuildManager(NVPComponent):
             for tdesc in all_tools:
                 if tdesc['name'] == "clang":
                     vers = self.get_package_version(tdesc)
-                    comp = NVPCompiler(self.ctx, {'type': 'clang', "root_dir": self.get_path(
+                    compiler = NVPCompiler(self.ctx, {'type': 'clang', "root_dir": self.get_path(
                         tools_dir, f"{tdesc['name']}-{vers}")})
-                    self.compilers.append(comp)
+                    self.compilers.append(compiler)
 
         assert len(self.compilers) > 0, "No compiler available"
 
@@ -151,8 +129,8 @@ class BuildManager(NVPComponent):
         # load those components:
         # sys.path.insert(0, bld_path)
 
-        for comp in bld_files:
-            bld_name = comp[:-3]
+        for cname in bld_files:
+            bld_name = cname[:-3]
             mod_name = f"nvp.builders.{bld_name}"
             bld_module = import_module(mod_name)
             bld_module.register_builder(self)
@@ -376,9 +354,9 @@ class BuildManager(NVPComponent):
         if ctype is None:
             return self.compiler
 
-        for comp in self.compilers:
-            if comp.get_type() == ctype:
-                return comp
+        for compiler in self.compilers:
+            if compiler.get_type() == ctype:
+                return compiler
 
         assert False, f"No compiler found with type {ctype}"
 
@@ -386,23 +364,42 @@ class BuildManager(NVPComponent):
         """Retrieve the current flavor"""
         return f"{self.platform}_{self.compiler.get_type()}"
 
-    def process_command(self, cmd0):
-        """Re-implementation of process_command"""
+    def process_cmd_path(self, cmd):
+        """Check if this component can process the given command"""
 
-        cmd1 = self.ctx.get_command(1)
+        if cmd == "libs":
+            self.initialize()
+            logger.info("List of settings: %s", self.settings)
+            dlist = self.settings['lib_names'].split(',')
+            self.check_libraries(dlist)
+            return True
 
-        if cmd0 == 'build':
-            if cmd1 == "libs":
-                self.initialize()
-                logger.info("List of settings: %s", self.settings)
-                dlist = self.settings['lib_names'].split(',')
-                self.check_libraries(dlist)
-
-            if cmd1 is None:
-                proj = self.ctx.get_current_project()
-                if proj is not None:
-                    logger.info("Should build project %s here", proj.get_name())
-                    self.get_component('project').build_project(proj)
+        if cmd == "project":
+            proj_name = self.get_param("proj_name")
+            proj = self.ctx.get_project(proj_name)
+            self.get_component('project').build_project(proj)
             return True
 
         return False
+
+
+if __name__ == "__main__":
+    # Create the context:
+    context = NVPContext()
+
+    # Add our component:
+    bcomp = context.get_component("builder")
+
+    psr = context.build_parser("project")
+    psr.add_str("proj_name")("Project name")
+    psr.add_str("-c", "--compiler", dest="compiler_type")("Compiler for the build")
+
+    psr = context.build_parser("libs")
+    psr.add_str("lib_names")("List of libraries to build")
+    psr.add_str("-c", "--compiler", dest="compiler_type")("Compiler for the build")
+    psr.add_flag("--rebuild", dest="rebuild")("Force rebuilding from sources")
+    psr.add_flag("--preview", dest="preview")("Preview sources only")
+    psr.add_flag("-k", "--keep-build", dest="keep_build")("Keep the build folder after build")
+    psr.add_flag("-a", "--append", dest="append")("Keep the install folder if existing")
+
+    bcomp.run()

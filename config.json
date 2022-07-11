@@ -180,7 +180,7 @@
   },
 
   // List of local blueprints that we can build:
-  "cmake_modules": {
+  "cmake_projects": {
     // Fastnoise2 python bindings:
     "pyfn2": {
       "url": "${NVP_ROOT_DIR}/sources/pyfn2",
@@ -218,6 +218,12 @@
       "help": "Cmake commands",
       "custom_python_env": "min_env",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/cmake_manager.py",
+      "python_path": ["${NVP_ROOT_DIR}"]
+    },
+    "build": {
+      "help": "Builder commands",
+      "custom_python_env": "min_env",
+      "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/build_manager.py",
       "python_path": ["${NVP_ROOT_DIR}"]
     },
     "encrypter": {
@@ -290,6 +296,7 @@
   "components": {
     "tools": "nvp.core.tools",
     "admin": "nvp.core.admin",
+    "builder": "nvp.core.builder_manager",
     "cmake": "nvp.core.cmake_manager",
     "rchat": "nvp.communication.rocketchat",
     "email": "nvp.communication.email_handler",

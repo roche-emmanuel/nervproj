@@ -1,7 +1,7 @@
 """NVP builder class"""
 
 import logging
-from nvp.components.build import BuildManager
+from nvp.core.build_manager import BuildManager
 
 from nvp.nvp_object import NVPObject
 

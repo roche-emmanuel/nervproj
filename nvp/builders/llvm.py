@@ -3,7 +3,7 @@
 
 import logging
 
-from nvp.components.build import BuildManager
+from nvp.core.build_manager import BuildManager
 from nvp.nvp_builder import NVPBuilder
 
 logger = logging.getLogger(__name__)

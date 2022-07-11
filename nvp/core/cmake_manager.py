@@ -21,7 +21,7 @@ class CMakeManager(NVPComponent):
         """Cmake manager constructor"""
         NVPComponent.__init__(self, ctx)
 
-        self.modules = None
+        self.cmake_projects = None
         self.builder = None
         self.build_dir = None
         self.default_install_dir = None
@@ -42,50 +42,66 @@ class CMakeManager(NVPComponent):
             self.install_module_sets(proj, bpctx)
             return True
 
+        if cmd == 'project.init':
+            pname = self.get_param("cproj_name").split(",")
+            proj = self.get_cmake_project(pname)
+            assert proj is not None, f"Invalid Cmake project {pname}"
+            self.init_cmake_project(proj)
+            return True
+
         return False
+
+    def get_cmake_project(self, pname):
+        """Retrieve a project by name"""
+        # Note: the projec must exist below:
+        return self.cmake_projects[pname]
+
+    def init_cmake_project(self, cproj):
+        """Initialize the cmake project if not initialized yet"""
+        logger.info("Should init cmake project here: %s", cproj)
 
     def initialize(self):
         """Initialize this component as needed before usage."""
         if self.initialized is False:
             self.build_dir = self.get_path(self.ctx.get_root_dir(), "build")
             self.default_install_dir = self.get_path(self.ctx.get_root_dir(), "dist", "bin")
-            self.collect_modules()
+            self.collect_cmake_projects()
             bman = self.get_component('builder')
             self.builder = NVPBuilder(bman)
             self.builder.init_env()
             self.initialized = True
 
-    def collect_modules(self):
+    def collect_cmake_projects(self):
         """Collect the available modules"""
-        if self.modules is None:
-            self.modules = self.config.get("cmake_modules", {})
+        if self.cmake_projects is None:
+            self.cmake_projects = self.config.get("cmake_projects", {})
             root_dir = self.ctx.get_root_dir()
-            for _name, desc in self.modules.items():
+            for _name, desc in self.cmake_projects.items():
                 desc['url'] = desc['url'].replace("${NVP_ROOT_DIR}", root_dir)
 
-        return self.modules
+        return self.cmake_projects
 
-    def build_modules(self, mod_names, install_dir):
+    def build_modules(self, proj_names, install_dir):
         """Build/install the list of modules"""
 
         self.initialize()
-        modules = self.modules
+        cprojects = self.cmake_projects
 
         # Iterate on all the module names:
-        for bp_name in mod_names:
-            assert bp_name in modules, f"Cannot find module {bp_name}"
-            self.build_module(bp_name, install_dir)
+        for cp_name in proj_names:
+            assert cp_name in cprojects, f"Cannot find module {cp_name}"
+            self.build_module(cp_name, install_dir)
 
-    def build_module(self, bp_name, install_dir):
+    def build_module(self, cp_name, install_dir):
         """Install a specific module"""
 
         if install_dir is None:
             install_dir = self.default_install_dir
 
-        desc = self.modules[bp_name]
+        desc = self.cmake_projects[cp_name]
 
         # we should run a cmake command
-        build_dir = self.get_path(self.build_dir, bp_name)
+        build_dir = self.get_path(self.build_dir, cp_name)
         self.make_folder(build_dir)
 
         src_dir = desc["url"]
@@ -158,5 +174,8 @@ if __name__ == "__main__":
 
     psr = context.build_parser("install")
     psr.add_str("ctx_names", nargs="?", default="default")("List of module context to install")
+
+    psr = context.build_parser("project.init")
+    psr.add_str("cproj_name")("Cmake project to init")
 
     comp.run()
