@@ -60,6 +60,42 @@ class CMakeManager(NVPComponent):
         """Initialize the cmake project if not initialized yet"""
         logger.info("Should init cmake project here: %s", cproj)
 
+        # Create the main cmakelists file if needed:
+        proj_dir = cproj['url']
+        template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
+
+        proj_name = cproj['name']
+
+        dest_file = self.get_path(proj_dir, "CMakeLists.txt")
+        if not self.file_exists(dest_file):
+            logger.info("Writting file %s", dest_file)
+            content = self.read_text_file(template_dir, "main_cmakelists.txt.tpl")
+            content = content.replace("${PROJ_NAME}", proj_name)
+            content = content.replace("${PROJ_VERSION}", cproj['version'])
+            content = content.replace("${PROJ_PREFIX}", cproj['prefix'].upper())
+
+            self.write_text_file(content, dest_file)
+
+        # Create the source/tests folder:
+        src_dir = self.get_path(proj_dir, "sources")
+        self.make_folder(src_dir)
+
+        dest_file = self.get_path(src_dir, "CMakeLists.txt")
+        if not self.file_exists(dest_file):
+            logger.info("Writting file %s", dest_file)
+            content = f"# CMake modules for {proj_name}\n"
+            self.write_text_file(content, dest_file)
+
+        # Create the test folder:
+        test_dir = self.get_path(proj_dir, "tests")
+        self.make_folder(test_dir)
+
+        dest_file = self.get_path(test_dir, "CMakeLists.txt")
+        if not self.file_exists(dest_file):
+            logger.info("Writting file %s", dest_file)
+            content = f"# Cmake tests for {proj_name} modules\n"
+            self.write_text_file(content, dest_file)
+
     def initialize(self):
         """Initialize this component as needed before usage."""
         if self.initialized is False:
