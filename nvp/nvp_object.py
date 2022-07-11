@@ -1,7 +1,7 @@
 """NVP base object class"""
 import configparser
 
-import traceback
+# import traceback
 import logging
 import os
 import stat
