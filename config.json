@@ -296,7 +296,7 @@
   "components": {
     "tools": "nvp.core.tools",
     "admin": "nvp.core.admin",
-    "builder": "nvp.core.builder_manager",
+    "builder": "nvp.core.build_manager",
     "cmake": "nvp.core.cmake_manager",
     "rchat": "nvp.communication.rocketchat",
     "email": "nvp.communication.email_handler",

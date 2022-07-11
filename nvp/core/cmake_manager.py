@@ -43,7 +43,7 @@ class CMakeManager(NVPComponent):
             return True
 
         if cmd == 'project.init':
-            pname = self.get_param("cproj_name").split(",")
+            pname = self.get_param("cproj_name")
             proj = self.get_cmake_project(pname)
             assert proj is not None, f"Invalid Cmake project {pname}"
             self.init_cmake_project(proj)
@@ -75,9 +75,20 @@ class CMakeManager(NVPComponent):
         """Collect the available modules"""
         if self.cmake_projects is None:
             self.cmake_projects = self.config.get("cmake_projects", {})
-            root_dir = self.ctx.get_root_dir()
+            root_dir = self.ctx.get_root_dir().replace("\\", "/")
             for _name, desc in self.cmake_projects.items():
                 desc['url'] = desc['url'].replace("${NVP_ROOT_DIR}", root_dir)
+
+            # Alos iterate on the sub projects to find the cmake projects:
+            for proj in self.ctx.get_projects():
+                cprojs = proj.get_config().get("cmake_projects", {})
+                proj_dir = proj.get_root_dir().replace("\\", "/")
+
+                for pname, desc in cprojs.items():
+                    desc['url'] = desc['url'].replace("${NVP_ROOT_DIR}", root_dir)
+                    desc['url'] = desc['url'].replace("${PROJECT_ROOT_DIR}", proj_dir)
+                    self.check(pname not in self.cmake_projects, "Cmake project %s already registered.", pname)
+                    self.cmake_projects[pname] = desc
 
         return self.cmake_projects
 
