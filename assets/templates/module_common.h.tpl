@@ -1,0 +1,6 @@
+#ifndef %PROJ_PREFIX_UPPER%_%LIB_NAME_UPPER%_COMMON_
+#define %PROJ_PREFIX_UPPER%_%LIB_NAME_UPPER%_COMMON_
+
+#include <%LIB_NAME_LOWER%_exports.h>
+
+#endif

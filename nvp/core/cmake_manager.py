@@ -107,6 +107,25 @@ class CMakeManager(NVPComponent):
             else:
                 self.throw("Unsupported cmake module type: %s", mtype)
 
+    def fill_module_placeholders(self, content, hlocs):
+        """Fill the placeholders for a given module"""
+        prefix = hlocs["prefix"]
+        lib_name = hlocs["name"]
+        content = content.replace("%PROJ_PREFIX_UPPER%", prefix.upper())
+        content = content.replace("%PROJ_PREFIX%", prefix)
+        content = content.replace("%TARGET_NAME%", f"{prefix}{lib_name}")
+        content = content.replace("%LIB_NAME_LOWER%", lib_name.lower())
+        content = content.replace("%LIB_NAME_UPPER%", lib_name.upper())
+        return content
+
+    def write_module_file(self, hlocs, dest_file, tpl_file):
+        """Write a module file from a given template"""
+        if not self.file_exists(dest_file):
+            logger.info("Writing file %s", dest_file)
+            content = self.read_text_file(tpl_file)
+            content = self.fill_module_placeholders(content, hlocs)
+            self.write_text_file(content, dest_file)
+
     def add_library(self, cproj, desc):
         """Add a new library to the given project"""
         # logger.info("Adding library %s to project %s", desc['name'], cproj['name'])
@@ -120,43 +139,48 @@ class CMakeManager(NVPComponent):
         lib_name = desc["name"]
         lib_dir = self.get_path(proj_dir, "modules", f"{prefix}{lib_name}")
         self.make_folder(lib_dir)
-        prefix = cproj['prefix']
+
+        hlocs = {
+            "prefix": prefix,
+            "lib_name": lib_name,
+        }
 
         # Add the Cmake file in the lib dir:
         dest_file = self.get_path(lib_dir, "CMakeLists.txt")
-        if not self.file_exists(dest_file):
-            logger.info("Writing file %s", dest_file)
-            content = self.read_text_file(template_dir, "module_cmakelists.txt.tpl")
-            content = content.replace("${PROJ_PREFIX}", prefix.upper())
-            self.write_text_file(content, dest_file)
+        tpl_file = self.get_path(template_dir, "module_cmakelists.txt.tpl")
+        self.write_module_file(hlocs, dest_file, tpl_file)
 
         # In this library directory we should have the src/static/shared folders.
         self.make_folder(self.get_path(lib_dir, "src"))
 
+        # Write the module default files:
+        dest_file = self.get_path(lib_dir, "src", f"{lib_name.lower()}_common.cpp")
+        tpl_file = self.get_path(template_dir, "module_common.cpp.tpl")
+        self.write_module_file(hlocs, dest_file, tpl_file)
+        dest_file = self.get_path(lib_dir, "src", f"{lib_name.lower()}_common.h")
+        tpl_file = self.get_path(template_dir, "module_common.h.tpl")
+        self.write_module_file(hlocs, dest_file, tpl_file)
+        dest_file = self.get_path(lib_dir, "src", f"{lib_name.lower()}_precomp.cpp")
+        tpl_file = self.get_path(template_dir, "module_precomp.cpp.tpl")
+        self.write_module_file(hlocs, dest_file, tpl_file)
+        dest_file = self.get_path(lib_dir, "src", f"{lib_name.lower()}_precomp.h")
+        tpl_file = self.get_path(template_dir, "module_precomp.h.tpl")
+        self.write_module_file(hlocs, dest_file, tpl_file)
+        dest_file = self.get_path(lib_dir, "src", f"{lib_name.lower()}_exports.h")
+        tpl_file = self.get_path(template_dir, "module_exports.h.tpl")
+        self.write_module_file(hlocs, dest_file, tpl_file)
+
         self.make_folder(self.get_path(lib_dir, "static"))
 
         dest_file = self.get_path(lib_dir, "static", "CMakeLists.txt")
-        if not self.file_exists(dest_file):
-            logger.info("Writing file %s", dest_file)
-            content = self.read_text_file(template_dir, "module_static_cmakelists.txt.tpl")
-
-            content = content.replace("%TARGET_NAME%", f"{prefix}{lib_name}")
-            content = content.replace("%PROJ_PREFIX%", prefix.upper())
-            content = content.replace("%LIB_NAME%", lib_name.lower())
-            self.write_text_file(content, dest_file)
+        tpl_file = self.get_path(template_dir, "module_static_cmakelists.txt.tpl")
+        self.write_module_file(hlocs, dest_file, tpl_file)
 
         self.make_folder(self.get_path(lib_dir, "shared"))
 
         dest_file = self.get_path(lib_dir, "shared", "CMakeLists.txt")
-        if not self.file_exists(dest_file):
-            logger.info("Writing file %s", dest_file)
-            content = self.read_text_file(template_dir, "module_shared_cmakelists.txt.tpl")
-
-            content = content.replace("%TARGET_NAME%", f"{prefix}{lib_name}")
-            content = content.replace("%PROJ_PREFIX%", prefix.upper())
-            content = content.replace("%LIB_NAME%", lib_name.lower())
-            content = content.replace("%LIB_NAME_UPPER%", lib_name.upper())
-            self.write_text_file(content, dest_file)
+        tpl_file = self.get_path(template_dir, "module_shared_cmakelists.txt.tpl")
+        self.write_module_file(hlocs, dest_file, tpl_file)
 
     def add_executable(self, cproj, desc):
         """Add an executable to the given project"""

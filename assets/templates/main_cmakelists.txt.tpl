@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(${PROJ_NAME})
-set(PROJECT_VERSION ${PROJ_VERSION})
+project(%PROJ_NAME%)
+set(PROJECT_VERSION %PROJ_VERSION%)
 
 if(MSVC)
   message(STATUS "Building with MSVC compiler")
   # Using MSVC compiler: To build with static runtime linkage:
   if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-    message(STATUS "Building debug version of ${PROJ_NAME}")
+    message(STATUS "Building debug version of %PROJ_NAME%")
     set(CMAKE_CXX_FLAGS "/EHsc /MDd")
 
     if(WITH_DEBUG_INFO)
@@ -18,7 +18,7 @@ if(MSVC)
       set(CMAKE_CXX_FLAGS "/EHsc /MDd /Zi")
     endif()
   else()
-    message(STATUS "Building release version of ${PROJ_NAME}")
+    message(STATUS "Building release version of %PROJ_NAME%")
     set(CMAKE_CXX_FLAGS "/EHsc /MD")
 
     if(WITH_DEBUG_INFO)
@@ -66,10 +66,10 @@ endif()
 # prepare the source folder:
 set(SRC_DIR ${PROJECT_SOURCE_DIR}/sources)
 
-if(${PROJ_PREFIX}_STATIC_BUILD)
-  message(STATUS "Building static ${PROJ_NAME} libraries.")
+if(%PROJ_PREFIX%_STATIC_BUILD)
+  message(STATUS "Building static %PROJ_NAME% libraries.")
 else()
-  message(STATUS "Building shared ${PROJ_NAME} libraries.")
+  message(STATUS "Building shared %PROJ_NAME% libraries.")
 endif()
 
 # Add the test folder
