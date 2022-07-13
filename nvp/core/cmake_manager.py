@@ -164,7 +164,7 @@ class CMakeManager(NVPComponent):
 
         # Add the Cmake file in the lib dir:
         dest_file = self.get_path(lib_dir, "CMakeLists.txt")
-        tpl_file = self.get_path(template_dir, "module_cmakelists.txt.tpl")
+        tpl_file = self.get_path(template_dir, "library_cmakelists.txt.tpl")
         self.write_project_file(hlocs, dest_file, tpl_file)
 
         # In this library directory we should have the src/static/shared folders.
@@ -206,7 +206,39 @@ class CMakeManager(NVPComponent):
 
     def add_executable(self, cproj, desc):
         """Add an executable to the given project"""
-        logger.info("Adding executable %s to project %s", desc["name"], cproj["name"])
+
+        proj_dir = cproj['root_dir']
+        prefix = cproj["prefix"]
+
+        template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
+
+        # Create the source library folder if needed:
+        app_name = desc["name"]
+        app_dir = self.get_path(proj_dir, "modules", app_name)
+        self.make_folder(app_dir)
+
+        hlocs = {
+            "%PROJ_PREFIX_UPPER%": prefix.upper(),
+            "%PROJ_PREFIX%": prefix,
+            "%TARGET_NAME%": app_name
+        }
+
+        # Should add the module to the main CmakeLists.txt file:
+        cmake_file = self.get_path(proj_dir, "modules", "CMakeLists.txt")
+        new_line = f"add_subdirectory({app_name})"
+        self.append_unique_line(cmake_file, new_line)
+
+        dest_file = self.get_path(app_dir, "CMakeLists.txt")
+        tpl_file = self.get_path(template_dir, "executable_cmakelists.txt.tpl")
+        self.write_project_file(hlocs, dest_file, tpl_file)
+
+        # In this library directory we should have the src/static/shared folders.
+        self.make_folder(self.get_path(app_dir, "src"))
+
+        # Write the module default files:
+        dest_file = self.get_path(app_dir, "src", "main.cpp")
+        tpl_file = self.get_path(template_dir, "executable_main.cpp.tpl")
+        self.write_project_file(hlocs, dest_file, tpl_file)
 
     def initialize(self):
         """Initialize this component as needed before usage."""
