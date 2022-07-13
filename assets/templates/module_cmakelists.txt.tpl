@@ -1,17 +1,19 @@
-SET(TARGET_DIR ".")
+set(TARGET_DIR ".")
 
-INCLUDE_DIRECTORIES(${BOOST_DIR}/include)
-LINK_DIRECTORIES(${BOOST_DIR}/lib)
+include_directories(${BOOST_DIR}/include)
+link_directories(${BOOST_DIR}/lib)
 
-# ADD_DEFINITIONS(-DNOMINMAX)
-# ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
+include_directories(src)
 
-FILE(GLOB_RECURSE PUBLIC_HEADERS "src/*.h")
+# add_definitions(-DNOMINMAX)
+# add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 
-FILE(GLOB_RECURSE SOURCE_FILES "src/*.cpp" )
+file(GLOB_RECURSE PUBLIC_HEADERS "src/*.h")
 
-IF(%PROJ_PREFIX%_STATIC_BUILD)
-	ADD_SUBDIRECTORY(static)
-ELSE()
-	ADD_SUBDIRECTORY(shared)
-ENDIF()
+file(GLOB_RECURSE SOURCE_FILES "src/*.cpp" )
+
+if(%PROJ_PREFIX_UPPER%_STATIC_BUILD)
+	add_subdirectory(static)
+else()
+	add_subdirectory(shared)
+endif()

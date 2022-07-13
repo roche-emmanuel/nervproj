@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.22)
 project(%PROJ_NAME%)
 set(PROJECT_VERSION %PROJ_VERSION%)
 
+# Include the macro definitions:
+include(cmake/Macros.cmake)
+
 if(MSVC)
   message(STATUS "Building with MSVC compiler")
   # Using MSVC compiler: To build with static runtime linkage:
@@ -64,13 +67,16 @@ else()
 endif()
 
 # prepare the source folder:
-set(SRC_DIR ${PROJECT_SOURCE_DIR}/sources)
+set(SRC_DIR ${PROJECT_SOURCE_DIR}/modules)
 
-if(%PROJ_PREFIX%_STATIC_BUILD)
+if(%PROJ_PREFIX_UPPER%_STATIC_BUILD)
   message(STATUS "Building static %PROJ_NAME% libraries.")
 else()
   message(STATUS "Building shared %PROJ_NAME% libraries.")
 endif()
+
+# Add the modules folder
+add_subdirectory(modules)
 
 # Add the test folder
 add_subdirectory(tests)

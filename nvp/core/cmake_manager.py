@@ -24,15 +24,15 @@ class CMakeManager(NVPComponent):
         self.cmake_projects = None
         self.builder = None
         self.build_dir = None
-        self.default_install_dir = None
 
     def process_cmd_path(self, cmd):
         """Check if this component can process the given command"""
 
         if cmd == 'build':
-            bprints = self.get_param("mod_names").split(",")
+            bprints = self.get_param("proj_names").split(",")
             dest_dir = self.get_param("mod_install_dir", None)
-            self.build_modules(bprints, dest_dir)
+            rebuild = self.get_param("rebuild")
+            self.build_projects(bprints, dest_dir, rebuild=rebuild)
             return True
 
         if cmd == 'install':
@@ -42,11 +42,11 @@ class CMakeManager(NVPComponent):
             self.install_module_sets(proj, bpctx)
             return True
 
-        if cmd == 'project.init':
+        if cmd == 'setup':
             pname = self.get_param("cproj_name")
             proj = self.get_cmake_project(pname)
             assert proj is not None, f"Invalid Cmake project {pname}"
-            self.init_cmake_project(proj)
+            self.setup_cmake_project(proj)
             return True
 
         return False
@@ -56,25 +56,32 @@ class CMakeManager(NVPComponent):
         # Note: the projec must exist below:
         return self.cmake_projects[pname]
 
-    def init_cmake_project(self, cproj):
+    def setup_cmake_project(self, cproj):
         """Initialize the cmake project if not initialized yet"""
-        logger.info("Should init cmake project here: %s", cproj)
-
         # Create the main cmakelists file if needed:
-        proj_dir = cproj['url']
+        proj_dir = cproj['root_dir']
         template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
 
         proj_name = cproj['name']
+        logger.info("Setting up %s...", proj_name)
+
+        hlocs = {
+            "%PROJ_NAME%": proj_name,
+            "%PROJ_VERSION%": cproj['version'],
+            "%PROJ_PREFIX_UPPER%": cproj['prefix'].upper(),
+        }
 
         dest_file = self.get_path(proj_dir, "CMakeLists.txt")
-        if not self.file_exists(dest_file):
-            logger.info("Writing file %s", dest_file)
-            content = self.read_text_file(template_dir, "main_cmakelists.txt.tpl")
-            content = content.replace("${PROJ_NAME}", proj_name)
-            content = content.replace("${PROJ_VERSION}", cproj['version'])
-            content = content.replace("${PROJ_PREFIX}", cproj['prefix'].upper())
+        tpl_file = self.get_path(template_dir, "main_cmakelists.txt.tpl")
+        self.write_project_file(hlocs, dest_file, tpl_file)
 
-            self.write_text_file(content, dest_file)
+        # Create the cmake folder:
+        cmake_dir = self.get_path(proj_dir, "cmake")
+        self.make_folder(cmake_dir)
+
+        dest_file = self.get_path(proj_dir, "cmake", "Macros.cmake")
+        tpl_file = self.get_path(template_dir, "cmake_macros.cmake.tpl")
+        self.write_project_file(hlocs, dest_file, tpl_file)
 
         # Create the source/tests folder:
         src_dir = self.get_path(proj_dir, "modules")
@@ -107,30 +114,32 @@ class CMakeManager(NVPComponent):
             else:
                 self.throw("Unsupported cmake module type: %s", mtype)
 
-    def fill_module_placeholders(self, content, hlocs):
-        """Fill the placeholders for a given module"""
-        prefix = hlocs["prefix"]
-        lib_name = hlocs["name"]
-        content = content.replace("%PROJ_PREFIX_UPPER%", prefix.upper())
-        content = content.replace("%PROJ_PREFIX%", prefix)
-        content = content.replace("%TARGET_NAME%", f"{prefix}{lib_name}")
-        content = content.replace("%LIB_NAME_LOWER%", lib_name.lower())
-        content = content.replace("%LIB_NAME_UPPER%", lib_name.upper())
-        return content
-
-    def write_module_file(self, hlocs, dest_file, tpl_file):
+    def write_project_file(self, hlocs, dest_file, tpl_file):
         """Write a module file from a given template"""
         if not self.file_exists(dest_file):
             logger.info("Writing file %s", dest_file)
             content = self.read_text_file(tpl_file)
-            content = self.fill_module_placeholders(content, hlocs)
+            content = self.fill_placeholders(content, hlocs)
             self.write_text_file(content, dest_file)
+
+    def append_unique_line(self, dest_file, new_line):
+        """Uniquely append a newline at the end of a given file if not present already"""
+        content = self.read_text_file(dest_file)
+        lines = content.splitlines()
+
+        for line in lines:
+            if line.strip() == new_line:
+                return
+
+        logger.info("Appending '%s' to %s", new_line, dest_file)
+        lines.append(new_line)
+        self.write_text_file("\n".join(lines), dest_file)
 
     def add_library(self, cproj, desc):
         """Add a new library to the given project"""
         # logger.info("Adding library %s to project %s", desc['name'], cproj['name'])
 
-        proj_dir = cproj['url']
+        proj_dir = cproj['root_dir']
         prefix = cproj["prefix"]
 
         template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
@@ -141,14 +150,22 @@ class CMakeManager(NVPComponent):
         self.make_folder(lib_dir)
 
         hlocs = {
-            "prefix": prefix,
-            "lib_name": lib_name,
+            "%PROJ_PREFIX_UPPER%": prefix.upper(),
+            "%PROJ_PREFIX%": prefix,
+            "%TARGET_NAME%": f"{prefix}{lib_name}",
+            "%LIB_NAME_LOWER%": lib_name.lower(),
+            "%LIB_NAME_UPPER%": lib_name.upper(),
         }
+
+        # Should add the module to the main CmakeLists.txt file:
+        cmake_file = self.get_path(proj_dir, "modules", "CMakeLists.txt")
+        new_line = f"add_subdirectory({prefix}{lib_name})"
+        self.append_unique_line(cmake_file, new_line)
 
         # Add the Cmake file in the lib dir:
         dest_file = self.get_path(lib_dir, "CMakeLists.txt")
         tpl_file = self.get_path(template_dir, "module_cmakelists.txt.tpl")
-        self.write_module_file(hlocs, dest_file, tpl_file)
+        self.write_project_file(hlocs, dest_file, tpl_file)
 
         # In this library directory we should have the src/static/shared folders.
         self.make_folder(self.get_path(lib_dir, "src"))
@@ -156,31 +173,36 @@ class CMakeManager(NVPComponent):
         # Write the module default files:
         dest_file = self.get_path(lib_dir, "src", f"{lib_name.lower()}_common.cpp")
         tpl_file = self.get_path(template_dir, "module_common.cpp.tpl")
-        self.write_module_file(hlocs, dest_file, tpl_file)
+        self.write_project_file(hlocs, dest_file, tpl_file)
         dest_file = self.get_path(lib_dir, "src", f"{lib_name.lower()}_common.h")
         tpl_file = self.get_path(template_dir, "module_common.h.tpl")
-        self.write_module_file(hlocs, dest_file, tpl_file)
-        dest_file = self.get_path(lib_dir, "src", f"{lib_name.lower()}_precomp.cpp")
-        tpl_file = self.get_path(template_dir, "module_precomp.cpp.tpl")
-        self.write_module_file(hlocs, dest_file, tpl_file)
+        self.write_project_file(hlocs, dest_file, tpl_file)
         dest_file = self.get_path(lib_dir, "src", f"{lib_name.lower()}_precomp.h")
         tpl_file = self.get_path(template_dir, "module_precomp.h.tpl")
-        self.write_module_file(hlocs, dest_file, tpl_file)
+        self.write_project_file(hlocs, dest_file, tpl_file)
         dest_file = self.get_path(lib_dir, "src", f"{lib_name.lower()}_exports.h")
         tpl_file = self.get_path(template_dir, "module_exports.h.tpl")
-        self.write_module_file(hlocs, dest_file, tpl_file)
+        self.write_project_file(hlocs, dest_file, tpl_file)
 
         self.make_folder(self.get_path(lib_dir, "static"))
 
+        dest_file = self.get_path(lib_dir, "static", f"{lib_name.lower()}_precomp.cpp")
+        tpl_file = self.get_path(template_dir, "module_precomp.cpp.tpl")
+        self.write_project_file(hlocs, dest_file, tpl_file)
+
         dest_file = self.get_path(lib_dir, "static", "CMakeLists.txt")
         tpl_file = self.get_path(template_dir, "module_static_cmakelists.txt.tpl")
-        self.write_module_file(hlocs, dest_file, tpl_file)
+        self.write_project_file(hlocs, dest_file, tpl_file)
 
         self.make_folder(self.get_path(lib_dir, "shared"))
 
+        dest_file = self.get_path(lib_dir, "shared", f"{lib_name.lower()}_precomp.cpp")
+        tpl_file = self.get_path(template_dir, "module_precomp.cpp.tpl")
+        self.write_project_file(hlocs, dest_file, tpl_file)
+
         dest_file = self.get_path(lib_dir, "shared", "CMakeLists.txt")
         tpl_file = self.get_path(template_dir, "module_shared_cmakelists.txt.tpl")
-        self.write_module_file(hlocs, dest_file, tpl_file)
+        self.write_project_file(hlocs, dest_file, tpl_file)
 
     def add_executable(self, cproj, desc):
         """Add an executable to the given project"""
@@ -190,58 +212,70 @@ class CMakeManager(NVPComponent):
         """Initialize this component as needed before usage."""
         if self.initialized is False:
             self.build_dir = self.get_path(self.ctx.get_root_dir(), "build")
-            self.default_install_dir = self.get_path(self.ctx.get_root_dir(), "dist", "bin")
             self.collect_cmake_projects()
+            self.initialized = True
+
+    def get_builder(self):
+        """Retrieve the builder associated to this component"""
+        if self.builder is None:
             bman = self.get_component('builder')
             self.builder = NVPBuilder(bman)
             self.builder.init_env()
-            self.initialized = True
+
+        return self.builder
 
     def collect_cmake_projects(self):
         """Collect the available modules"""
         if self.cmake_projects is None:
             self.cmake_projects = self.config.get("cmake_projects", {})
             root_dir = self.ctx.get_root_dir().replace("\\", "/")
+            hlocs = {
+                "${NVP_ROOT_DIR}": root_dir
+            }
             for _name, desc in self.cmake_projects.items():
-                desc['url'] = desc['url'].replace("${NVP_ROOT_DIR}", root_dir)
+                desc['root_dir'] = self.fill_placeholders(desc['root_dir'], hlocs)
 
             # Alos iterate on the sub projects to find the cmake projects:
             for proj in self.ctx.get_projects():
                 cprojs = proj.get_config().get("cmake_projects", {})
                 proj_dir = proj.get_root_dir().replace("\\", "/")
-
+                hlocs["${PROJECT_ROOT_DIR}"] = proj_dir
                 for pname, desc in cprojs.items():
-                    desc['url'] = desc['url'].replace("${NVP_ROOT_DIR}", root_dir)
-                    desc['url'] = desc['url'].replace("${PROJECT_ROOT_DIR}", proj_dir)
+                    desc['root_dir'] = self.fill_placeholders(desc['root_dir'], hlocs)
+                    desc['install_dir'] = self.fill_placeholders(desc['install_dir'], hlocs)
                     self.check(pname not in self.cmake_projects, "Cmake project %s already registered.", pname)
                     self.cmake_projects[pname] = desc
 
         return self.cmake_projects
 
-    def build_modules(self, proj_names, install_dir):
-        """Build/install the list of modules"""
+    def build_projects(self, proj_names, install_dir, rebuild=False):
+        """Build/install the list of projects"""
 
         self.initialize()
         cprojects = self.cmake_projects
 
         # Iterate on all the module names:
-        for cp_name in proj_names:
-            assert cp_name in cprojects, f"Cannot find module {cp_name}"
-            self.build_module(cp_name, install_dir)
+        for proj_name in proj_names:
+            assert proj_name in cprojects, f"Cannot find module {proj_name}"
+            self.build_project(proj_name, install_dir, rebuild)
 
-    def build_module(self, cp_name, install_dir):
-        """Install a specific module"""
+    def build_project(self, proj_name, install_dir, rebuild=False):
+        """Build/install a specific project"""
+
+        desc = self.cmake_projects[proj_name]
 
         if install_dir is None:
-            install_dir = self.default_install_dir
-
-        desc = self.cmake_projects[cp_name]
+            install_dir = desc["install_dir"]
 
         # we should run a cmake command
-        build_dir = self.get_path(self.build_dir, cp_name)
+        build_dir = self.get_path(self.build_dir, proj_name)
+        if rebuild and self.dir_exists(build_dir):
+            logger.info("Removing build folder %s", build_dir)
+            self.remove_folder(build_dir, recursive=True)
+
         self.make_folder(build_dir)
 
-        src_dir = desc["url"]
+        src_dir = desc["root_dir"]
 
         flags = []
         # check if we have dependencies:
@@ -275,8 +309,9 @@ class CMakeManager(NVPComponent):
 
             flags.append(f"-D{var_name}={var_val}")
 
-        self.builder.run_cmake(build_dir, install_dir, src_dir, flags)
-        self.builder.run_ninja(build_dir)
+        builder = self.get_builder()
+        builder.run_cmake(build_dir, install_dir, src_dir, flags)
+        builder.run_ninja(build_dir)
 
     def install_module_sets(self, proj: NVPProject, bpctx):
         """Install a list of module contexts in a given project"""
@@ -295,7 +330,7 @@ class CMakeManager(NVPComponent):
                 logger.info("Should install module %s", mod_desc['name'])
                 mname = mod_desc['name']
                 dest_dir = mod_desc['dir'].replace("${PROJECT_ROOT_DIR}", proot_dir)
-                self.build_module(mname, dest_dir)
+                self.build_project(mname, dest_dir)
 
 
 if __name__ == "__main__":
@@ -306,13 +341,14 @@ if __name__ == "__main__":
     comp = context.get_component("cmake")
 
     psr = context.build_parser("build")
-    psr.add_str("mod_names")("List of modules to build")
-    psr.add_str("-d", "--dir", dest="mod_install_dir")("Install folder.")
+    psr.add_str("proj_names")("List of modules to build")
+    psr.add_str("-d", "--dir", dest="mod_install_dir")("Install folder")
+    psr.add_flag("-r", "--rebuild", dest="rebuild")("Force rebuilding completely")
 
     psr = context.build_parser("install")
     psr.add_str("ctx_names", nargs="?", default="default")("List of module context to install")
 
-    psr = context.build_parser("project.init")
+    psr = context.build_parser("setup")
     psr.add_str("cproj_name")("Cmake project to init")
 
     comp.run()

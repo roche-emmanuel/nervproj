@@ -44,16 +44,6 @@ class ScriptRunner(NVPComponent):
 
         return False
 
-    def fill_placeholders(self, my_entry, hlocs):
-        """Fill the placeholders in a given entry"""
-        if my_entry is None:
-            return None
-
-        for loc, rep in hlocs.items():
-            my_entry = my_entry.replace(loc, rep)
-
-        return my_entry
-
     def has_script(self, script_name):
         """Check if a given script name is available."""
         projs = self.ctx.get_projects()

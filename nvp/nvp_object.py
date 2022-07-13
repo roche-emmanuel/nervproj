@@ -731,3 +731,13 @@ class NVPObject(object):
                 logger.error("Exception occured in post request to %s, retrying (%d/%d)...", url, count, max_retries)
 
         return None
+
+    def fill_placeholders(self, content, hlocs):
+        """Fill the placeholders in a given content"""
+        if content is None:
+            return None
+
+        for loc, rep in hlocs.items():
+            content = content.replace(loc, rep)
+
+        return content

@@ -183,7 +183,8 @@
   "cmake_projects": {
     // Fastnoise2 python bindings:
     "pyfn2": {
-      "url": "${NVP_ROOT_DIR}/sources/pyfn2",
+      "root_dir": "${NVP_ROOT_DIR}/sources/pyfn2",
+      "install_dir": "${NVP_ROOT_DIR}/dist/bin",
       "dependencies": {
         "BOOST_DIR": "boost",
         "PYTHON_DIR": "python",
@@ -216,6 +217,7 @@
     },
     "cmake": {
       "help": "Cmake commands",
+      "output_encoding": "latin1",
       "custom_python_env": "min_env",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/cmake_manager.py",
       "python_path": ["${NVP_ROOT_DIR}"]
