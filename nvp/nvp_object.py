@@ -494,8 +494,26 @@ class NVPObject(object):
             """Reader function for a stream"""
             try:
                 with pipe:
-                    for line in iter(pipe.readline, b''):
-                        queue.put((id, line))
+                    # Note: need to read the char one by one here, until we find a \r or \n value:
+                    buf = b''
+
+                    def reader():
+                        return pipe.read(1)
+
+                    for char in iter(reader, b''):
+                        if char != b'\r':
+                            buf += char
+
+                        if char == b'\r' or char == b'\n':
+                            queue.put((id, buf))
+                            buf = b''
+
+                        # Add the carriage return on the new line:
+                        if char == b'\r':
+                            buf += char
+
+                    # for line in iter(pipe.readline, b''):
+                    #     queue.put((id, line))
             finally:
                 queue.put(None)
 
@@ -516,11 +534,16 @@ class NVPObject(object):
                         except UnicodeDecodeError:
                             logger.error("Unicode error on subprocess output line: %s", line)
                             continue
-                        sline = line.strip()
+
+                        # Should not be needed here since we are not sending the '\n' character anyway:
+                        # sline = line.strip()
+                        sline = line
                         lastest_outputs.append(sline)
                         if print_outputs:
                             # print(f"{source}: {sline}")
-                            print(sline)
+                            # print(sline)
+                            sys.stdout.write(sline)
+                            sys.stdout.flush()
                         if output_buffer is not None:
                             output_buffer.append(sline)
                         if outfile is not None:

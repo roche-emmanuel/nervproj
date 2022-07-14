@@ -130,10 +130,14 @@
     },
     {
       "name": "LLVM",
-      "version": "14.0.0",
-      "windows_url": "https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.0.zip",
-      "linux_url": "https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.0.tar.gz",
-      "extracted_dir": "llvm-project-llvmorg-14.0.0"
+      "version": "14.0.6",
+      "windows_url": "https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.6.zip",
+      "linux_url": "https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.6.tar.gz",
+      "extracted_dir": "llvm-project-llvmorg-14.0.6"
+      // "version": "14.0.0",
+      // "windows_url": "https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.0.zip",
+      // "linux_url": "https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.0.tar.gz",
+      // "extracted_dir": "llvm-project-llvmorg-14.0.0"
     },
     {
       "name": "boost",
