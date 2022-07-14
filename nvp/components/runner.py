@@ -187,7 +187,7 @@ class ScriptRunner(NVPComponent):
             success, rcode, outputs = self.execute(cmd, cwd=cwd, env=env, outfile=logfile, encoding=encoding)
 
             if not success:
-                outs = "\n".join(outputs)
+                outs = "".join(outputs)
                 logger.error(
                     "Error occured in script command:\ncmd=%s\ncwd=%s\nreturn code=%s\nlastest outputs:\n%s", cmd, cwd,
                     rcode or "None", outs)

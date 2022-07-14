@@ -222,11 +222,11 @@ class NVPCompiler(NVPObject):
             env = {}
             env['PATH'] = self.get_cxx_dir()
 
-            inc_dir = f"{self.root_dir}/include/c++/v1"
+            # inc_dir = f"{self.root_dir}/include/c++/v1"
 
             env['CC'] = self.get_cc_path()
             env['CXX'] = self.get_cxx_path()
-            
+
             # Do not use fPIC on windows:
             # fpic = " -fPIC" if self.is_linux else ""
             # env['CXXFLAGS'] = f"-I{inc_dir} {self.cxxflags}{fpic}"

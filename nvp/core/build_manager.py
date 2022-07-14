@@ -44,12 +44,10 @@ class BuildManager(NVPComponent):
             self.setup_paths()
             self.tools = self.ctx.get_component('tools')
 
-    def select_compiler(self):
+    def select_compiler(self, comp_type=None):
         """Find the available compilers on the current platform"""
 
         # Figure out what type of compiler should be used:
-        comp_type = self.settings.get("compiler_type", None)
-
         if self.is_windows:
             supported_compilers = self.config.get("windows_supported_compilers", ["msvc", "clang"])
             comp_type = comp_type or self.config.get("windows_default_compiler_type", "msvc")
@@ -190,7 +188,7 @@ class BuildManager(NVPComponent):
         ext = ".7z" if self.is_windows else ".tar.xz"
         return f"{dep_name}-{self.platform}-{self.compiler.get_type()}{ext}"
 
-    def check_libraries(self, dep_list):
+    def check_libraries(self, dep_list, rebuild=False, preview=False, append=False, keep_build=False):
         """Build all the libraries for NervProj."""
 
         # Iterate on each dependency:
@@ -198,9 +196,6 @@ class BuildManager(NVPComponent):
         alldeps = self.config['libraries']
 
         doall = "all" in dep_list
-        rebuild = self.settings['rebuild']
-        preview = self.settings['preview']
-        append = self.settings['append']
 
         for dep in alldeps:
 
@@ -226,13 +221,13 @@ class BuildManager(NVPComponent):
 
             if not os.path.exists(dep_dir) or append:
                 # Here we need to deploy that dependency:
-                self.deploy_dependency(dep)
+                self.deploy_dependency(dep, rebuild, append, keep_build)
             else:
                 logger.debug("- %s: OK", dep_name)
 
         logger.info("All libraries OK.")
 
-    def deploy_dependency(self, desc):
+    def deploy_dependency(self, desc, rebuild=False, append=False, keep_build=False):
         """Build a given dependency given its description dict and the target
         directory where it should be installed."""
 
@@ -241,9 +236,6 @@ class BuildManager(NVPComponent):
 
         # Here we should check if we already have a pre-built package for that dependency:
         src_pkg_path = self.get_path(self.libs_package_dir, src_pkg_name)
-
-        rebuild = self.settings['rebuild']
-        append = self.settings['append']
 
         # if the package is not already available locally, maybe we can retrieve it remotely:
         if not self.file_exists(src_pkg_path) and not rebuild and not append:
@@ -286,7 +278,7 @@ class BuildManager(NVPComponent):
             # so that we don't have to build it the next time:
             self.tools.create_package(prefix, self.libs_package_dir, src_pkg_name)
 
-            if not self.settings.get("keep_build", False):
+            if not keep_build:
                 logger.info("Removing build folder %s", build_dir)
                 self.remove_folder(build_dir)
 
@@ -369,9 +361,14 @@ class BuildManager(NVPComponent):
 
         if cmd == "libs":
             self.initialize()
-            logger.info("List of settings: %s", self.settings)
-            dlist = self.settings['lib_names'].split(',')
-            self.check_libraries(dlist)
+            # logger.info("List of settings: %s", self.settings)
+            dlist = self.get_param('lib_names').split(',')
+            rebuild = self.get_param('rebuild')
+            preview = self.get_param('preview')
+            append = self.get_param('append')
+            keep_build = self.get_param("keep_build", False)
+
+            self.check_libraries(dlist, rebuild, preview, append, keep_build)
             return True
 
         if cmd == "project":
@@ -392,11 +389,11 @@ if __name__ == "__main__":
 
     psr = context.build_parser("project")
     psr.add_str("proj_name")("Project name")
-    psr.add_str("-c", "--compiler", dest="compiler_type")("Compiler for the build")
+    # psr.add_str("-c", "--compiler", dest="compiler_type")("Compiler for the build")
 
     psr = context.build_parser("libs")
     psr.add_str("lib_names")("List of libraries to build")
-    psr.add_str("-c", "--compiler", dest="compiler_type")("Compiler for the build")
+    # psr.add_str("-c", "--compiler", dest="compiler_type")("Compiler for the build")
     psr.add_flag("--rebuild", dest="rebuild")("Force rebuilding from sources")
     psr.add_flag("--preview", dest="preview")("Preview sources only")
     psr.add_flag("-k", "--keep-build", dest="keep_build")("Keep the build folder after build")

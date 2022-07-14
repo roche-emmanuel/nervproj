@@ -56,8 +56,53 @@ class CMakeManager(NVPComponent):
         # Note: the projec must exist below:
         return self.cmake_projects[pname]
 
+    def setup_vscode_settings(self, proj):
+        """Setup the vscode settings in a given NVP project for C++ compilation support"""
+        settings_file = self.get_path(proj.get_root_dir(), ".vscode", "settings.json")
+
+        logger.info("Settings up vscode settings in %s", settings_file)
+
+        # First we must ensure that the LLVm library is deployed:
+        bman = self.get_component('builder')
+
+        # Ensure LLVM is installed:
+        logger.info("Checking LLVM library...")
+        bman.check_libraries(['llvm'])
+
+        llvm_dir = bman.get_library_root_dir('LLVM')
+        logger.info("Using LLVM root dir: %s", llvm_dir)
+
+        # Try to load the existing config if any:
+        settings = {}
+        ref_settings = None
+        if self.file_exists(settings_file):
+            settings = self.read_json(settings_file)
+            ref_settings = self.read_json(settings_file)
+
+        # Add our settings:
+        ext = ".exe" if self.is_windows else ""
+
+        settings["editor.formatOnSave"] = True
+        clang_format_path = self.get_path(llvm_dir, "bin", f"clang-format{ext}")
+        clang_format_path = clang_format_path.replace("\\", "/")
+        settings["clang-format.executable"] = clang_format_path
+
+        if ref_settings is None or settings != ref_settings:
+            logger.info("Wrtting updated vscode settings in %s", settings_file)
+            self.write_json(settings, settings_file)
+        else:
+            logger.info("No change in %s", settings_file)
+
     def setup_cmake_project(self, cproj):
         """Initialize the cmake project if not initialized yet"""
+
+        # First we should setting the vscode settings in the parent nvp project:
+        if "nvp_project" in cproj:
+            proj_name = cproj["nvp_project"]
+            # logger.info("CmakeManager: Setting up NVP project %s", proj_name)
+            proj = self.ctx.get_project(proj_name)
+            self.setup_vscode_settings(proj)
+
         # Create the main cmakelists file if needed:
         proj_dir = cproj['root_dir']
         template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
@@ -275,6 +320,10 @@ class CMakeManager(NVPComponent):
                 for pname, desc in cprojs.items():
                     desc['root_dir'] = self.fill_placeholders(desc['root_dir'], hlocs)
                     desc['install_dir'] = self.fill_placeholders(desc['install_dir'], hlocs)
+
+                    # Add the project name:
+                    desc["nvp_project"] = proj.get_name(False)
+
                     self.check(pname not in self.cmake_projects, "Cmake project %s already registered.", pname)
                     self.cmake_projects[pname] = desc
 

@@ -490,22 +490,22 @@ class NVPObject(object):
 
         # cf. https://stackoverflow.com/questions/31833897/
         # python-read-from-subprocess-stdout-and-stderr-separately-while-preserving-order
-        def reader(pipe, queue, id):
+        def reader(pipe, queue, sid):
             """Reader function for a stream"""
             try:
                 with pipe:
                     # Note: need to read the char one by one here, until we find a \r or \n value:
                     buf = b''
 
-                    def reader():
+                    def readop():
                         return pipe.read(1)
 
-                    for char in iter(reader, b''):
+                    for char in iter(readop, b''):
                         if char != b'\r':
                             buf += char
 
                         if char == b'\r' or char == b'\n':
-                            queue.put((id, buf))
+                            queue.put((sid, buf))
                             buf = b''
 
                         # Add the carriage return on the new line:
