@@ -59,10 +59,10 @@ class LLVMBuilder(NVPBuilder):
             self.append_linkflag(f"/LIBPATH:{iconv_dir}/lib {iconv_lib}")
             self.append_linkflag("Ws2_32.lib")
         else:
-            self.append_linkflag("-static")
+            self.append_linkflag("-Wl,-Bstatic")
             self.append_linkflag(f"-L{iconv_dir}/lib")
             self.append_linkflag(f"-l{iconv_lib}")
-            self.append_linkflag("-dynamic")
+            self.append_linkflag("-Wl,-Bdynamic")
             # self.append_linkflag(f"{iconv_lib}")
 
         # This is not needed/not working: using the patch below instead:

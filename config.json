@@ -279,6 +279,10 @@
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/git_manager.py",
       "python_path": ["${NVP_ROOT_DIR}"]
     },
+    "tidy": {
+      "help": "Run clang-tidy command",
+      "cmd": "${PYTHON} ${NVP_ROOT_DIR}/libraries/windows_msvc/LLVM-14.0.6/bin/clang-tidy.exe"
+    },
     "gitlab": {
       "help": "Run a gitlab command",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/gitlab_manager.py",
