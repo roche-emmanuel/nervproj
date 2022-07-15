@@ -90,8 +90,13 @@ class CMakeManager(NVPComponent):
         settings["editor.formatOnSave"] = True
         clang_format_path = self.get_path(llvm_dir, "bin", f"clang-format{ext}")
         clang_format_path = clang_format_path.replace("\\", "/")
+        clang_tidy_path = self.get_path(llvm_dir, "bin", f"clang-tidy{ext}")
+        clang_tidy_path = clang_tidy_path.replace("\\", "/")
         settings["C_Cpp.clang_format_path"] = clang_format_path
         settings["C_Cpp.clang_format_style"] = "file"
+        settings["C_Cpp.codeAnalysis.clangTidy.path"] = clang_tidy_path
+        settings["C_Cpp.codeAnalysis.clangTidy.enabled"] = True
+        settings["C_Cpp.codeAnalysis.runAutomatically"] = True
 
         if ref_settings is None or settings != ref_settings:
             logger.info("Wrtting updated vscode settings in %s", settings_file)
