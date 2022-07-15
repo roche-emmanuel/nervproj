@@ -72,6 +72,11 @@ class CMakeManager(NVPComponent):
         llvm_dir = bman.get_library_root_dir('LLVM')
         logger.info("Using LLVM root dir: %s", llvm_dir)
 
+        template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
+        dest_file = self.get_path(proj.get_root_dir(), ".clang-format")
+        tpl_file = self.get_path(template_dir, "clang_format.tpl")
+        self.write_project_file({}, dest_file, tpl_file)
+
         # Try to load the existing config if any:
         settings = {}
         ref_settings = None
@@ -85,7 +90,8 @@ class CMakeManager(NVPComponent):
         settings["editor.formatOnSave"] = True
         clang_format_path = self.get_path(llvm_dir, "bin", f"clang-format{ext}")
         clang_format_path = clang_format_path.replace("\\", "/")
-        settings["clang-format.executable"] = clang_format_path
+        settings["C_Cpp.clang_format_path"] = clang_format_path
+        settings["C_Cpp.clang_format_style"] = "file"
 
         if ref_settings is None or settings != ref_settings:
             logger.info("Wrtting updated vscode settings in %s", settings_file)
