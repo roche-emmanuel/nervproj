@@ -7,6 +7,7 @@ Language: Cpp
 # Force pointers to the type for C++.
 # DerivePointerAlignment: false
 # PointerAlignment: Left
+SpaceBeforeCpp11BracedList: true
 ---
 Language: Proto
 # Don't format .proto files.
