@@ -51,7 +51,7 @@ class LLVMBuilder(NVPBuilder):
 
         # Note: we also need to add libiconv to the include/link flags:
         iconv_dir = self.man.get_library_root_dir("libiconv").replace("\\", "/")
-        iconv_lib = "libiconvStatic.lib" if self.is_windows else "iconv.a"
+        iconv_lib = "libiconvStatic.lib" if self.is_windows else "iconv"
 
         self.append_compileflag(f"-DLIBXML_STATIC -I{iconv_dir}/include -I{xml2_dir}/include/libxml2")
         if self.is_windows:
