@@ -62,8 +62,8 @@ class LLVMBuilder(NVPBuilder):
             self.append_linkflag("-Wl,-Bstatic")
             self.append_linkflag(f"-L{iconv_dir}/lib")
             self.append_linkflag(f"-L{xml2_dir}/lib")
-            self.append_linkflag(f"-l{iconv_lib}")
             self.append_linkflag("-lxml2")
+            self.append_linkflag(f"-l{iconv_lib}")
             self.append_linkflag("-Wl,-Bdynamic")
             # self.append_linkflag(f"{iconv_lib}")
 
