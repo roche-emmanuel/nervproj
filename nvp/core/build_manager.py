@@ -166,7 +166,7 @@ class BuildManager(NVPComponent):
                 return ldesc
         return None
 
-    def get_library_root_dir(self, lib_name):
+    def get_library_root_dir(self, lib_name, auto_setup=True):
         """Retrieve the root dir for a given library"""
 
         # Iterate on all the available libraries:
@@ -177,6 +177,10 @@ class BuildManager(NVPComponent):
 
             if ldesc['name'] == lib_name or dep_name == lib_name:
                 dep_dir = self.get_path(self.libs_dir, dep_name)
+
+                if auto_setup and not self.dir_exists(dep_dir):
+                    logger.info("Running automatic setup for %s", lib_name)
+                    self.check_libraries([lib_name])
 
                 # That folder should exist:
                 assert self.dir_exists(dep_dir), f"Library folder {dep_dir} doesn't exist yet."
@@ -226,7 +230,7 @@ class BuildManager(NVPComponent):
             else:
                 logger.debug("- %s: OK", dep_name)
 
-        logger.info("All libraries OK.")
+        logger.debug("All libraries OK.")
 
     def deploy_dependency(self, desc, rebuild=False, append=False, keep_build=False):
         """Build a given dependency given its description dict and the target
