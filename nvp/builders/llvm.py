@@ -51,20 +51,20 @@ class LLVMBuilder(NVPBuilder):
 
         # Note: we also need to add libiconv to the include/link flags:
         iconv_dir = self.man.get_library_root_dir("libiconv").replace("\\", "/")
-        iconv_lib = "libiconvStatic.lib" if self.is_windows else "iconv"
+        iconv_lib = "libiconvStatic.lib" if self.is_windows else "libiconv.a"
 
         self.append_compileflag(f"-DLIBXML_STATIC -I{iconv_dir}/include -I{xml2_dir}/include/libxml2")
         if self.is_windows:
             self.append_linkflag(f"/LIBPATH:{xml2_dir}/lib {xml2_lib}")
             self.append_linkflag(f"/LIBPATH:{iconv_dir}/lib {iconv_lib}")
             self.append_linkflag("Ws2_32.lib")
-        else:
-            self.append_linkflag("-Wl,-Bstatic")
-            self.append_linkflag(f"-L{iconv_dir}/lib")
-            self.append_linkflag(f"-L{xml2_dir}/lib")
-            self.append_linkflag("-lxml2")
-            self.append_linkflag(f"-l{iconv_lib}")
-            self.append_linkflag("-Wl,-Bdynamic")
+        # else:
+            # self.append_linkflag("-Wl,-Bstatic")
+            # self.append_linkflag(f"-L{iconv_dir}/lib")
+            # self.append_linkflag(f"-L{xml2_dir}/lib")
+            # self.append_linkflag("-lxml2")
+            # self.append_linkflag(f"-l{iconv_lib}")
+            # self.append_linkflag("-Wl,-Bdynamic")
             # self.append_linkflag(f"{iconv_lib}")
 
         # This is not needed/not working: using the patch below instead:
@@ -84,7 +84,8 @@ class LLVMBuilder(NVPBuilder):
                       f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
                       f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
                       f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
-                      "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp"
+                      "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp",
+                      f"-DLIBICONV_LIBRARY={iconv_dir}/lib/{iconv_lib}"
                       ]
 
         return flags
@@ -100,6 +101,19 @@ class LLVMBuilder(NVPBuilder):
         self.replace_in_file(libc_file,
                              "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX})",
                              "set(LIBC_INSTALL_LIBRARY_DIR lib)")
+
+        # On linux we must also patch the usage of the LIBXML2 library to link to the static iconv library too
+        #  for the compilation of LLDB:
+        if self.is_linux:
+            file = self.get_path(build_dir, "lldb", "source", "Host", "CMakeLists.txt")
+            self.replace_in_file(file,
+                                 "list(APPEND EXTRA_LIBS LibXml2::LibXml2)",
+                                 "list(APPEND EXTRA_LIBS LibXml2::LibXml2 ${LIBICONV_LIBRARY})")
+
+            file = self.get_path(build_dir, "clang", "tools", "c-index-test", "CMakeLists.txt")
+            self.replace_in_file(file,
+                                 "target_link_libraries(c-index-test PRIVATE LibXml2::LibXml2)",
+                                 "target_link_libraries(c-index-test PRIVATE LibXml2::LibXml2 ${LIBICONV_LIBRARY})")
 
         # Force using libxml2 in config.h
         # cfg_file = self.get_path(build_dir, "llvm", "cmake", "modules", "LLVMConfig.cmake.in")
