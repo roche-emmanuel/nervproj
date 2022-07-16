@@ -115,9 +115,11 @@ class CMakeManager(NVPComponent):
         clang_tidy_path = clang_tidy_path.replace("\\", "/")
         settings["C_Cpp.clang_format_path"] = clang_format_path
         settings["C_Cpp.clang_format_style"] = "file"
-        settings["C_Cpp.codeAnalysis.clangTidy.path"] = clang_tidy_path
-        settings["C_Cpp.codeAnalysis.clangTidy.enabled"] = True
-        settings["C_Cpp.codeAnalysis.runAutomatically"] = True
+        # settings["C_Cpp.codeAnalysis.clangTidy.path"] = clang_tidy_path
+        # settings["C_Cpp.codeAnalysis.clangTidy.enabled"] = True
+        # settings["C_Cpp.codeAnalysis.runAutomatically"] = True
+        settings["cmake.buildDirectory"] = "${workspaceFolder}/.cache/cmake"
+
         # "clangd.arguments": ["-log=verbose"]
 
         if ref_settings is None or settings != ref_settings:
@@ -264,9 +266,10 @@ class CMakeManager(NVPComponent):
 
         self.make_folder(self.get_path(lib_dir, "static"))
 
-        dest_file = self.get_path(lib_dir, "static", f"{lib_name.lower()}_precomp.cpp")
-        tpl_file = self.get_path(template_dir, "module_precomp.cpp.tpl")
-        self.write_project_file(hlocs, dest_file, tpl_file)
+        # Not needed:
+        # dest_file = self.get_path(lib_dir, "static", f"{lib_name.lower()}_precomp.cpp")
+        # tpl_file = self.get_path(template_dir, "module_precomp.cpp.tpl")
+        # self.write_project_file(hlocs, dest_file, tpl_file)
 
         dest_file = self.get_path(lib_dir, "static", "CMakeLists.txt")
         tpl_file = self.get_path(template_dir, "module_static_cmakelists.txt.tpl")
