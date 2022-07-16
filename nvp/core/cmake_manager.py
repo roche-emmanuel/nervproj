@@ -85,6 +85,10 @@ class CMakeManager(NVPComponent):
         tpl_file = self.get_path(template_dir, "clang_tidy.tpl")
         self.write_project_file({}, dest_file, tpl_file)
 
+        dest_file = self.get_path(proj.get_root_dir(), ".clangd")
+        tpl_file = self.get_path(template_dir, "clangd.tpl")
+        self.write_project_file({}, dest_file, tpl_file)
+
         # Try to load the existing config if any:
         settings = {}
         ref_settings = None
