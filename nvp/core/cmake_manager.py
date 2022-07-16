@@ -476,7 +476,7 @@ if __name__ == "__main__":
     psr.add_str("proj_names")("List of modules to build")
     psr.add_str("-d", "--dir", dest="mod_install_dir")("Install folder")
     psr.add_flag("-r", "--rebuild", dest="rebuild")("Force rebuilding completely")
-    psr.add_flag("-c", "--compiler", dest="compiler_type", default="clang")("Select the compiler")
+    psr.add_str("-c", "--compiler", dest="compiler_type", default="clang")("Select the compiler")
 
     psr = context.build_parser("install")
     psr.add_str("ctx_names", nargs="?", default="default")("List of module context to install")
@@ -485,6 +485,6 @@ if __name__ == "__main__":
     psr.add_str("cproj_name")("Cmake project to init")
     psr.add_flag("-g", dest="gen_commands")("Generate the compile_commands.json file")
     psr.add_flag("-r", "--reconfig", dest="reconfig")("Force reconfiguring completely")
-    psr.add_flag("-c", "--compiler", dest="compiler_type", default="clang")("Select the compiler")
+    psr.add_str("-c", "--compiler", dest="compiler_type", default="clang")("Select the compiler")
 
     comp.run()
