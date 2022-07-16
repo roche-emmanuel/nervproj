@@ -47,6 +47,10 @@ class CMakeManager(NVPComponent):
             proj = self.get_cmake_project(pname)
             assert proj is not None, f"Invalid Cmake project {pname}"
             self.setup_cmake_project(proj)
+            gen_cmds = self.get_param("gen_commands")
+            if gen_cmds:
+                # Also generate the compile_commands.json file:
+                self.build_project(pname, None, gen_commands=True)
             return True
 
         return False
@@ -355,7 +359,7 @@ class CMakeManager(NVPComponent):
             assert proj_name in cprojects, f"Cannot find module {proj_name}"
             self.build_project(proj_name, install_dir, rebuild)
 
-    def build_project(self, proj_name, install_dir, rebuild=False):
+    def build_project(self, proj_name, install_dir, rebuild=False, gen_commands=False):
         """Build/install a specific project"""
 
         desc = self.cmake_projects[proj_name]
@@ -406,7 +410,20 @@ class CMakeManager(NVPComponent):
             flags.append(f"-D{var_name}={var_val}")
 
         builder = self.get_builder()
+
+        flags.append("-DCMAKE_EXPORT_COMPILE_COMMANDS=1")
         builder.run_cmake(build_dir, install_dir, src_dir, flags)
+
+        # Copy the compile_commands.json file:
+        comp_file = self.get_path(build_dir, "compile_commands.json")
+        self.check(self.file_exists(comp_file), "No file %s", comp_file)
+        dst_file = self.get_path(src_dir, "compile_commands.json")
+        self.rename_file(comp_file, dst_file)
+
+        if gen_commands:
+            # Don't actually run the build
+            return
+
         builder.run_ninja(build_dir)
 
     def install_module_sets(self, proj: NVPProject, bpctx):
@@ -446,5 +463,6 @@ if __name__ == "__main__":
 
     psr = context.build_parser("setup")
     psr.add_str("cproj_name")("Cmake project to init")
+    psr.add_flag("-g", dest="gen_commands")("Generate the compile_commands.json file")
 
     comp.run()

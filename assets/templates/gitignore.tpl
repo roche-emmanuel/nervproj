@@ -12,3 +12,7 @@
 
 # Ignore notebook checkpoints:
 *-checkpoint.ipynb
+
+# Ignore compile_commands.json:
+compile_commands.json
+
