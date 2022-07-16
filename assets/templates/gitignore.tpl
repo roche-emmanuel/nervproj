@@ -16,3 +16,5 @@
 # Ignore compile_commands.json:
 compile_commands.json
 
+# ignore local cache folder:
+.cache

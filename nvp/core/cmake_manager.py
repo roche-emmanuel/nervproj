@@ -32,6 +32,10 @@ class CMakeManager(NVPComponent):
             bprints = self.get_param("proj_names").split(",")
             dest_dir = self.get_param("mod_install_dir", None)
             rebuild = self.get_param("rebuild")
+            comp_type = self.get_param("compiler_type")
+            bman = self.get_component('builder')
+            bman.select_compiler(comp_type)
+
             self.build_projects(bprints, dest_dir, rebuild=rebuild)
             return True
 
@@ -48,9 +52,14 @@ class CMakeManager(NVPComponent):
             assert proj is not None, f"Invalid Cmake project {pname}"
             self.setup_cmake_project(proj)
             gen_cmds = self.get_param("gen_commands")
+            reconfig = self.get_param("reconfig")
+            comp_type = self.get_param("compiler_type")
+            bman = self.get_component('builder')
+            bman.select_compiler(comp_type)
+
             if gen_cmds:
                 # Also generate the compile_commands.json file:
-                self.build_project(pname, None, gen_commands=True)
+                self.build_project(pname, None, gen_commands=True, rebuild=reconfig)
             return True
 
         return False
@@ -109,6 +118,7 @@ class CMakeManager(NVPComponent):
         settings["C_Cpp.codeAnalysis.clangTidy.path"] = clang_tidy_path
         settings["C_Cpp.codeAnalysis.clangTidy.enabled"] = True
         settings["C_Cpp.codeAnalysis.runAutomatically"] = True
+        # "clangd.arguments": ["-log=verbose"]
 
         if ref_settings is None or settings != ref_settings:
             logger.info("Wrtting updated vscode settings in %s", settings_file)
@@ -413,18 +423,23 @@ class CMakeManager(NVPComponent):
 
             flags.append(f"-D{var_name}={var_val}")
 
-        builder = self.get_builder()
+        if gen_commands:
+            # Request generation of compile commands:
+            flags.append("-DCMAKE_EXPORT_COMPILE_COMMANDS=1")
 
-        flags.append("-DCMAKE_EXPORT_COMPILE_COMMANDS=1")
+            # Ensure we select the clang compiler:
+            bman.select_compiler('clang')
+
+        builder = self.get_builder()
         builder.run_cmake(build_dir, install_dir, src_dir, flags)
 
-        # Copy the compile_commands.json file:
-        comp_file = self.get_path(build_dir, "compile_commands.json")
-        self.check(self.file_exists(comp_file), "No file %s", comp_file)
-        dst_file = self.get_path(src_dir, "compile_commands.json")
-        self.rename_file(comp_file, dst_file)
-
         if gen_commands:
+            # Copy the compile_commands.json file:
+            comp_file = self.get_path(build_dir, "compile_commands.json")
+            self.check(self.file_exists(comp_file), "No file %s", comp_file)
+            dst_file = self.get_path(src_dir, "compile_commands.json")
+            self.rename_file(comp_file, dst_file)
+
             # Don't actually run the build
             return
 
@@ -461,6 +476,7 @@ if __name__ == "__main__":
     psr.add_str("proj_names")("List of modules to build")
     psr.add_str("-d", "--dir", dest="mod_install_dir")("Install folder")
     psr.add_flag("-r", "--rebuild", dest="rebuild")("Force rebuilding completely")
+    psr.add_flag("-c", "--compiler", dest="compiler_type", default="clang")("Select the compiler")
 
     psr = context.build_parser("install")
     psr.add_str("ctx_names", nargs="?", default="default")("List of module context to install")
@@ -468,5 +484,7 @@ if __name__ == "__main__":
     psr = context.build_parser("setup")
     psr.add_str("cproj_name")("Cmake project to init")
     psr.add_flag("-g", dest="gen_commands")("Generate the compile_commands.json file")
+    psr.add_flag("-r", "--reconfig", dest="reconfig")("Force reconfiguring completely")
+    psr.add_flag("-c", "--compiler", dest="compiler_type", default="clang")("Select the compiler")
 
     comp.run()

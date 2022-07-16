@@ -41,7 +41,6 @@ class BuildManager(NVPComponent):
         if self.initialized is False:
             self.initialized = True
             self.select_compiler()
-            self.setup_paths()
             self.tools = self.ctx.get_component('tools')
 
     def select_compiler(self, comp_type=None):
@@ -114,6 +113,8 @@ class BuildManager(NVPComponent):
 
         assert self.compiler is not None, f"Cannot find compiler of type {comp_type}"
         logger.info("Selecting compiler %s", self.compiler.get_name())
+
+        self.setup_paths()
 
     def load_builders(self):
         """Load the builder functions"""

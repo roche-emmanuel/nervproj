@@ -43,6 +43,7 @@ if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
 
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  message(STATUS "Building with Clang compiler")
   # using regular Clang or AppleClang
   set(CMAKE_CXX_FLAGS "-std=c++17") # -fno-strict-aliasing
 
