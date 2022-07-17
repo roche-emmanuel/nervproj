@@ -135,13 +135,16 @@ class CMakeManager(NVPComponent):
     virtual ~%CLASS_NAME%();'''
 
         if ctype is not None:
-            content_tpl = cproj["content_templates"][ctype]
+            tpl_file = cproj["content_templates"][ctype]
+            tpl_file = self.get_path(proj_dir, "cmake", "templates", tpl_file)
+            content_tpl = self.read_text_file(tpl_file)
 
         hlocs = {
             "%PROJ_PREFIX_UPPER%": prefix.upper(),
             "%CLASS_NAME_UPPER%": bname.upper(),
             "%BEGIN_NAMESPACE%": f"namespace {prefix} " + "{",
             "%END_NAMESPACE%": "}",
+            "%NAMESPACE%": prefix,
             "%CLASS_NAME%": bname,
             "%CLASS_EXPORT%": f"{mod_dir.upper}_EXPORT",
             "%CLASS_CONTENT%": content_tpl

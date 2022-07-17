@@ -37,7 +37,9 @@ class NVPProject(NVPObject):
             # Prefer the yaml config if available:
             cfg_file = self.get_path(proj_path, "nvp_config.yml")
             if self.file_exists(cfg_file):
-                self.config.update(self.read_yaml(cfg_file))
+                cfg = self.read_yaml(cfg_file)
+                # logger.info("Project %s config: %s", self.get_name(False), cfg)
+                self.config.update(cfg)
 
             # Update the scripts from what we just read from the config:
             self.scripts.update(self.config.get("scripts", {}))
