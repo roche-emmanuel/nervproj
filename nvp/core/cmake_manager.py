@@ -426,23 +426,24 @@ class CMakeManager(NVPComponent):
 
             flags.append(f"-D{var_name}={var_val}")
 
-        if gen_commands:
-            # Request generation of compile commands:
-            flags.append("-DCMAKE_EXPORT_COMPILE_COMMANDS=1")
+        # Request generation of compile commands:
+        flags.append("-DCMAKE_EXPORT_COMPILE_COMMANDS=1")
 
+        if gen_commands and not bman.get_compiler().is_clang():
             # Ensure we select the clang compiler:
             bman.select_compiler('clang')
 
         builder = self.get_builder()
         builder.run_cmake(build_dir, install_dir, src_dir, flags)
 
-        if gen_commands:
+        if bman.get_compiler().is_clang():
             # Copy the compile_commands.json file:
             comp_file = self.get_path(build_dir, "compile_commands.json")
             self.check(self.file_exists(comp_file), "No file %s", comp_file)
             dst_file = self.get_path(src_dir, "compile_commands.json")
             self.rename_file(comp_file, dst_file)
 
+        if gen_commands:
             # Don't actually run the build
             return
 
