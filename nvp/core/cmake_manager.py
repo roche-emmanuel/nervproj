@@ -112,7 +112,7 @@ class CMakeManager(NVPComponent):
 
         self.write_project_file(hlocs, dest_file, tpl_file)
 
-    def add_class_files(self, cproj, mod_name, file_name, ctype):
+    def add_class_files(self, cproj, mod_name, class_name, ctype):
         """Add a new class in a the given module"""
         proj_dir = cproj['root_dir']
         prefix = cproj['prefix']
@@ -125,8 +125,8 @@ class CMakeManager(NVPComponent):
 
         template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
 
-        dest_file = self.get_path(proj_dir, "modules", mod_dir, "src", file_name)
-        bname = self.remove_file_extension(self.get_filename(file_name))
+        dest_file = self.get_path(proj_dir, "modules", mod_dir, "src", f"{class_name}.h")
+        bname = self.remove_file_extension(self.get_filename(class_name))
 
         tpl_file = self.get_path(template_dir, "class_header.h.tpl")
 
@@ -147,9 +147,14 @@ class CMakeManager(NVPComponent):
             "%NAMESPACE%": prefix,
             "%CLASS_NAME%": bname,
             "%CLASS_EXPORT%": f"{mod_dir.upper}_EXPORT",
-            "%CLASS_CONTENT%": content_tpl
+            "%CLASS_CONTENT%": content_tpl,
+            "%CLASS_INCLUDE%": f"{class_name}.h"
         }
 
+        self.write_project_file(hlocs, dest_file, tpl_file)
+
+        dest_file = self.get_path(proj_dir, "modules", mod_dir, "src", f"{class_name}.cpp")
+        tpl_file = self.get_path(template_dir, "class_impl.cpp.tpl")
         self.write_project_file(hlocs, dest_file, tpl_file)
 
     def get_module_desc(self, cproj, mod_name):
