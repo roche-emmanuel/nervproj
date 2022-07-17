@@ -49,7 +49,7 @@ class CMakeManager(NVPComponent):
         if cmd == 'setup':
             pname = self.get_param("cproj_name")
             proj = self.get_cmake_project(pname)
-            assert proj is not None, f"Invalid Cmake project {pname}"
+            self.check(proj is not None, "Invalid Cmake project %s", pname)
             self.setup_cmake_project(proj)
             gen_cmds = self.get_param("gen_commands")
             reconfig = self.get_param("reconfig")
@@ -62,7 +62,52 @@ class CMakeManager(NVPComponent):
                 self.build_project(pname, None, gen_commands=True, rebuild=reconfig)
             return True
 
+        if cmd == 'add.header':
+            pname = self.get_param("cproj_name")
+            proj = self.get_cmake_project(pname)
+            self.check(proj is not None, "Invalid Cmake project %s", pname)
+
+            mod_name = self.get_param("mod_name")
+            file_name = self.get_param("file_name")
+            self.add_header_file(proj, mod_name, file_name)
+
+            return True
+
         return False
+
+    def add_header_file(self, cproj, mod_name, file_name):
+        """Add a new header file in a the given module"""
+        proj_dir = cproj['root_dir']
+
+        mdesc = self.get_module_desc(cproj, mod_name)
+        self.check(mdesc is not None, "invalid cmake project module %s", mod_name)
+
+        mod_dir = mod_name
+        if mdesc.get("type", "library") == "library":
+            mod_dir = f"{cproj['prefix']}{mod_name}"
+
+        template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
+
+        dest_file = self.get_path(proj_dir, "modules", mod_dir, "src", file_name)
+        bname = self.remove_file_extension(self.get_filename(file_name))
+
+        tpl_file = self.get_path(template_dir, "header_file.h.tpl")
+
+        hlocs = {
+            "%PROJ_PREFIX_UPPER%": cproj['prefix'].upper(),
+            "%HEADER_NAME_UPPER%": bname.upper()
+        }
+
+        self.write_project_file(hlocs, dest_file, tpl_file)
+
+    def get_module_desc(self, cproj, mod_name):
+        """Retrieve a module desc by name"""
+        mods = cproj['modules']
+        for desc in mods:
+            if desc['name'] == mod_name:
+                return desc
+
+        return None
 
     def get_cmake_project(self, pname):
         """Retrieve a project by name"""
@@ -497,5 +542,10 @@ if __name__ == "__main__":
     psr.add_flag("-g", dest="gen_commands")("Generate the compile_commands.json file")
     psr.add_flag("-r", "--reconfig", dest="reconfig")("Force reconfiguring completely")
     psr.add_str("-c", "--compiler", dest="compiler_type", default="clang")("Select the compiler")
+
+    psr = context.build_parser("add.header")
+    psr.add_str("cproj_name")("Cmake project")
+    psr.add_str("mod_name")("Module name")
+    psr.add_str("file_name")("Header file name")
 
     comp.run()
