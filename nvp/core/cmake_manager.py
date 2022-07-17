@@ -277,9 +277,10 @@ class CMakeManager(NVPComponent):
 
         self.make_folder(self.get_path(lib_dir, "shared"))
 
-        dest_file = self.get_path(lib_dir, "shared", f"{lib_name.lower()}_precomp.cpp")
-        tpl_file = self.get_path(template_dir, "module_precomp.cpp.tpl")
-        self.write_project_file(hlocs, dest_file, tpl_file)
+        # Not needed:
+        # dest_file = self.get_path(lib_dir, "shared", f"{lib_name.lower()}_precomp.cpp")
+        # tpl_file = self.get_path(template_dir, "module_precomp.cpp.tpl")
+        # self.write_project_file(hlocs, dest_file, tpl_file)
 
         dest_file = self.get_path(lib_dir, "shared", "CMakeLists.txt")
         tpl_file = self.get_path(template_dir, "module_shared_cmakelists.txt.tpl")
@@ -351,7 +352,13 @@ class CMakeManager(NVPComponent):
             # Alos iterate on the sub projects to find the cmake projects:
             for proj in self.ctx.get_projects():
                 cprojs = proj.get_config().get("cmake_projects", {})
-                proj_dir = proj.get_root_dir().replace("\\", "/")
+                root_dir = proj.get_root_dir()
+                # We may not have a root dir locally for that project?
+                if root_dir is None:
+                    logger.debug("No root dir available for %s", proj.get_name(False))
+                    continue
+
+                proj_dir = root_dir.replace("\\", "/")
                 hlocs["${PROJECT_ROOT_DIR}"] = proj_dir
                 for pname, desc in cprojs.items():
                     desc['root_dir'] = self.fill_placeholders(desc['root_dir'], hlocs)
