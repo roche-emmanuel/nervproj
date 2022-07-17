@@ -3,6 +3,7 @@ pylint
 autopep8
 cmake_format
 jstyleson
+pyyaml
 requests
 xxhash
 moviepy

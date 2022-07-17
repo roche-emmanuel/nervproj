@@ -73,6 +73,18 @@ class CMakeManager(NVPComponent):
 
             return True
 
+        if cmd == 'add.class':
+            pname = self.get_param("cproj_name")
+            proj = self.get_cmake_project(pname)
+            self.check(proj is not None, "Invalid Cmake project %s", pname)
+
+            mod_name = self.get_param("mod_name")
+            file_name = self.get_param("file_name")
+            ctype = self.get_param("class_type")
+            self.add_class_files(proj, mod_name, file_name, ctype)
+
+            return True
+
         return False
 
     def add_header_file(self, cproj, mod_name, file_name):
@@ -96,6 +108,43 @@ class CMakeManager(NVPComponent):
         hlocs = {
             "%PROJ_PREFIX_UPPER%": cproj['prefix'].upper(),
             "%HEADER_NAME_UPPER%": bname.upper()
+        }
+
+        self.write_project_file(hlocs, dest_file, tpl_file)
+
+    def add_class_files(self, cproj, mod_name, file_name, ctype):
+        """Add a new class in a the given module"""
+        proj_dir = cproj['root_dir']
+        prefix = cproj['prefix']
+        mdesc = self.get_module_desc(cproj, mod_name)
+        self.check(mdesc is not None, "invalid cmake project module %s", mod_name)
+
+        mod_dir = mod_name
+        if mdesc.get("type", "library") == "library":
+            mod_dir = f"{prefix}{mod_name}"
+
+        template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
+
+        dest_file = self.get_path(proj_dir, "modules", mod_dir, "src", file_name)
+        bname = self.remove_file_extension(self.get_filename(file_name))
+
+        tpl_file = self.get_path(template_dir, "class_header.h.tpl")
+
+        content_tpl = '''public:
+    %CLASS_NAME%();
+    virtual ~%CLASS_NAME%();'''
+
+        if ctype is not None:
+            content_tpl = cproj["content_templates"][ctype]
+
+        hlocs = {
+            "%PROJ_PREFIX_UPPER%": prefix.upper(),
+            "%CLASS_NAME_UPPER%": bname.upper(),
+            "%BEGIN_NAMESPACE%": f"namespace {prefix} " + "{",
+            "%END_NAMESPACE%": "}",
+            "%CLASS_NAME%": bname,
+            "%CLASS_EXPORT%": f"{mod_dir.upper}_EXPORT",
+            "%CLASS_CONTENT%": content_tpl
         }
 
         self.write_project_file(hlocs, dest_file, tpl_file)
@@ -547,5 +596,11 @@ if __name__ == "__main__":
     psr.add_str("cproj_name")("Cmake project")
     psr.add_str("mod_name")("Module name")
     psr.add_str("file_name")("Header file name")
+
+    psr = context.build_parser("add.class")
+    psr.add_str("cproj_name")("Cmake project")
+    psr.add_str("mod_name")("Module name")
+    psr.add_str("file_name")("class file name")
+    psr.add_str("-t", dest="class_type")("Type of the class to create.")
 
     comp.run()

@@ -295,10 +295,16 @@
   // Available custom python environments:
   "custom_python_envs": {
     "min_env": {
-      "packages": ["requests", "jstyleson", "xxhash", "pycryptodome"]
+      "packages": ["requests", "jstyleson", "pyyaml", "xxhash", "pycryptodome"]
     },
     "social_env": {
-      "packages": ["requests", "jstyleson", "xxhash", "requests-oauthlib"]
+      "packages": [
+        "requests",
+        "jstyleson",
+        "pyyaml",
+        "xxhash",
+        "requests-oauthlib"
+      ]
     }
   },
 

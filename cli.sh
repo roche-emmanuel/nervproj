@@ -118,8 +118,25 @@ _nvp_run_cli_linux() {
         $python_path -m pip install -r $root_dir/tools/requirements.txt
     fi
 
-    # Execute the command in python:
-    $python_path $root_dir/cli.py "$@"
+    if [ "$1" == "--install-py-reqs" ]; then
+        echo "Installing python requirements..."
+        $python_path -m pip install -r $root_dir/tools/requirements.txt
+    elif [ "$1" == "--pre-commit" ]; then
+        $python_path -m flake8 --max-line-length=120 $root_dir/nvp 2>&1 | tee $root_dir/pre-commit.log
+        $python_path -m black --line-length 120 $root_dir/nvp 2>&1 | tee -a $root_dir/pre-commit.log
+        $python_path -m isort --profile black $root_dir/nvp 2>&1 | tee -a $root_dir/pre-commit.log
+    elif [ "$1" == "python" ]; then
+        # shift the args by one:
+        shift
+        $python_path "$@"
+    elif [ "$1" == "pip" ]; then
+        # shift the args by one:
+        shift
+        $python_path -m pip "$@"
+    else
+        # Execute the command in python:
+        $python_path $root_dir/cli.py "$@"
+    fi
 }
 
 nvp() {

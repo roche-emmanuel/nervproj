@@ -25,6 +25,9 @@ import requests
 import xxhash
 import urllib3
 
+import yaml
+from yaml.loader import SafeLoader
+
 logger = logging.getLogger(__name__)
 
 printer = pprint.PrettyPrinter(indent=2)
@@ -365,6 +368,28 @@ class NVPObject(object):
         """Write a structure as JSON file"""
         content = jstyleson.dumps(data, indent=indent)
         self.write_text_file(content, *parts)
+
+    def read_yaml(self, *parts):
+        """Read a YAML file as dict"""
+        fname = self.get_path(*parts)
+        try:
+            with open(fname, "r", encoding="utf-8") as file:
+                data = yaml.load(file, Loader=SafeLoader)
+            return data
+        except yaml.YAMLError as err:
+            logger.error("Error parsing yaml file %s: %s", fname, str(err))
+            raise err
+
+    def write_yaml(self, data: dict, *parts):
+        """Save a dict as YAML file"""
+        fname = self.get_path(*parts)
+        try:
+            os.makedirs(os.path.dirname(fname), exist_ok=True)
+            with open(fname, "w+", encoding="utf-8") as file:
+                yaml.dump(data, file)
+        except yaml.YAMLError as err:
+            logger.error("Error writing yaml file %s: %s", fname, str(err))
+            raise err
 
     def read_ini(self, *parts):
         """Read a configparser object from a given file"""
