@@ -126,6 +126,10 @@ class CMakeManager(NVPComponent):
         template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
 
         dest_file = self.get_path(proj_dir, "modules", mod_dir, "src", f"{class_name}.h")
+
+        parent_dir = self.get_parent_folder(dest_file)
+        self.make_folder(parent_dir)
+
         bname = self.remove_file_extension(self.get_filename(class_name))
 
         tpl_file = self.get_path(template_dir, "class_header.h.tpl")
@@ -135,9 +139,13 @@ class CMakeManager(NVPComponent):
     virtual ~%CLASS_NAME%();'''
 
         if ctype is not None:
-            tpl_file = cproj["content_templates"][ctype]
-            tpl_file = self.get_path(proj_dir, "cmake", "templates", tpl_file)
-            content_tpl = self.read_text_file(tpl_file)
+            ctpl_file = cproj["content_templates"][ctype]
+            ctpl_file = self.get_path(proj_dir, "cmake", "templates", tpl_file)
+            content_tpl = self.read_text_file(ctpl_file)
+
+        # We just replace the content part in our global template:
+        header_tpl = self.read_text_file(tpl_file)
+        header_tpl = header_tpl.replace("%CLASS_CONTENT%", content_tpl)
 
         hlocs = {
             "%PROJ_PREFIX_UPPER%": prefix.upper(),
@@ -146,16 +154,18 @@ class CMakeManager(NVPComponent):
             "%END_NAMESPACE%": "}",
             "%NAMESPACE%": prefix,
             "%CLASS_NAME%": bname,
-            "%CLASS_EXPORT%": f"{mod_dir.upper}_EXPORT",
-            "%CLASS_CONTENT%": content_tpl,
+            "%CLASS_EXPORT%": f"{mod_dir.upper()}_EXPORT",
             "%CLASS_INCLUDE%": f"{class_name}.h"
         }
 
-        self.write_project_file(hlocs, dest_file, tpl_file)
+        self.write_project_file_content(hlocs, dest_file, header_tpl)
 
         dest_file = self.get_path(proj_dir, "modules", mod_dir, "src", f"{class_name}.cpp")
         tpl_file = self.get_path(template_dir, "class_impl.cpp.tpl")
         self.write_project_file(hlocs, dest_file, tpl_file)
+
+        # generate the compile commands:
+        self.build_project(cproj['name'].lower(), None, gen_commands=True)
 
     def get_module_desc(self, cproj, mod_name):
         """Retrieve a module desc by name"""
@@ -296,13 +306,17 @@ class CMakeManager(NVPComponent):
             else:
                 self.throw("Unsupported cmake module type: %s", mtype)
 
-    def write_project_file(self, hlocs, dest_file, tpl_file):
-        """Write a module file from a given template"""
+    def write_project_file_content(self, hlocs, dest_file, content):
+        """Write some string content in destination file"""
         if not self.file_exists(dest_file):
             logger.info("Writing file %s", dest_file)
-            content = self.read_text_file(tpl_file)
             content = self.fill_placeholders(content, hlocs)
             self.write_text_file(content, dest_file)
+
+    def write_project_file(self, hlocs, dest_file, tpl_file):
+        """Write a module file from a given template"""
+        content = self.read_text_file(tpl_file)
+        self.write_project_file_content(hlocs, dest_file, content)
 
     def append_unique_line(self, dest_file, new_line):
         """Uniquely append a newline at the end of a given file if not present already"""
@@ -443,17 +457,22 @@ class CMakeManager(NVPComponent):
     def collect_cmake_projects(self):
         """Collect the available modules"""
         if self.cmake_projects is None:
-            self.cmake_projects = self.config.get("cmake_projects", {})
+            self.cmake_projects = {}
             root_dir = self.ctx.get_root_dir().replace("\\", "/")
             hlocs = {
                 "${NVP_ROOT_DIR}": root_dir
             }
-            for _name, desc in self.cmake_projects.items():
+
+            cprojs = self.config.get("cmake_projects", [])
+            for desc in cprojs:
+                pname = desc['name'].lower()
                 desc['root_dir'] = self.fill_placeholders(desc['root_dir'], hlocs)
+                self.check(pname not in self.cmake_projects, "Cmake project %s already registered.", pname)
+                self.cmake_projects[pname] = desc
 
             # Alos iterate on the sub projects to find the cmake projects:
             for proj in self.ctx.get_projects():
-                cprojs = proj.get_config().get("cmake_projects", {})
+                cprojs = proj.get_config().get("cmake_projects", [])
                 root_dir = proj.get_root_dir()
                 # We may not have a root dir locally for that project?
                 if root_dir is None:
@@ -462,7 +481,8 @@ class CMakeManager(NVPComponent):
 
                 proj_dir = root_dir.replace("\\", "/")
                 hlocs["${PROJECT_ROOT_DIR}"] = proj_dir
-                for pname, desc in cprojs.items():
+                for desc in cprojs:
+                    pname = desc['name'].lower()
                     desc['root_dir'] = self.fill_placeholders(desc['root_dir'], hlocs)
                     desc['install_dir'] = self.fill_placeholders(desc['install_dir'], hlocs)
 

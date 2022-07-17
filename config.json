@@ -184,9 +184,10 @@
   },
 
   // List of local blueprints that we can build:
-  "cmake_projects": {
+  "cmake_projects": [
     // Fastnoise2 python bindings:
-    "pyfn2": {
+    {
+      "name": "pyfn2",
       "root_dir": "${NVP_ROOT_DIR}/sources/pyfn2",
       "install_dir": "${NVP_ROOT_DIR}/dist/bin",
       "dependencies": {
@@ -197,7 +198,7 @@
         "PY_VERS_MINOR": "python:version_minor"
       }
     }
-  },
+  ],
 
   // list of scripts commands:
   "scripts": {
