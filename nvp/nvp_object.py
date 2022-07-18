@@ -507,6 +507,19 @@ class NVPObject(object):
         output_buffer = kwargs.get("output_buffer", None)
         num_last_outputs = kwargs.get("num_last_outputs", 20)
         encoding = kwargs.get("encoding", 'utf-8')
+        check_call = kwargs.get("use_check_call", False)
+
+        if check_call:
+            # Simple mechanism with check_call usage:
+            stdout = None if verbose else subprocess.DEVNULL
+            stderr = None if verbose else subprocess.DEVNULL
+            try:
+                # logger.info("Check_call for %s...", cmd)
+                subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
+                return True, 0, None
+            except subprocess.CalledProcessError as err:
+                outputs = str(err).splitlines()
+                return False, err.returncode, outputs
 
         # stdout = None if verbose else subprocess.DEVNULL
         # stderr = None if verbose else subprocess.DEVNULL

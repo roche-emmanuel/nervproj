@@ -210,7 +210,7 @@ class GitManager(NVPComponent):
         base_dir = self.get_parent_folder(dest_folder)
         self.make_folder(base_dir)
 
-        cmd = ["clone"]
+        cmd = ["clone", "--progress"]
         if mirror:
             cmd.append("--mirror")
         cmd += [url, dest_folder]
