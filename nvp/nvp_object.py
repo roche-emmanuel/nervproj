@@ -786,6 +786,9 @@ class NVPObject(object):
             return None
 
         for loc, rep in hlocs.items():
+            if rep is None:
+                logger.debug("Ignoring invalid replacement for %s in %s", loc, content)
+                continue
             content = content.replace(loc, rep)
 
         return content
