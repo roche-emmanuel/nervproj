@@ -7,8 +7,8 @@ class %CLASS_EXPORT% %CLASS_NAME% {
     NV_DECLARE_CLASS(nv::%CLASS_NAME%)
 
 public:
-    %CLASS_NAME%();
-    virtual ~%CLASS_NAME%();
+    %CLASS_NAME%() = default;
+    // virtual ~%CLASS_NAME%();
 };
 
 %END_NAMESPACE%

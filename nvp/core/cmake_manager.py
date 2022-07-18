@@ -81,7 +81,9 @@ class CMakeManager(NVPComponent):
             mod_name = self.get_param("mod_name")
             file_name = self.get_param("file_name")
             ctype = self.get_param("class_type")
-            self.add_class_files(proj, mod_name, file_name, ctype)
+            force = self.get_param("force_write")
+
+            self.add_class_files(proj, mod_name, file_name, ctype, rewrite=force)
 
             return True
 
@@ -112,7 +114,7 @@ class CMakeManager(NVPComponent):
 
         self.write_project_file(hlocs, dest_file, tpl_file)
 
-    def add_class_files(self, cproj, mod_name, class_name, ctype):
+    def add_class_files(self, cproj, mod_name, class_name, ctype, rewrite):
         """Add a new class in a the given module"""
         proj_dir = cproj['root_dir']
         prefix = cproj['prefix']
@@ -126,6 +128,9 @@ class CMakeManager(NVPComponent):
         template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
 
         dest_file = self.get_path(proj_dir, "modules", mod_dir, "src", f"{class_name}.h")
+
+        if rewrite and self.file_exists(dest_file):
+            self.remove_file(dest_file)
 
         parent_dir = self.get_parent_folder(dest_file)
         self.make_folder(parent_dir)
@@ -161,6 +166,9 @@ class CMakeManager(NVPComponent):
         self.write_project_file_content(hlocs, dest_file, header_tpl)
 
         dest_file = self.get_path(proj_dir, "modules", mod_dir, "src", f"{class_name}.cpp")
+        if rewrite and self.file_exists(dest_file):
+            self.remove_file(dest_file)
+
         tpl_file = self.get_path(template_dir, "class_impl.cpp.tpl")
         self.write_project_file(hlocs, dest_file, tpl_file)
 
@@ -630,5 +638,6 @@ if __name__ == "__main__":
     psr.add_str("mod_name")("Module name")
     psr.add_str("file_name")("class file name")
     psr.add_str("-t", dest="class_type")("Type of the class to create.")
+    psr.add_flag("-f", dest="force_write")('Force rewriting the class files')
 
     comp.run()
