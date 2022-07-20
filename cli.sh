@@ -122,9 +122,18 @@ _nvp_run_cli_linux() {
         echo "Installing python requirements..."
         $python_path -m pip install -r $root_dir/tools/requirements.txt
     elif [ "$1" == "--pre-commit" ]; then
-        $python_path -m flake8 --max-line-length=120 $root_dir/nvp 2>&1 | tee $root_dir/pre-commit.log
-        $python_path -m black --line-length 120 $root_dir/nvp 2>&1 | tee -a $root_dir/pre-commit.log
-        $python_path -m isort --profile black $root_dir/nvp 2>&1 | tee -a $root_dir/pre-commit.log
+        echo "black outputs:" >$root_dir/pre-commit.log
+        $python_path -m black --line-length 120 $root_dir/$2 >>$root_dir/pre-commit.log 2>&1
+        echo "isort outputs:" >>$root_dir/pre-commit.log
+        $python_path -m isort --profile black $root_dir/$2 >>$root_dir/pre-commit.log 2>&1
+        echo "flake8 outputs:" >>$root_dir/pre-commit.log
+        $python_path -m flake8 --max-line-length=120 --ignore="E203,W503" $root_dir/$2 >>$root_dir/pre-commit.log 2>&1
+        status=$?
+        if [ "$status" == "0" ]; then
+            echo "OK"
+        else
+            echo "FAILED"
+        fi
     elif [ "$1" == "python" ]; then
         # shift the args by one:
         shift
