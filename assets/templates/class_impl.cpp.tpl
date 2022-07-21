@@ -4,9 +4,9 @@
 
 %BEGIN_NAMESPACE%
 
-// %CLASS_NAME%::%CLASS_NAME%() {
+%CLASS_NAME%::%CLASS_NAME%() {
 
-// }
+}
 
 // %CLASS_NAME%::~%CLASS_NAME%() {
 

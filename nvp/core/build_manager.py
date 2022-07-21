@@ -372,6 +372,9 @@ class BuildManager(NVPComponent):
             preview = self.get_param('preview')
             append = self.get_param('append')
             keep_build = self.get_param("keep_build", False)
+            ctype = self.get_param("compiler_type")
+            if ctype is not None:
+                self.select_compiler(ctype)
 
             self.check_libraries(dlist, rebuild, preview, append, keep_build)
             return True
@@ -398,7 +401,7 @@ if __name__ == "__main__":
 
     psr = context.build_parser("libs")
     psr.add_str("lib_names")("List of libraries to build")
-    # psr.add_str("-c", "--compiler", dest="compiler_type")("Compiler for the build")
+    psr.add_str("-c", "--compiler", dest="compiler_type")("Compiler for the build")
     psr.add_flag("--rebuild", dest="rebuild")("Force rebuilding from sources")
     psr.add_flag("--preview", dest="preview")("Preview sources only")
     psr.add_flag("-k", "--keep-build", dest="keep_build")("Keep the build folder after build")

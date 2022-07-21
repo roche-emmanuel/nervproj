@@ -3,13 +3,7 @@
 
 %BEGIN_NAMESPACE%
 
-class %CLASS_EXPORT% %CLASS_NAME% {
-    NV_DECLARE_CLASS(nv::%CLASS_NAME%)
-
-public:
-    %CLASS_NAME%() = default;
-    // virtual ~%CLASS_NAME%();
-};
+%CLASS_CONTENT%
 
 %END_NAMESPACE%
 

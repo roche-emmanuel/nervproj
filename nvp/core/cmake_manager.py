@@ -93,6 +93,10 @@ class CMakeManager(NVPComponent):
         """Add a new header file in a the given module"""
         proj_dir = cproj['root_dir']
 
+        # Add .h to the end of the file if needed:
+        if not file_name.endswith(".h"):
+            file_name += ".h"
+
         mdesc = self.get_module_desc(cproj, mod_name)
         self.check(mdesc is not None, "invalid cmake project module %s", mod_name)
 
@@ -139,11 +143,12 @@ class CMakeManager(NVPComponent):
 
         tpl_file = self.get_path(template_dir, "class_header.h.tpl")
 
-        content_tpl = '''public:
-    %CLASS_NAME%();
-    virtual ~%CLASS_NAME%();'''
+        if ctype is None:
+            ctype = cproj.get("default_class_template", "default")
 
-        if ctype is not None:
+        if ctype == "default":
+            content_tpl = self.read_text_file(template_dir, "default_class.tpl")
+        else:
             ctpl_file = cproj["content_templates"][ctype]
             ctpl_file = self.get_path(proj_dir, "cmake", "templates", tpl_file)
             content_tpl = self.read_text_file(ctpl_file)

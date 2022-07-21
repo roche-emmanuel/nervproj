@@ -11,9 +11,7 @@
   ],
   // list of location where we should search for packages:
   // "package_urls": ["https://gitlab.nervtech.org/shared/packages/-/raw/main/"],
-  "package_urls": [
-    "http://files.nervtech.org/nvp_packages/"
-  ],
+  "package_urls": ["http://files.nervtech.org/nvp_packages/"],
   "prioritize_package_urls": true,
   // Tools that can be used on windows:
   "windows_tools": [
@@ -157,15 +155,17 @@
       "name": "FastNoise2",
       "version": "0.9.4",
       "url": "git@github.com:roche-emmanuel/FastNoise2.git"
+    },
+    {
+      "name": "spdlog",
+      "version": "1.10.0",
+      "url": "git@github.com:roche-emmanuel/spdlog.git"
     }
   ],
   // list of available projects:
   "projects": [],
   // Default project search paths:
-  "project_paths": [
-    "D:\\Projects",
-    "/mnt/array1/dev/projects"
-  ],
+  "project_paths": ["D:\\Projects", "/mnt/array1/dev/projects"],
   // Paths where to search for the user config file:
   "user_config_urls": [
     "D:\\Seafile\\Perso\\Admin\\nervproj.config.json",
@@ -202,105 +202,79 @@
       "help": "Test the bindings generated for the fastnoise2 library",
       "cmd": "${PYTHON} -m pytest -s",
       "cwd": "${NVP_ROOT_DIR}/tests/pyfn2",
-      "python_path": [
-        "${NVP_ROOT_DIR}"
-      ]
+      "python_path": ["${NVP_ROOT_DIR}"]
     },
     "rchat": {
       "help": "Send a message on the configured rocketchat server",
       "custom_python_env": "social_env",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/communication/rocketchat.py send",
-      "python_path": [
-        "${NVP_ROOT_DIR}"
-      ]
+      "python_path": ["${NVP_ROOT_DIR}"]
     },
     "admin": {
       "help": "Admin commands",
       "custom_python_env": "min_env",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/admin.py",
-      "python_path": [
-        "${NVP_ROOT_DIR}"
-      ]
+      "python_path": ["${NVP_ROOT_DIR}"]
     },
     "cmake": {
       "help": "Cmake commands",
       "output_encoding": "latin1",
       "custom_python_env": "min_env",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/cmake_manager.py",
-      "python_path": [
-        "${NVP_ROOT_DIR}"
-      ]
+      "python_path": ["${NVP_ROOT_DIR}"]
     },
     "build": {
       "help": "Builder commands",
       "custom_python_env": "min_env",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/build_manager.py",
-      "python_path": [
-        "${NVP_ROOT_DIR}"
-      ]
+      "python_path": ["${NVP_ROOT_DIR}"]
     },
     "encrypter": {
       "help": "Generate a pair of RSA key",
       "custom_python_env": "min_env",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/encrypter.py",
-      "python_path": [
-        "${NVP_ROOT_DIR}"
-      ]
+      "python_path": ["${NVP_ROOT_DIR}"]
     },
     "encrypt": {
       "help": "Generate a pair of RSA key",
       "custom_python_env": "min_env",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/encrypter.py encrypt",
-      "python_path": [
-        "${NVP_ROOT_DIR}"
-      ]
+      "python_path": ["${NVP_ROOT_DIR}"]
     },
     "decrypt": {
       "help": "Generate a pair of RSA key",
       "custom_python_env": "min_env",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/encrypter.py decrypt",
-      "python_path": [
-        "${NVP_ROOT_DIR}"
-      ]
+      "python_path": ["${NVP_ROOT_DIR}"]
     },
     "email": {
       "help": "Send an email",
       "custom_python_env": "min_env",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/communication/email_handler.py send",
-      "python_path": [
-        "${NVP_ROOT_DIR}"
-      ]
+      "python_path": ["${NVP_ROOT_DIR}"]
     },
     "nodejs": {
       "help": "Run nodejs manager",
       "custom_python_env": "min_env",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/nodejs_manager.py",
-      "python_path": [
-        "${NVP_ROOT_DIR}"
-      ]
+      "python_path": ["${NVP_ROOT_DIR}"]
     },
     "python": {
       "help": "Run a python command",
       "use_local_python": true,
       "cmd": "${PYTHON}",
-      "python_path": [
-        "${PROJECT_ROOT_DIR}"
-      ]
+      "python_path": ["${PROJECT_ROOT_DIR}"]
     },
     "pip": {
       "help": "Run a pip command",
       "use_local_python": true,
       "cmd": "${PYTHON} -m pip",
-      "python_path": [
-        "${PROJECT_ROOT_DIR}"
-      ]
+      "python_path": ["${PROJECT_ROOT_DIR}"]
     },
     "git": {
       "help": "Run a git command",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/git_manager.py",
-      "python_path": [
-        "${NVP_ROOT_DIR}"
-      ]
+      "python_path": ["${NVP_ROOT_DIR}"]
     },
     "tidy": {
       "help": "Run clang-tidy command",
@@ -309,22 +283,14 @@
     "gitlab": {
       "help": "Run a gitlab command",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/gitlab_manager.py",
-      "python_path": [
-        "${NVP_ROOT_DIR}"
-      ]
+      "python_path": ["${NVP_ROOT_DIR}"]
     }
   },
   "notify_script_errors": true,
   // Available custom python environments:
   "custom_python_envs": {
     "min_env": {
-      "packages": [
-        "requests",
-        "jstyleson",
-        "pyyaml",
-        "xxhash",
-        "pycryptodome"
-      ]
+      "packages": ["requests", "jstyleson", "pyyaml", "xxhash", "pycryptodome"]
     },
     "social_env": {
       "packages": [

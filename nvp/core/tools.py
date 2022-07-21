@@ -204,7 +204,7 @@ class ToolsManager(NVPComponent):
 
         if url.startswith("git@"):
             logger.info("Checking out git repo %s...", url)
-            cmd = [self.get_git_path(), "clone", url, dest_file]
+            cmd = [self.get_git_path(), "clone", "--progress", url, dest_file]
             self.execute(cmd)
             return True
 
