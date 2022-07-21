@@ -150,7 +150,7 @@ class CMakeManager(NVPComponent):
             content_tpl = self.read_text_file(template_dir, "default_class.tpl")
         else:
             ctpl_file = cproj["content_templates"][ctype]
-            ctpl_file = self.get_path(proj_dir, "cmake", "templates", tpl_file)
+            ctpl_file = self.get_path(proj_dir, "cmake", "templates", ctpl_file)
             content_tpl = self.read_text_file(ctpl_file)
 
         # We just replace the content part in our global template:
