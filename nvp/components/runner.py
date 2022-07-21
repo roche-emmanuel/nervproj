@@ -2,10 +2,11 @@
 import logging
 import os
 import time
+from pathlib import Path
+
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
 from nvp.nvp_project import NVPProject
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -134,13 +135,22 @@ class ScriptRunner(NVPComponent):
         cwd = self.fill_placeholders(desc.get('cwd', None), hlocs)
 
         env = None
+
+        key = f"{self.platform}_env"
+        env_dict = desc[key] if key in desc else desc.get('env', None)
+
+        if env_dict is not None:
+            env = os.environ.copy()
+            for key, val in env_dict.items():
+                env[key] = self.fill_placeholders(val, hlocs)
+
         if "python_path" in desc:
             elems = desc["python_path"]
             elems = [self.fill_placeholders(el, hlocs).replace("\\", "/") for el in elems]
             sep = ";" if self.is_windows else ":"
             pypath = sep.join(elems)
             logger.debug("Using pythonpath: %s", pypath)
-            env = os.environ.copy()
+            env = env or os.environ.copy()
             env['PYTHONPATH'] = pypath
 
         # If we have an environment created, we should ensure that we set the PWD correctly:
