@@ -26,3 +26,6 @@ build/
 
 # Ignore the nodejs envs
 .nodeenvs/
+
+# Ignore the vscode settings
+.vscode/settings.json
