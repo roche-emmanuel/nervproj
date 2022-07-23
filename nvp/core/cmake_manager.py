@@ -1,10 +1,10 @@
 """CMakeManager module"""
 import logging
 
+from nvp.nvp_builder import NVPBuilder
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
 from nvp.nvp_project import NVPProject
-from nvp.nvp_builder import NVPBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -526,8 +526,12 @@ class CMakeManager(NVPComponent):
         if install_dir is None:
             install_dir = desc["install_dir"]
 
+        bman = self.get_component('builder')
+        ctype = bman.get_compiler().get_type()
+      
         # we should run a cmake command
-        build_dir = self.get_path(self.build_dir, proj_name)
+        # For the build dir we should also append the compiler type:
+        build_dir = self.get_path(self.build_dir, f"{proj_name}_{ctype}")
         if rebuild and self.dir_exists(build_dir):
             logger.info("Removing build folder %s", build_dir)
             self.remove_folder(build_dir, recursive=True)
@@ -540,7 +544,7 @@ class CMakeManager(NVPComponent):
         # check if we have dependencies:
         deps = desc.get("dependencies", {})
 
-        bman = self.get_component('builder')
+        
         tool = self.get_component('tools')
 
         for var_name, tgt in deps.items():
