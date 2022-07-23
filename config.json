@@ -138,8 +138,10 @@
     },
     {
       "name": "boost",
-      "version": "1.78.0",
-      "url": "https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.7z"
+      // "version": "1.78.0",
+      // "url": "https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.7z"
+      "version": "1.79.0",
+      "url": "https://boostorg.jfrog.io/artifactory/main/release/1.79.0/source/boost_1_79_0.7z"
     },
     {
       "name": "SDL2",

@@ -103,14 +103,17 @@ class BoostBuilder(NVPBuilder):
         py_path = self.tools.get_tool_path("python").replace("\\", "/")
         py_vers = self.tools.get_tool_desc("python")["version"].split(".")
 
+        ver_major = self.compiler.get_major_version()
+        ver_minor = self.compiler.get_minor_version()
+
         with open(self.get_path(build_dir, "user-config.jam"), "w", encoding="utf-8") as file:
             # Note: Should not add the -std=c++11 flag below as this will lead to an error with C files:
-            file.write(f"using clang : : {comp_path} : ")
+            file.write(f"using clang : {ver_major}.{ver_minor} : {comp_path} : ")
             if self.is_windows:
                 file.write("cxxstd=17 ")
                 file.write(f"<ranlib>\"{comp_dir}/llvm-ranlib.exe\" ")
                 file.write(f"<archiver>\"{comp_dir}/llvm-ar.exe\" ")
-                file.write("<cxxflags>-D_CRT_SECURE_NO_WARNINGS ")
+                file.write("<cxxflags>\"-D_CRT_SECURE_NO_WARNINGS -D_MT -D_DLL -Xclang --dependent-lib=msvcrt\" ")
                 # file.write(f"<cxxflags>-D_SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING ")
                 file.write(";\n")
             else:
@@ -126,8 +129,9 @@ class BoostBuilder(NVPBuilder):
         bjam = self.get_path(build_dir, f'./b2{ext}')
         # tgt_os = "windows" if self.is_windows else "linux"
         # f"target-os={tgt_os}",
+        # "--buildid=clang",
         bjam_cmd = [bjam, "--user-config=user-config.jam",
-                    "--buildid=clang", "-j", "8", "toolset=clang",
+                    "-j", "8", "toolset=clang",
                     "--prefix="+prefix, "--without-mpi", "-sNO_BZIP2=1",
                     "architecture=x86", "variant=release", "link=static", "threading=multi",
                     "address-model=64"]

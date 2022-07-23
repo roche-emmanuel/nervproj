@@ -1,6 +1,9 @@
 # This file list the requirements for python environment in Nervland:
 pylint
 autopep8
+black
+isort
+flake8
 cmake_format
 jstyleson
 pyyaml
