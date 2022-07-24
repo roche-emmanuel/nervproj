@@ -1,30 +1,30 @@
 """NVP base object class"""
+import collections
 import configparser
+import json
 
 # import traceback
 import logging
 import os
-import stat
 import pprint
+import re
+import shutil
+import signal
+import stat
+import subprocess
+import sys
+import threading
 import time
 import unicodedata
-import re
-import threading
-import sys
-import subprocess
-import shutil
-import collections
-from threading import Thread
-from queue import Queue
-import signal
-import json
 import urllib
 from datetime import date, datetime
+from queue import Queue
+from threading import Thread
+
 import jstyleson
 import requests
-import xxhash
 import urllib3
-
+import xxhash
 import yaml
 from yaml.loader import SafeLoader
 
@@ -567,11 +567,15 @@ class NVPObject(object):
                 Thread(target=reader, args=[proc.stderr, myq, 1]).start()
                 for _ in range(2):
                     for _source, line in iter(myq.get, None):
+                    
                         try:
                             line = line.decode(encoding)
                         except UnicodeDecodeError:
-                            logger.error("Unicode error on subprocess output line: %s", line)
-                            continue
+                            try:                    
+                                line = line.decode('cp1252')
+                            except UnicodeDecodeError:
+                                logger.error("Unicode error on subprocess output line: %s", line)
+                                continue
 
                         # Should not be needed here since we are not sending the '\n' character anyway:
                         # sline = line.strip()

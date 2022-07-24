@@ -1,8 +1,8 @@
 """NVP builder class"""
 
 import logging
-from nvp.core.build_manager import BuildManager
 
+from nvp.core.build_manager import BuildManager
 from nvp.nvp_object import NVPObject
 
 logger = logging.getLogger(__name__)
@@ -79,23 +79,23 @@ class NVPBuilder(NVPObject):
         """Run the build operation. Should be re-implemented."""
         raise NotImplementedError
 
-    def exec_ninja(self, build_dir, flags=None):
+    def exec_ninja(self, build_dir, flags=None, **kwargs):
         """Run a custom ninja command line"""
         ninja_path = self.tools.get_ninja_path()
         flags = flags or []
-        self.execute([ninja_path]+flags, cwd=build_dir, env=self.env)
+        self.execute([ninja_path]+flags, cwd=build_dir, env=self.env, **kwargs)
 
-    def run_ninja(self, build_dir):
+    def run_ninja(self, build_dir, **kwargs):
         """Execute the standard ninja build/install commands"""
-        self.exec_ninja(build_dir)
-        self.exec_ninja(build_dir, ['install'])
+        self.exec_ninja(build_dir, flags=None, **kwargs)
+        self.exec_ninja(build_dir, ['install'], **kwargs)
 
-    def run_make(self, build_dir):
+    def run_make(self, build_dir, **kwargs):
         """Execute the standard make build/install commands"""
-        self.execute(["make"], cwd=build_dir, env=self.env)
-        self.execute(["make", "install"], cwd=build_dir, env=self.env)
+        self.execute(["make"], cwd=build_dir, env=self.env, **kwargs)
+        self.execute(["make", "install"], cwd=build_dir, env=self.env, **kwargs)
 
-    def run_cmake(self, build_dir, prefix, src_dir=None, flags=None, generator="Ninja"):
+    def run_cmake(self, build_dir, prefix, src_dir=None, flags=None, generator="Ninja", **kwargs):
         """Execute Standard cmake configuration command"""
         cmd = [self.tools.get_cmake_path(), "-G", generator, "-DCMAKE_BUILD_TYPE=Release",
                f"-DCMAKE_INSTALL_PREFIX={prefix}"]
@@ -107,7 +107,7 @@ class NVPBuilder(NVPObject):
             cmd.append(src_dir)
 
         logger.info("Cmake command: %s", cmd)
-        self.execute(cmd, cwd=build_dir, env=self.env)
+        self.execute(cmd, cwd=build_dir, env=self.env, **kwargs)
 
     def run_configure(self, build_dir, prefix, flags=None, src_dir=None):
         """Execute Standard configure command"""

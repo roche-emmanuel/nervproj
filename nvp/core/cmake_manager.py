@@ -579,8 +579,12 @@ class CMakeManager(NVPComponent):
             # Ensure we select the clang compiler:
             bman.select_compiler('clang')
 
+        # Write the build outputs to a build logfile:
+        build_file = self.get_path(build_dir, f"{proj_name}_build.log")
+        outfile = None if gen_commands else open(build_file, "w", encoding="utf-8")
+
         builder = self.get_builder()
-        builder.run_cmake(build_dir, install_dir, src_dir, flags)
+        builder.run_cmake(build_dir, install_dir, src_dir, flags, outfile=outfile)
 
         if bman.get_compiler().is_clang():
             # Copy the compile_commands.json file:
@@ -593,7 +597,8 @@ class CMakeManager(NVPComponent):
             # Don't actually run the build
             return
 
-        builder.run_ninja(build_dir)
+        builder.run_ninja(build_dir, outfile=outfile)
+        outfile.close()
 
     def install_module_sets(self, proj: NVPProject, bpctx):
         """Install a list of module contexts in a given project"""
