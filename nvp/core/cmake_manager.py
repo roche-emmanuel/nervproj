@@ -28,25 +28,25 @@ class CMakeManager(NVPComponent):
     def process_cmd_path(self, cmd):
         """Check if this component can process the given command"""
 
-        if cmd == 'build':
+        if cmd == "build":
             bprints = self.get_param("proj_names").split(",")
             dest_dir = self.get_param("mod_install_dir", None)
             rebuild = self.get_param("rebuild")
             comp_type = self.get_param("compiler_type")
-            bman = self.get_component('builder')
+            bman = self.get_component("builder")
             bman.select_compiler(comp_type)
 
             self.build_projects(bprints, dest_dir, rebuild=rebuild)
             return True
 
-        if cmd == 'install':
+        if cmd == "install":
             bpctx = self.get_param("ctx_names").split(",")
             proj = self.ctx.get_current_project()
             assert proj is not None, "Invalid current project for command cmake install"
             self.install_module_sets(proj, bpctx)
             return True
 
-        if cmd == 'setup':
+        if cmd == "setup":
             pname = self.get_param("cproj_name")
             proj = self.get_cmake_project(pname)
             self.check(proj is not None, "Invalid Cmake project %s", pname)
@@ -54,7 +54,7 @@ class CMakeManager(NVPComponent):
             gen_cmds = self.get_param("gen_commands")
             reconfig = self.get_param("reconfig")
             comp_type = self.get_param("compiler_type")
-            bman = self.get_component('builder')
+            bman = self.get_component("builder")
             bman.select_compiler(comp_type)
 
             if gen_cmds:
@@ -62,7 +62,7 @@ class CMakeManager(NVPComponent):
                 self.build_project(pname, None, gen_commands=True, rebuild=reconfig)
             return True
 
-        if cmd == 'add.header':
+        if cmd == "add.header":
             pname = self.get_param("cproj_name")
             proj = self.get_cmake_project(pname)
             self.check(proj is not None, "Invalid Cmake project %s", pname)
@@ -73,7 +73,7 @@ class CMakeManager(NVPComponent):
 
             return True
 
-        if cmd == 'add.class':
+        if cmd == "add.class":
             pname = self.get_param("cproj_name")
             proj = self.get_cmake_project(pname)
             self.check(proj is not None, "Invalid Cmake project %s", pname)
@@ -91,7 +91,7 @@ class CMakeManager(NVPComponent):
 
     def add_header_file(self, cproj, mod_name, file_name):
         """Add a new header file in a the given module"""
-        proj_dir = cproj['root_dir']
+        proj_dir = cproj["root_dir"]
 
         # Add .h to the end of the file if needed:
         if not file_name.endswith(".h"):
@@ -111,17 +111,14 @@ class CMakeManager(NVPComponent):
 
         tpl_file = self.get_path(template_dir, "header_file.h.tpl")
 
-        hlocs = {
-            "%PROJ_PREFIX_UPPER%": cproj['prefix'].upper(),
-            "%HEADER_NAME_UPPER%": bname.upper()
-        }
+        hlocs = {"%PROJ_PREFIX_UPPER%": cproj["prefix"].upper(), "%HEADER_NAME_UPPER%": bname.upper()}
 
         self.write_project_file(hlocs, dest_file, tpl_file)
 
     def add_class_files(self, cproj, mod_name, class_name, ctype, rewrite):
         """Add a new class in a the given module"""
-        proj_dir = cproj['root_dir']
-        prefix = cproj['prefix']
+        proj_dir = cproj["root_dir"]
+        prefix = cproj["prefix"]
         mdesc = self.get_module_desc(cproj, mod_name)
         self.check(mdesc is not None, "invalid cmake project module %s", mod_name)
 
@@ -165,7 +162,7 @@ class CMakeManager(NVPComponent):
             "%NAMESPACE%": prefix,
             "%CLASS_NAME%": bname,
             "%CLASS_EXPORT%": f"{mod_dir.upper()}_EXPORT",
-            "%CLASS_INCLUDE%": f"{class_name}.h"
+            "%CLASS_INCLUDE%": f"{class_name}.h",
         }
 
         self.write_project_file_content(hlocs, dest_file, header_tpl)
@@ -178,13 +175,13 @@ class CMakeManager(NVPComponent):
         self.write_project_file(hlocs, dest_file, tpl_file)
 
         # generate the compile commands:
-        self.build_project(cproj['name'].lower(), None, gen_commands=True)
+        self.build_project(cproj["name"].lower(), None, gen_commands=True)
 
     def get_module_desc(self, cproj, mod_name):
         """Retrieve a module desc by name"""
-        mods = cproj['modules']
+        mods = cproj["modules"]
         for desc in mods:
-            if desc['name'] == mod_name:
+            if desc["name"] == mod_name:
                 return desc
 
         return None
@@ -201,13 +198,13 @@ class CMakeManager(NVPComponent):
         logger.info("Settings up vscode settings in %s", settings_file)
 
         # First we must ensure that the LLVm library is deployed:
-        bman = self.get_component('builder')
+        bman = self.get_component("builder")
 
         # Ensure LLVM is installed:
         logger.info("Checking LLVM library...")
-        bman.check_libraries(['llvm'])
+        bman.check_libraries(["llvm"])
 
-        llvm_dir = bman.get_library_root_dir('LLVM')
+        llvm_dir = bman.get_library_root_dir("LLVM")
         logger.info("Using LLVM root dir: %s", llvm_dir)
 
         template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
@@ -264,16 +261,16 @@ class CMakeManager(NVPComponent):
             self.setup_vscode_settings(proj)
 
         # Create the main cmakelists file if needed:
-        proj_dir = cproj['root_dir']
+        proj_dir = cproj["root_dir"]
         template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
 
-        proj_name = cproj['name']
+        proj_name = cproj["name"]
         logger.info("Setting up %s...", proj_name)
 
         hlocs = {
             "%PROJ_NAME%": proj_name,
-            "%PROJ_VERSION%": cproj['version'],
-            "%PROJ_PREFIX_UPPER%": cproj['prefix'].upper(),
+            "%PROJ_VERSION%": cproj["version"],
+            "%PROJ_PREFIX_UPPER%": cproj["prefix"].upper(),
         }
 
         dest_file = self.get_path(proj_dir, "CMakeLists.txt")
@@ -348,7 +345,7 @@ class CMakeManager(NVPComponent):
         """Add a new library to the given project"""
         # logger.info("Adding library %s to project %s", desc['name'], cproj['name'])
 
-        proj_dir = cproj['root_dir']
+        proj_dir = cproj["root_dir"]
         prefix = cproj["prefix"]
 
         template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
@@ -418,7 +415,7 @@ class CMakeManager(NVPComponent):
     def add_executable(self, cproj, desc):
         """Add an executable to the given project"""
 
-        proj_dir = cproj['root_dir']
+        proj_dir = cproj["root_dir"]
         prefix = cproj["prefix"]
 
         template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
@@ -428,11 +425,7 @@ class CMakeManager(NVPComponent):
         app_dir = self.get_path(proj_dir, "modules", app_name)
         self.make_folder(app_dir)
 
-        hlocs = {
-            "%PROJ_PREFIX_UPPER%": prefix.upper(),
-            "%PROJ_PREFIX%": prefix,
-            "%TARGET_NAME%": app_name
-        }
+        hlocs = {"%PROJ_PREFIX_UPPER%": prefix.upper(), "%PROJ_PREFIX%": prefix, "%TARGET_NAME%": app_name}
 
         # Should add the module to the main CmakeLists.txt file:
         cmake_file = self.get_path(proj_dir, "modules", "CMakeLists.txt")
@@ -461,7 +454,7 @@ class CMakeManager(NVPComponent):
     def get_builder(self):
         """Retrieve the builder associated to this component"""
         if self.builder is None:
-            bman = self.get_component('builder')
+            bman = self.get_component("builder")
             self.builder = NVPBuilder(bman)
             self.builder.init_env()
 
@@ -472,14 +465,12 @@ class CMakeManager(NVPComponent):
         if self.cmake_projects is None:
             self.cmake_projects = {}
             root_dir = self.ctx.get_root_dir().replace("\\", "/")
-            hlocs = {
-                "${NVP_ROOT_DIR}": root_dir
-            }
+            hlocs = {"${NVP_ROOT_DIR}": root_dir}
 
             cprojs = self.config.get("cmake_projects", [])
             for desc in cprojs:
-                pname = desc['name'].lower()
-                desc['root_dir'] = self.fill_placeholders(desc['root_dir'], hlocs)
+                pname = desc["name"].lower()
+                desc["root_dir"] = self.fill_placeholders(desc["root_dir"], hlocs)
                 self.check(pname not in self.cmake_projects, "Cmake project %s already registered.", pname)
                 self.cmake_projects[pname] = desc
 
@@ -495,9 +486,9 @@ class CMakeManager(NVPComponent):
                 proj_dir = root_dir.replace("\\", "/")
                 hlocs["${PROJECT_ROOT_DIR}"] = proj_dir
                 for desc in cprojs:
-                    pname = desc['name'].lower()
-                    desc['root_dir'] = self.fill_placeholders(desc['root_dir'], hlocs)
-                    desc['install_dir'] = self.fill_placeholders(desc['install_dir'], hlocs)
+                    pname = desc["name"].lower()
+                    desc["root_dir"] = self.fill_placeholders(desc["root_dir"], hlocs)
+                    desc["install_dir"] = self.fill_placeholders(desc["install_dir"], hlocs)
 
                     # Add the project name:
                     desc["nvp_project"] = proj.get_name(False)
@@ -526,9 +517,9 @@ class CMakeManager(NVPComponent):
         if install_dir is None:
             install_dir = desc["install_dir"]
 
-        bman = self.get_component('builder')
+        bman = self.get_component("builder")
         ctype = bman.get_compiler().get_type()
-      
+
         # we should run a cmake command
         # For the build dir we should also append the compiler type:
         build_dir = self.get_path(self.build_dir, f"{proj_name}_{ctype}")
@@ -544,8 +535,7 @@ class CMakeManager(NVPComponent):
         # check if we have dependencies:
         deps = desc.get("dependencies", {})
 
-        
-        tool = self.get_component('tools')
+        tool = self.get_component("tools")
 
         for var_name, tgt in deps.items():
             # For now we just expect the target to be a library name:
@@ -563,11 +553,11 @@ class CMakeManager(NVPComponent):
                 var_val = var_val.replace("\\", "/")
             elif vtype == "version_major":
                 desc = bman.get_library_desc(lib_name) or tool.get_tool_desc(lib_name)
-                parts = desc['version'].split(".")
+                parts = desc["version"].split(".")
                 var_val = parts[0]
             elif vtype == "version_minor":
                 desc = bman.get_library_desc(lib_name) or tool.get_tool_desc(lib_name)
-                parts = desc['version'].split(".")
+                parts = desc["version"].split(".")
                 var_val = parts[1]
 
             flags.append(f"-D{var_name}={var_val}")
@@ -577,11 +567,11 @@ class CMakeManager(NVPComponent):
 
         if gen_commands and not bman.get_compiler().is_clang():
             # Ensure we select the clang compiler:
-            bman.select_compiler('clang')
+            bman.select_compiler("clang")
 
         # Write the build outputs to a build logfile:
-        build_file = self.get_path(build_dir, f"{proj_name}_build.log")
-        outfile = None if gen_commands else open(build_file, "w", encoding="utf-8")
+        build_file = self.get_path(src_dir, f"{proj_name}_{ctype}_build.log")
+        outfile = None if gen_commands else open(build_file, "w", encoding="utf-8", newline="")
 
         builder = self.get_builder()
         builder.run_cmake(build_dir, install_dir, src_dir, flags, outfile=outfile)
@@ -614,9 +604,9 @@ class CMakeManager(NVPComponent):
             logger.info("Should install module set '%s' in %s", ctx_name, proj.get_name())
             mods = contexts[ctx_name]
             for mod_desc in mods:
-                logger.info("Should install module %s", mod_desc['name'])
-                mname = mod_desc['name']
-                dest_dir = mod_desc['dir'].replace("${PROJECT_ROOT_DIR}", proot_dir)
+                logger.info("Should install module %s", mod_desc["name"])
+                mname = mod_desc["name"]
+                dest_dir = mod_desc["dir"].replace("${PROJECT_ROOT_DIR}", proot_dir)
                 self.build_project(mname, dest_dir)
 
 
@@ -652,6 +642,6 @@ if __name__ == "__main__":
     psr.add_str("mod_name")("Module name")
     psr.add_str("file_name")("class file name")
     psr.add_str("-t", dest="class_type")("Type of the class to create.")
-    psr.add_flag("-f", dest="force_write")('Force rewriting the class files')
+    psr.add_flag("-f", dest="force_write")("Force rewriting the class files")
 
     comp.run()

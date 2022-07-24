@@ -63,12 +63,12 @@ class NVPObject(object):
     @property
     def is_windows(self):
         """chekc if we are on windows"""
-        return sys.platform.startswith('win32')
+        return sys.platform.startswith("win32")
 
     @property
     def is_linux(self):
         """chekc if we are on linux"""
-        return sys.platform.startswith('linux')
+        return sys.platform.startswith("linux")
 
     def check(self, cond, fmt, *args):
         """Check that a condition is true or raise an exception"""
@@ -95,8 +95,9 @@ class NVPObject(object):
                             found = err_cb(err)
                         else:
 
-                            logger.error("Exception %s occured in safe block (trial %d/%d)",
-                                         ecls.__name__, count, retries)
+                            logger.error(
+                                "Exception %s occured in safe block (trial %d/%d)", ecls.__name__, count, retries
+                            )
 
                             # logger.error("Exception occured in safe block (trial %d/%d):\n%s",
                             #              count+1, retries, traceback.format_exc())
@@ -269,7 +270,7 @@ class NVPObject(object):
         """Compute the hash for a given file path"""
         # cf. https://www.programcreek.com/python/example/111324/xxhash.xxh64
         hasher = xxhash.xxh64()
-        with open(fpath, 'rb') as file:
+        with open(fpath, "rb") as file:
             buf = file.read(blocksize)
             # otherwise hash the entire file
             while len(buf) > 0:
@@ -327,7 +328,7 @@ class NVPObject(object):
     def set_path_extension(self, src_path, ext):
         """Change the extension of a given path"""
         parts = os.path.splitext(src_path)
-        return parts[0]+ext
+        return parts[0] + ext
 
     def get_path_extension(self, src_path):
         """Get the extension of a given path"""
@@ -351,7 +352,7 @@ class NVPObject(object):
 
     def url_encode_path(self, file_path):
         """Apply URL encoding rules to a given file path"""
-        return urllib.parse.quote(file_path, safe='')
+        return urllib.parse.quote(file_path, safe="")
 
     def read_json(self, *parts):
         """Read JSON file as object"""
@@ -409,14 +410,14 @@ class NVPObject(object):
         re-write that file in place."""
 
         # Read in the file
-        with open(filename, 'r', encoding="utf-8") as file:
+        with open(filename, "r", encoding="utf-8") as file:
             filedata = file.read()
 
         # Replace the target string
         filedata = filedata.replace(src, repl)
 
         # Write the file out again
-        with open(filename, 'w', encoding="utf-8") as file:
+        with open(filename, "w", encoding="utf-8") as file:
             file.write(filedata)
 
     def copy_folder(self, src_folder, dst_folder):
@@ -463,10 +464,10 @@ class NVPObject(object):
         if not response.ok:
             return False
 
-        if not 'content-length' in response.headers:
+        if not "content-length" in response.headers:
             return False
 
-        return int(response.headers.get('content-length')) > 0
+        return int(response.headers.get("content-length")) > 0
 
     def to_cygwin_path(self, *parts):
         """Try convert a windows path to a cygwin path if applicable"""
@@ -493,7 +494,7 @@ class NVPObject(object):
         home_drive = os.getenv("HOMEDRIVE")
         home_path = os.getenv("HOMEPATH")
         assert home_drive is not None and home_path is not None, "Invalid windows home drive or path"
-        return home_drive+home_path
+        return home_drive + home_path
 
     def execute(self, cmd, **kwargs):
         """Execute a command optionally displaying the outputs."""
@@ -506,7 +507,7 @@ class NVPObject(object):
         print_outputs = kwargs.get("print_outputs", True)
         output_buffer = kwargs.get("output_buffer", None)
         num_last_outputs = kwargs.get("num_last_outputs", 20)
-        encoding = kwargs.get("encoding", 'utf-8')
+        encoding = kwargs.get("encoding", "utf-8")
         check_call = kwargs.get("use_check_call", False)
 
         if check_call:
@@ -533,21 +534,21 @@ class NVPObject(object):
             try:
                 with pipe:
                     # Note: need to read the char one by one here, until we find a \r or \n value:
-                    buf = b''
+                    buf = b""
 
                     def readop():
                         return pipe.read(1)
 
-                    for char in iter(readop, b''):
-                        if char != b'\r':
+                    for char in iter(readop, b""):
+                        if char != b"\r":
                             buf += char
 
-                        if char == b'\r' or char == b'\n':
+                        if char == b"\r" or char == b"\n":
                             queue.put((sid, buf))
-                            buf = b''
+                            buf = b""
 
                         # Add the carriage return on the new line:
-                        if char == b'\r':
+                        if char == b"\r":
                             buf += char
 
                     # for line in iter(pipe.readline, b''):
@@ -567,12 +568,12 @@ class NVPObject(object):
                 Thread(target=reader, args=[proc.stderr, myq, 1]).start()
                 for _ in range(2):
                     for _source, line in iter(myq.get, None):
-                    
+
                         try:
                             line = line.decode(encoding)
                         except UnicodeDecodeError:
-                            try:                    
-                                line = line.decode('cp1252')
+                            try:
+                                line = line.decode("cp1252")
                             except UnicodeDecodeError:
                                 logger.error("Unicode error on subprocess output line: %s", line)
                                 continue
@@ -589,7 +590,7 @@ class NVPObject(object):
                         if output_buffer is not None:
                             output_buffer.append(sline)
                         if outfile is not None:
-                            outfile.write(sline+'\n')
+                            outfile.write(sline)
                             outfile.flush()
 
             logger.debug("Waiting for subprocess to finish...")
@@ -624,7 +625,7 @@ class NVPObject(object):
 
         # prepare a pattern:
         p = re.compile(exp)
-        num = len(folder)+1
+        num = len(folder) + 1
         if recursive:
             # Retrieve all files in a given folder recursively
             res = []
@@ -634,20 +635,22 @@ class NVPObject(object):
                 #         print os.path.join(root, directory)
                 for filename in filenames:
                     fname = os.path.join(root, filename)
-                    if (os.path.isfile(fname) and p.search(fname) is not None):
+                    if os.path.isfile(fname) and p.search(fname) is not None:
                         # logDEBUG("Found file: %s" % fname)
                         # We should remove the foldre prefix here:
                         res.append(fname[num:])
             return res
         else:
-            return [f for f in os.listdir(folder) if (os.path.isfile(os.path.join(folder, f)) and p.search(f) is not None)]
+            return [
+                f for f in os.listdir(folder) if (os.path.isfile(os.path.join(folder, f)) and p.search(f) is not None)
+            ]
 
     def get_all_folders(self, folder, exp=".*", recursive=False):
         """Get all the folders matching a given pattern in a folder."""
 
         # prepare a pattern:
         p = re.compile(exp)
-        num = len(folder)+1
+        num = len(folder) + 1
         if recursive:
             # Retrieve all files in a given folder recursively
             res = []
@@ -657,13 +660,15 @@ class NVPObject(object):
                 #         print os.path.join(root, directory)
                 for filename in directories:
                     fname = os.path.join(root, filename)
-                    if (os.path.isdir(fname) and p.search(fname) is not None):
+                    if os.path.isdir(fname) and p.search(fname) is not None:
                         # logDEBUG("Found file: %s" % fname)
                         # We should remove the foldre prefix here:
                         res.append(fname[num:])
             return res
         else:
-            return [f for f in os.listdir(folder) if (os.path.isdir(os.path.join(folder, f)) and p.search(f) is not None)]
+            return [
+                f for f in os.listdir(folder) if (os.path.isdir(os.path.join(folder, f)) and p.search(f) is not None)
+            ]
 
     def prepend_env_list(self, paths, env, key="PATH"):
         """Add a list of paths to the environment PATH variable."""
@@ -722,11 +727,11 @@ class NVPObject(object):
         """
         value = str(value)
         if allow_unicode:
-            value = unicodedata.normalize('NFKC', value)
+            value = unicodedata.normalize("NFKC", value)
         else:
-            value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
-        value = re.sub(r'[^\w\s-]', '', value.lower())
-        return re.sub(r'[-\s]+', '-', value).strip('-_')
+            value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+        value = re.sub(r"[^\w\s-]", "", value.lower())
+        return re.sub(r"[-\s]+", "-", value).strip("-_")
 
     def make_get_request(self, url, params=None, timeout=None, max_retries=20, headers=None, retry_delay=0.1, **kwargs):
         """Make a get request"""
@@ -741,23 +746,33 @@ class NVPObject(object):
 
                 if resp is None:
                     count += 1
-                    logger.error("No response received from get request to %s, retrying (%d/%d)...",
-                                 url, count, max_retries)
+                    logger.error(
+                        "No response received from get request to %s, retrying (%d/%d)...", url, count, max_retries
+                    )
                     continue
 
                 if resp.status_code not in status_codes:
                     count += 1
-                    logger.error("Received bad status %d from get request to %s (params=%s): %s, retrying (%d/%d)...",
-                                 resp.status_code, url, params or "None", resp.text, count, max_retries)
+                    logger.error(
+                        "Received bad status %d from get request to %s (params=%s): %s, retrying (%d/%d)...",
+                        resp.status_code,
+                        url,
+                        params or "None",
+                        resp.text,
+                        count,
+                        max_retries,
+                    )
                     time.sleep(retry_delay)
                     continue
 
                 return resp
 
-            except (urllib3.exceptions.ReadTimeoutError,
-                    requests.exceptions.ConnectionError,
-                    requests.exceptions.ReadTimeout,
-                    requests.exceptions.Timeout):
+            except (
+                urllib3.exceptions.ReadTimeoutError,
+                requests.exceptions.ConnectionError,
+                requests.exceptions.ReadTimeout,
+                requests.exceptions.Timeout,
+            ):
                 count += 1
                 logger.error("Exception occured in get request to %s, retrying (%d/%d)...", url, count, max_retries)
 
@@ -774,24 +789,33 @@ class NVPObject(object):
 
                 if resp is None:
                     count += 1
-                    logger.error("No response received from post request to %s, retrying (%d/%d)...",
-                                 url, count, max_retries)
+                    logger.error(
+                        "No response received from post request to %s, retrying (%d/%d)...", url, count, max_retries
+                    )
                     continue
 
                 if resp.status_code != 200:
                     count += 1
-                    logger.error("Received bad status %d from post request to %s (data=%s), retrying (%d/%d)...",
-                                 resp.status_code, url, data or "None", count, max_retries)
+                    logger.error(
+                        "Received bad status %d from post request to %s (data=%s), retrying (%d/%d)...",
+                        resp.status_code,
+                        url,
+                        data or "None",
+                        count,
+                        max_retries,
+                    )
                     time.sleep(retry_delay)
                     continue
 
                 return resp
 
             # note: could cache generic requests exception requests.exceptions.RequestException below.
-            except (urllib3.exceptions.ReadTimeoutError,
-                    requests.exceptions.ConnectionError,
-                    requests.exceptions.ReadTimeout,
-                    requests.exceptions.Timeout):
+            except (
+                urllib3.exceptions.ReadTimeoutError,
+                requests.exceptions.ConnectionError,
+                requests.exceptions.ReadTimeout,
+                requests.exceptions.Timeout,
+            ):
                 count += 1
                 logger.error("Exception occured in post request to %s, retrying (%d/%d)...", url, count, max_retries)
 
