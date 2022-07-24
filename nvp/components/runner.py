@@ -116,6 +116,7 @@ class ScriptRunner(NVPComponent):
 
         hlocs["${PYTHON}"] = py_path
         hlocs["${PY_ENV_DIR}"] = pyenv_dir
+        hlocs["${NVP}"] = f"{py_path} {self.ctx.get_root_dir()}/cli.py"
 
         if "nodejs_env" in desc:
             nodejs = self.get_component("nodejs")
@@ -196,6 +197,10 @@ class ScriptRunner(NVPComponent):
         auto_restart = desc.get("auto_restart", False)
         notify = self.config.get("notify_script_errors", True)
         encoding = desc.get("output_encoding", "utf-8")
+
+        # Override notify level if applicable for this script:
+        if "notify" in desc:
+            notify = desc["notify"]
 
         while True:
             success, rcode, outputs = self.execute(cmd, cwd=cwd, env=env, outfile=logfile, encoding=encoding)
