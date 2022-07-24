@@ -1,9 +1,9 @@
 """NVP context class"""
+# import signal
+import argparse
 import logging
 import os
 import sys
-# import signal
-import argparse
 from importlib import import_module
 
 from nvp.nvp_object import NVPCheckError, NVPObject
@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 # signal.signal(signal.SIGINT, signal_handler)
+
 
 class ParserContext(object):
     """Simple class used to setup an argparse parser conviniently"""
@@ -37,8 +38,8 @@ class ParserContext(object):
     def end(self):
         """Finish the current argument"""
         if self.cur_state is not None:
-            args = self.cur_state['args']
-            del self.cur_state['args']
+            args = self.cur_state["args"]
+            del self.cur_state["args"]
             self.parser.add_argument(*args, **self.cur_state)
             self.cur_state = None
 
@@ -88,6 +89,7 @@ class ParserContext(object):
 
 class NVPContext(NVPObject):
     """Main NVP context class"""
+
     instance = None
 
     def __init__(self, base_dir=None, is_main=False):
@@ -97,15 +99,18 @@ class NVPContext(NVPObject):
 
         NVPContext.instance = self
 
-        verbose = os.getenv("NVP_VERBOSE", '0')
-        lvl = logging.DEBUG if verbose == '1' else logging.INFO
+        verbose = os.getenv("NVP_VERBOSE", "0")
+        lvl = logging.DEBUG if verbose == "1" else logging.INFO
         # print("Sys args: %s" % sys.argv)
         if sys.argv[1] == "get_dir":
             lvl = logging.ERROR
 
-        logging.basicConfig(stream=sys.stdout, level=lvl,
-                            format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
-                            datefmt='%Y/%m/%d %H:%M:%S')
+        logging.basicConfig(
+            stream=sys.stdout,
+            level=lvl,
+            format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+            datefmt="%Y/%m/%d %H:%M:%S",
+        )
 
         self.is_master = is_main
 
@@ -136,9 +141,9 @@ class NVPContext(NVPObject):
         self.commands = None
 
         pname = sys.platform
-        if pname.startswith('win32'):
+        if pname.startswith("win32"):
             self.platform = "windows"
-        elif pname.startswith('linux'):
+        elif pname.startswith("linux"):
             self.platform = "linux"
 
         assert self.platform in ["windows", "linux"], f"Unsupported platform {pname}"
@@ -181,13 +186,15 @@ class NVPContext(NVPObject):
         parent = self.parsers[pname]
 
         # level is the number of '.' we have in the parent parser name:
-        lvl = pname.count('.')
+        lvl = pname.count(".")
 
         if pname not in self.sub_parsers:
-            self.sub_parsers[pname] = parent.add_subparsers(title=f'Level{lvl} commands',
-                                                            dest=f'l{lvl}_cmd',
-                                                            description=f'Available level{lvl} commands below:',
-                                                            help=f'Level{lvl} commands additional help')
+            self.sub_parsers[pname] = parent.add_subparsers(
+                title=f"Level{lvl} commands",
+                dest=f"l{lvl}_cmd",
+                description=f"Available level{lvl} commands below:",
+                help=f"Level{lvl} commands additional help",
+            )
 
         subparsers = self.sub_parsers[pname]
 
@@ -227,19 +234,18 @@ class NVPContext(NVPObject):
         parser = argparse.ArgumentParser()
 
         # cf. https://stackoverflow.com/questions/15301147/python-argparse-default-value-or-specified-value
-        parser.add_argument("-v", "--verbose", dest='verbose', action='store_true',
-                            help="Enable display of verbose debug outputs.")
+        parser.add_argument(
+            "-v", "--verbose", dest="verbose", action="store_true", help="Enable display of verbose debug outputs."
+        )
         if is_main:
-            parser.add_argument("-p", "--project", dest='project', type=str,
-                                help="Select the current sub-project")
+            parser.add_argument("-p", "--project", dest="project", type=str, help="Select the current sub-project")
 
-        self.parsers = {'main': parser}
+        self.parsers = {"main": parser}
 
         if is_main:
             self.define_subparsers("main", ["get_dir"])
-            psr = self.get_parser('main.get_dir')
-            psr.add_argument("-p", "--project", dest='project', type=str,
-                             help="Select the current sub-project")
+            psr = self.get_parser("main.get_dir")
+            psr.add_argument("-p", "--project", dest="project", type=str, help="Select the current sub-project")
 
     def build_parser(self, pname, parent="main"):
         """Build a parser and return an associated parser context"""
@@ -463,11 +469,7 @@ class NVPContext(NVPObject):
         comp_module = import_module(mname)
 
         # Add a construct frame for this component:
-        frame = {
-            "component_name": cname,
-            "module": mname,
-            "args": args
-        }
+        frame = {"component_name": cname, "module": mname, "args": args}
         self.construct_frames.append(frame)
         comp = comp_module.create_component(self)
         comp.set_construct_frame(frame)
@@ -490,7 +492,7 @@ class NVPContext(NVPObject):
 
     def get_construct_args(self, idx=-1):
         """Retrieve the construct arguments from a given frame"""
-        args = self.construct_frames[idx]['args']
+        args = self.construct_frames[idx]["args"]
         if len(args) == 0:
             return None
         return args
@@ -580,19 +582,19 @@ class NVPContext(NVPObject):
             if len(sys.argv) >= 2:
                 script_name = sys.argv[1]
                 self.settings = {}
-                runner = self.get_component('runner')
+                runner = self.get_component("runner")
                 if runner.has_script(script_name):
                     # This is a valid script name, so we should add the "run" command
                     # before this script name:
                     sys.argv.insert(1, "run")
 
             # logger.info("Parsing args: %s", sys.argv)
-            self.settings, self.additional_args = self.parsers['main'].parse_known_args()
+            self.settings, self.additional_args = self.parsers["main"].parse_known_args()
             self.settings = vars(self.settings)
             # logger.info("Got settings: %s", self.settings)
             # logger.info("Got additional args: %s", self.additional_args)
         else:
-            self.settings = vars(self.parsers['main'].parse_args())
+            self.settings = vars(self.parsers["main"].parse_args())
 
     def run(self):
         """Run this context."""
@@ -601,7 +603,7 @@ class NVPContext(NVPObject):
 
         cmd = self.get_command(0)
 
-        if cmd == 'get_dir':
+        if cmd == "get_dir":
             self.process_get_dir()
             return
 

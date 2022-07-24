@@ -12,9 +12,7 @@ logger = logging.getLogger(__name__)
 def register_builder(bman: BuildManager):
     """Register the build function"""
 
-    bman.register_builder('LLVM', LLVMBuilder(bman, {
-        'tool_envs': ['ninja', 'python']
-    }))
+    bman.register_builder("LLVM", LLVMBuilder(bman, {"tool_envs": ["ninja", "python"]}))
 
 
 class LLVMBuilder(NVPBuilder):
@@ -30,13 +28,17 @@ class LLVMBuilder(NVPBuilder):
         # "-DLLVM_ENABLE_RUNTIMES='libcxx;libcxxabi'"
         # "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp",
 
-        self.common_flags = ["-DLLVM_TARGETS_TO_BUILD=X86",
-                             "-DLLVM_ENABLE_EH=ON", "-DLLVM_ENABLE_RTTI=ON",
-                             "-DLLVM_BUILD_TOOLS=ON",
-                             "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;libclc;lld;lldb;polly;pstl",
-                             "-DLLVM_STATIC_LINK_CXX_STDLIB=OFF", "-DLLVM_INCLUDE_TOOLS=ON",
-                             "-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF",
-                             "-DLLVM_ENABLE_LIBXML2=ON"]
+        self.common_flags = [
+            "-DLLVM_TARGETS_TO_BUILD=X86",
+            "-DLLVM_ENABLE_EH=ON",
+            "-DLLVM_ENABLE_RTTI=ON",
+            "-DLLVM_BUILD_TOOLS=ON",
+            "-DLLVM_ENABLE_PROJECTS=clang;clang-tools-extra;libclc;lld;lldb;polly;pstl",
+            "-DLLVM_STATIC_LINK_CXX_STDLIB=OFF",
+            "-DLLVM_INCLUDE_TOOLS=ON",
+            "-DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF",
+            "-DLLVM_ENABLE_LIBXML2=ON",
+        ]
 
     def get_cmake_flags(self, prefix):
         """Retrive the applicable cmake flags for the build"""
@@ -59,13 +61,13 @@ class LLVMBuilder(NVPBuilder):
             self.append_linkflag(f"/LIBPATH:{iconv_dir}/lib {iconv_lib}")
             self.append_linkflag("Ws2_32.lib")
         # else:
-            # self.append_linkflag("-Wl,-Bstatic")
-            # self.append_linkflag(f"-L{iconv_dir}/lib")
-            # self.append_linkflag(f"-L{xml2_dir}/lib")
-            # self.append_linkflag("-lxml2")
-            # self.append_linkflag(f"-l{iconv_lib}")
-            # self.append_linkflag("-Wl,-Bdynamic")
-            # self.append_linkflag(f"{iconv_lib}")
+        # self.append_linkflag("-Wl,-Bstatic")
+        # self.append_linkflag(f"-L{iconv_dir}/lib")
+        # self.append_linkflag(f"-L{xml2_dir}/lib")
+        # self.append_linkflag("-lxml2")
+        # self.append_linkflag(f"-l{iconv_lib}")
+        # self.append_linkflag("-Wl,-Bdynamic")
+        # self.append_linkflag(f"{iconv_lib}")
 
         # This is not needed/not working: using the patch below instead:
         # f"-DLIBC_INSTALL_LIBRARY_DIR={prefix}/lib",
@@ -78,15 +80,16 @@ class LLVMBuilder(NVPBuilder):
         ]
 
         if self.is_linux:
-            flags += [f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib",
-                      f"-DLIBCXX_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
-                      f"-DLIBCXX_INSTALL_INCLUDE_TARGET_DIR={prefix}/include/c++/v1",
-                      f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
-                      f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
-                      f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
-                      "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp",
-                      f"-DLIBICONV_LIBRARY={iconv_dir}/lib/{iconv_lib}"
-                      ]
+            flags += [
+                f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib",
+                f"-DLIBCXX_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
+                f"-DLIBCXX_INSTALL_INCLUDE_TARGET_DIR={prefix}/include/c++/v1",
+                f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
+                f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
+                f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
+                "-DLLVM_ENABLE_RUNTIMES=libc;libcxx;libcxxabi;libunwind;openmp",
+                f"-DLIBICONV_LIBRARY={iconv_dir}/lib/{iconv_lib}",
+            ]
 
         return flags
 
@@ -95,25 +98,31 @@ class LLVMBuilder(NVPBuilder):
 
         # Fix the libc installation folder:
         libc_file = self.get_path(build_dir, "libc", "lib", "CMakeLists.txt")
-        self.replace_in_file(libc_file,
-                             "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX}/${LLVM_DEFAULT_TARGET_TRIPLE})",
-                             "set(LIBC_INSTALL_LIBRARY_DIR lib)")
-        self.replace_in_file(libc_file,
-                             "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX})",
-                             "set(LIBC_INSTALL_LIBRARY_DIR lib)")
+        self.replace_in_file(
+            libc_file,
+            "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX}/${LLVM_DEFAULT_TARGET_TRIPLE})",
+            "set(LIBC_INSTALL_LIBRARY_DIR lib)",
+        )
+        self.replace_in_file(
+            libc_file, "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX})", "set(LIBC_INSTALL_LIBRARY_DIR lib)"
+        )
 
         # On linux we must also patch the usage of the LIBXML2 library to link to the static iconv library too
         #  for the compilation of LLDB:
         if self.is_linux:
             file = self.get_path(build_dir, "lldb", "source", "Host", "CMakeLists.txt")
-            self.replace_in_file(file,
-                                 "list(APPEND EXTRA_LIBS LibXml2::LibXml2)",
-                                 "list(APPEND EXTRA_LIBS LibXml2::LibXml2 ${LIBICONV_LIBRARY})")
+            self.replace_in_file(
+                file,
+                "list(APPEND EXTRA_LIBS LibXml2::LibXml2)",
+                "list(APPEND EXTRA_LIBS LibXml2::LibXml2 ${LIBICONV_LIBRARY})",
+            )
 
             file = self.get_path(build_dir, "clang", "tools", "c-index-test", "CMakeLists.txt")
-            self.replace_in_file(file,
-                                 "target_link_libraries(c-index-test PRIVATE LibXml2::LibXml2)",
-                                 "target_link_libraries(c-index-test PRIVATE LibXml2::LibXml2 ${LIBICONV_LIBRARY})")
+            self.replace_in_file(
+                file,
+                "target_link_libraries(c-index-test PRIVATE LibXml2::LibXml2)",
+                "target_link_libraries(c-index-test PRIVATE LibXml2::LibXml2 ${LIBICONV_LIBRARY})",
+            )
 
         # Force using libxml2 in config.h
         # cfg_file = self.get_path(build_dir, "llvm", "cmake", "modules", "LLVMConfig.cmake.in")
@@ -140,9 +149,7 @@ class LLVMBuilder(NVPBuilder):
 
         # After configuration we need to fix the config.h file:
         cfg_file = self.get_path(build_dir, "build", "include", "llvm", "Config", "config.h")
-        self.replace_in_file(cfg_file,
-                             "/* #undef LLVM_ENABLE_LIBXML2 */",
-                             "#define LLVM_ENABLE_LIBXML2 1")
+        self.replace_in_file(cfg_file, "/* #undef LLVM_ENABLE_LIBXML2 */", "#define LLVM_ENABLE_LIBXML2 1")
 
         self.run_ninja(build_dir1)
 
@@ -155,12 +162,12 @@ class LLVMBuilder(NVPBuilder):
 
         # Should also add git bash shell to the path:
         # and we should explicitly add the path to clang-cl to PATH:
-        base_dir = self.tools.get_tool_root_dir('git')
+        base_dir = self.tools.get_tool_root_dir("git")
         logger.info("Using git base path: %s", base_dir)
         pdirs = self.env.get("PATH", "")
         shell_dir = self.get_path(base_dir, "usr", "bin")
         clang_dir = self.get_path(prefix, "bin")
-        self.env['PATH'] = f"{clang_dir};{shell_dir};{pdirs}"
+        self.env["PATH"] = f"{clang_dir};{shell_dir};{pdirs}"
         # Reset the previous env flags:
         if "CFLAGS" in self.env:
             del self.env["CFLAGS"]
@@ -180,22 +187,26 @@ class LLVMBuilder(NVPBuilder):
         # => Basically, we can only build libcxx here.
 
         # prepare the flags for cmake:
-        flags = ["-S", "runtimes", "-B", "build2",
-                 f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib",
-                 f"-DLIBCXX_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
-                 f"-DLIBCXX_INSTALL_INCLUDE_TARGET_DIR={prefix}/include/c++/v1",
-                 "-DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=NO",
-                 #  f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
-                 #  f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
-                 #  f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
-                 "-DLLVM_ENABLE_RUNTIMES=libcxx",
-                 "-DCMAKE_C_COMPILER=clang-cl.exe",
-                 "-DCMAKE_CXX_COMPILER=clang-cl.exe",
-                 #  "-DLIBCXX_ENABLE_STATIC=OFF",
-                 #  "-DLIBCXXABI_ENABLE_STATIC=OFF",
-                 #  "-DLIBCXX_LINK_TESTS_WITH_SHARED_LIBCXXABI=ON",
-                 #  "-DLIBUNWIND_ENABLE_STATIC=OFF",
-                 ]
+        flags = [
+            "-S",
+            "runtimes",
+            "-B",
+            "build2",
+            f"-DLIBCXX_INSTALL_LIBRARY_DIR={prefix}/lib",
+            f"-DLIBCXX_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
+            f"-DLIBCXX_INSTALL_INCLUDE_TARGET_DIR={prefix}/include/c++/v1",
+            "-DLIBCXX_ENABLE_EXPERIMENTAL_LIBRARY=NO",
+            #  f"-DLIBCXXABI_INSTALL_LIBRARY_DIR={prefix}/lib",
+            #  f"-DLIBUNWIND_INSTALL_INCLUDE_DIR={prefix}/include/c++/v1",
+            #  f"-DLIBUNWIND_INSTALL_LIBRARY_DIR={prefix}/lib",
+            "-DLLVM_ENABLE_RUNTIMES=libcxx",
+            "-DCMAKE_C_COMPILER=clang-cl.exe",
+            "-DCMAKE_CXX_COMPILER=clang-cl.exe",
+            #  "-DLIBCXX_ENABLE_STATIC=OFF",
+            #  "-DLIBCXXABI_ENABLE_STATIC=OFF",
+            #  "-DLIBCXX_LINK_TESTS_WITH_SHARED_LIBCXXABI=ON",
+            #  "-DLIBUNWIND_ENABLE_STATIC=OFF",
+        ]
 
         logger.info("Building LLVM runtimes...")
 
@@ -204,10 +215,10 @@ class LLVMBuilder(NVPBuilder):
         # We also have to create the destination include/c++/v1 folder ourself here:
         # self.make_folder(build_dir2, "include", "c++", "v1")
 
-        self.exec_ninja(build_dir2, ['cxx'])  # , 'cxxabi' , 'unwind'
+        self.exec_ninja(build_dir2, ["cxx"])  # , 'cxxabi' , 'unwind'
         # Test are failing for now below:
         # self.exec_ninja(build_dir2, ['check-cxx'])  # , 'check-cxxabi' , 'check-unwind'
-        self.exec_ninja(build_dir2, ['install-cxx'])  # , 'install-cxxabi' , 'install-unwind'
+        self.exec_ninja(build_dir2, ["install-cxx"])  # , 'install-cxxabi' , 'install-unwind'
 
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for LLVM on linux"""

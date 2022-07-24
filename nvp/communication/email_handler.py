@@ -1,7 +1,7 @@
 """Email utility functions"""
+import email
 import logging
 import smtplib
-import email
 from email.header import Header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -30,12 +30,12 @@ class EmailHandler(NVPComponent):
     def process_command(self, cmd):
         """Check if this component can process the given command"""
 
-        if cmd == 'send':
-            msg = self.get_param('message')
+        if cmd == "send":
+            msg = self.get_param("message")
             assert msg is not None, "Invalid email message."
-            title = self.get_param('title', None)
-            to_addrs = self.get_param('to_addrs', None)
-            from_addr = self.get_param('from_addr', None)
+            title = self.get_param("title", None)
+            to_addrs = self.get_param("to_addrs", None)
+            from_addr = self.get_param("from_addr", None)
 
             self.send_message(title, msg, to_addrs, from_addr)
             return True
@@ -49,27 +49,27 @@ class EmailHandler(NVPComponent):
         assert self.config is not None, "No configuration provided for rocketchat."
 
         if to_addrs is None:
-            to_addrs = self.config['default_to_addrs']
+            to_addrs = self.config["default_to_addrs"]
         if from_addr is None:
-            from_addr = self.config['default_from_addr']
+            from_addr = self.config["default_from_addr"]
         if username is None:
-            username = self.config['default_username']
+            username = self.config["default_username"]
         if password is None:
-            password = self.config['default_password']
+            password = self.config["default_password"]
 
         smtp_server = self.config["smtp_server"]
 
         # Build the message:
-        msg = MIMEMultipart('alternative')
+        msg = MIMEMultipart("alternative")
 
-        msg['Subject'] = Header(title, 'utf-8')
-        msg['From'] = from_addr
-        msg['To'] = to_addrs
-        msg['Message-id'] = email.utils.make_msgid()
-        msg['Date'] = email.utils.formatdate(localtime=True)
+        msg["Subject"] = Header(title, "utf-8")
+        msg["From"] = from_addr
+        msg["To"] = to_addrs
+        msg["Message-id"] = email.utils.make_msgid()
+        msg["Date"] = email.utils.formatdate(localtime=True)
         # logger.info("Using date: %s", msg['Date'])
 
-        msg.attach(MIMEText(message.encode('utf-8'), 'html', 'utf-8'))
+        msg.attach(MIMEText(message.encode("utf-8"), "html", "utf-8"))
         try:
             server = smtplib.SMTP(smtp_server)
             # server = smtplib.SMTP_SSL('smtp.gmail.com')
@@ -98,18 +98,17 @@ if __name__ == "__main__":
     # Add our component:
     comp = context.register_component("email", EmailHandler(context))
 
-    context.define_subparsers("main", {
-        'send': None,
-    })
+    context.define_subparsers(
+        "main",
+        {
+            "send": None,
+        },
+    )
 
-    psr = context.get_parser('main.send')
-    psr.add_argument("message", type=str,
-                     help="HTML message that should be sent by email")
-    psr.add_argument("-t", "--title", type=str,
-                     help="Message title")
-    psr.add_argument("-d", "--dest", type=str, dest='to_addrs',
-                     help="Destination addresses")
-    psr.add_argument("-f", "--from", type=str, dest='from_addr',
-                     help="From address")
+    psr = context.get_parser("main.send")
+    psr.add_argument("message", type=str, help="HTML message that should be sent by email")
+    psr.add_argument("-t", "--title", type=str, help="Message title")
+    psr.add_argument("-d", "--dest", type=str, dest="to_addrs", help="Destination addresses")
+    psr.add_argument("-f", "--from", type=str, dest="from_addr", help="From address")
 
     comp.run()

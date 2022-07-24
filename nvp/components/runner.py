@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def register_component(ctx: NVPContext):
     """Register this component in the given context"""
     comp = ScriptRunner(ctx)
-    ctx.register_component('runner', comp)
+    ctx.register_component("runner", comp)
 
 
 class ScriptRunner(NVPComponent):
@@ -27,19 +27,22 @@ class ScriptRunner(NVPComponent):
         self.scripts = ctx.get_config().get("scripts", {})
 
         # Also extend the parser:
-        ctx.define_subparsers("main", {'run': None})
-        psr = ctx.get_parser('main.run')
-        psr.add_argument("script_name", type=str, default="run",
-                         help="Name of the script to execute")
-        psr.add_argument("--show-help", dest="show_script_help", action="store_true",
-                         help="Display the help from the script command itself")
+        ctx.define_subparsers("main", {"run": None})
+        psr = ctx.get_parser("main.run")
+        psr.add_argument("script_name", type=str, default="run", help="Name of the script to execute")
+        psr.add_argument(
+            "--show-help",
+            dest="show_script_help",
+            action="store_true",
+            help="Display the help from the script command itself",
+        )
 
     def process_command(self, cmd):
         """Check if this component can process the given command"""
 
-        if cmd == 'run':
+        if cmd == "run":
             proj = self.ctx.get_current_project()
-            sname = self.get_param('script_name')
+            sname = self.get_param("script_name")
             self.run_script(sname, proj)
             return True
 
@@ -80,7 +83,7 @@ class ScriptRunner(NVPComponent):
             return
 
         key = f"{self.platform}_cmd"
-        cmd = desc[key] if key in desc else desc['cmd']
+        cmd = desc[key] if key in desc else desc["cmd"]
 
         hlocs = {}
         # Note the project root dir below might still be None:
@@ -88,7 +91,7 @@ class ScriptRunner(NVPComponent):
         hlocs["${NVP_ROOT_DIR}"] = self.ctx.get_root_dir()
 
         # check if we should use python in this command:
-        tools = self.get_component('tools')
+        tools = self.get_component("tools")
         env_name = desc.get("custom_python_env", None)
         pdesc = tools.get_tool_desc("python")
 
@@ -105,18 +108,18 @@ class ScriptRunner(NVPComponent):
                 logger.info("Creating python env %s...", env_name)
                 pyenv.setup_py_env(env_name)
 
-            py_path = self.get_path(pyenv_dir, pdesc['sub_path'])
+            py_path = self.get_path(pyenv_dir, pdesc["sub_path"])
         else:
             # use the default python path:
             pyenv_dir = pdesc["base_path"]
-            py_path = tools.get_tool_path('python')
+            py_path = tools.get_tool_path("python")
 
         hlocs["${PYTHON}"] = py_path
         hlocs["${PY_ENV_DIR}"] = pyenv_dir
 
         if "nodejs_env" in desc:
             nodejs = self.get_component("nodejs")
-            env_name = desc['nodejs_env']
+            env_name = desc["nodejs_env"]
             env_dir = nodejs.get_env_dir(env_name)
             node_root_dir = self.get_path(env_dir, env_name)
             hlocs["${NODE_ENV_DIR}"] = node_root_dir
@@ -132,12 +135,12 @@ class ScriptRunner(NVPComponent):
 
         cmd = [el for el in cmd if el != ""]
 
-        cwd = self.fill_placeholders(desc.get('cwd', None), hlocs)
+        cwd = self.fill_placeholders(desc.get("cwd", None), hlocs)
 
         env = None
 
         key = f"{self.platform}_env"
-        env_dict = desc[key] if key in desc else desc.get('env', None)
+        env_dict = desc[key] if key in desc else desc.get("env", None)
 
         if env_dict is not None:
             env = os.environ.copy()
@@ -151,11 +154,11 @@ class ScriptRunner(NVPComponent):
             pypath = sep.join(elems)
             logger.debug("Using pythonpath: %s", pypath)
             env = env or os.environ.copy()
-            env['PYTHONPATH'] = pypath
+            env["PYTHONPATH"] = pypath
 
         # If we have an environment created, we should ensure that we set the PWD correctly:
         if env is not None and cwd is not None:
-            env['PWD'] = cwd
+            env["PWD"] = cwd
 
         # Check if we have additional args to pass to the command:
         args = self.ctx.get_additional_args()
@@ -200,8 +203,12 @@ class ScriptRunner(NVPComponent):
             if not success:
                 outs = "".join(outputs)
                 logger.error(
-                    "Error occured in script command:\ncmd=%s\ncwd=%s\nreturn code=%s\nlastest outputs:\n%s", cmd, cwd,
-                    rcode or "None", outs)
+                    "Error occured in script command:\ncmd=%s\ncwd=%s\nreturn code=%s\nlastest outputs:\n%s",
+                    cmd,
+                    cwd,
+                    rcode or "None",
+                    outs,
+                )
 
             if not success and notify:
                 # And exception occured in the sub process, so we should send a notification:
@@ -213,7 +220,7 @@ class ScriptRunner(NVPComponent):
                 rchat = self.get_component("rchat")
                 rchat.send_message(msg, channel="problem-reports")
 
-                msg = "<p style=\"color: #fd0202;\">**WARNING:** an exception occured in the following command:</p>"
+                msg = '<p style="color: #fd0202;">**WARNING:** an exception occured in the following command:</p>'
                 msg += f"<p><em>{cmd}</em></p>"
                 msg += f"<p>cwd={cwd}</p>"
                 msg += "<p >=> Check the logs for details.</p>"

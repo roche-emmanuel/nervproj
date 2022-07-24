@@ -1,7 +1,8 @@
 """Rocketchat utility functions"""
+import json
 import logging
 import time
-import json
+
 import requests
 
 from nvp.nvp_component import NVPComponent
@@ -31,9 +32,9 @@ class RocketChat(NVPComponent):
     def process_command(self, cmd):
         """Check if this component can process the given command"""
 
-        if cmd == 'send':
-            msg = self.get_param('message')
-            channel = self.get_param('channel')
+        if cmd == "send":
+            msg = self.get_param("message")
+            channel = self.get_param("channel")
             self.send_message(msg, channel=channel)
             return True
 
@@ -45,12 +46,12 @@ class RocketChat(NVPComponent):
 
         assert self.config is not None, "No configuration provided for rocketchat."
 
-        self.user_id = self.config['user_id']
-        self.token = self.config['token']
-        self.base_url = self.config['base_url']
+        self.user_id = self.config["user_id"]
+        self.token = self.config["token"]
+        self.base_url = self.config["base_url"]
 
         if channel is None:
-            channel = self.config['default_channel']
+            channel = self.config["default_channel"]
 
         infos = self.get_channel_infos(channel)
         if infos is None:
@@ -58,14 +59,11 @@ class RocketChat(NVPComponent):
 
         assert infos is not None, f"Cannot find channel with name {channel}"
 
-        msg = {
-            'rid': infos['_id'],
-            'msg': message
-        }
+        msg = {"rid": infos["_id"], "msg": message}
 
-        res = self.post("/api/v1/chat.sendMessage", {'message': msg})
+        res = self.post("/api/v1/chat.sendMessage", {"message": msg})
 
-        if 'success' not in res or res['success'] is False:
+        if "success" not in res or res["success"] is False:
             logger.error("Cannot send rocketchat message: %s", res)
             return False
 
@@ -75,20 +73,20 @@ class RocketChat(NVPComponent):
         """Send a REST request to the rocketchat server"""
 
         # logDEBUG("Sending payload: %s" % payload)
-        headers = {'content-type': "application/json", 'cache-control': "no-cache"}
+        headers = {"content-type": "application/json", "cache-control": "no-cache"}
 
         if auth:
-            headers['X-Auth-Token'] = self.token
-            headers['X-User-Id'] = self.user_id
+            headers["X-Auth-Token"] = self.token
+            headers["X-User-Id"] = self.user_id
 
         try_count = 0
         while max_retries <= 0 or try_count < max_retries:
             try:
                 if req_type == "GET":
-                    response = requests.request(req_type, self.base_url+url, params=data, headers=headers)
+                    response = requests.request(req_type, self.base_url + url, params=data, headers=headers)
                 else:
                     payload = json.dumps(data)
-                    response = requests.request(req_type, self.base_url+url, data=payload, headers=headers)
+                    response = requests.request(req_type, self.base_url + url, data=payload, headers=headers)
                 res = json.loads(response.text)
                 return res
             except requests.exceptions.RequestException as err:
@@ -112,23 +110,23 @@ class RocketChat(NVPComponent):
 
     def get_channel_infos(self, chname):
         """Retrieve channel infos"""
-        res = self.get("/api/v1/channels.info", {'roomName': chname})
+        res = self.get("/api/v1/channels.info", {"roomName": chname})
         # logDEBUG("Result: %s" % res)
         # CHECK(res['success']==True, "Cannot retrieve channel infos: %s" % res)
         # return res['channel']
-        if res['success']:
-            return res['channel']
+        if res["success"]:
+            return res["channel"]
         return None
 
     def get_group_infos(self, chname):
         """Retrieve group infos"""
-        res = self.get("/api/v1/groups.info", {'roomName': chname})
+        res = self.get("/api/v1/groups.info", {"roomName": chname})
 
         # logDEBUG("Result: %s" % res)
         # CHECK(res['success']==True, "Cannot retrieve group infos: %s" % res)
         # return res['group']
-        if res['success']:
-            return res['group']
+        if res["success"]:
+            return res["group"]
         return None
 
 
@@ -139,14 +137,15 @@ if __name__ == "__main__":
     # Add our component:
     comp = context.register_component("rchat", RocketChat(context))
 
-    context.define_subparsers("main", {
-        'send': None,
-    })
+    context.define_subparsers(
+        "main",
+        {
+            "send": None,
+        },
+    )
 
-    psr = context.get_parser('main.send')
-    psr.add_argument("message", type=str,
-                     help="Simple message that we should send")
-    psr.add_argument("-c", "--channel", dest="channel", type=str,
-                     help="Channel where to send the message.")
+    psr = context.get_parser("main.send")
+    psr.add_argument("message", type=str, help="Simple message that we should send")
+    psr.add_argument("-c", "--channel", dest="channel", type=str, help="Channel where to send the message.")
 
     comp.run()

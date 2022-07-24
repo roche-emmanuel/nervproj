@@ -59,7 +59,7 @@ class NVPProject(NVPObject):
 
     def has_name(self, pname):
         """Check if this project has the given name"""
-        return pname in self.desc['names']
+        return pname in self.desc["names"]
 
     def get_root_dir(self):
         """Search for the location of a project given its name"""
@@ -73,8 +73,8 @@ class NVPProject(NVPObject):
         #              for proj_name in self.desc['names']]
         all_paths = [self.get_path(base_path, self.get_name(False)) for base_path in def_paths]
 
-        if 'paths' in self.desc:
-            all_paths = self.desc['paths'] + all_paths
+        if "paths" in self.desc:
+            all_paths = self.desc["paths"] + all_paths
 
         # logger.info("Checking all project paths: %s", all_paths)
         proj_path = self.ctx.select_first_valid_path(all_paths)
@@ -92,7 +92,7 @@ class NVPProject(NVPObject):
 
     def get_repository_url(self):
         """Retrieve the repository URL for that project"""
-        return self.desc['repository_url']
+        return self.desc["repository_url"]
 
     def get_config(self):
         """Retrieve the configuration for this project"""
@@ -101,8 +101,8 @@ class NVPProject(NVPObject):
     def get_name(self, to_lower=True):
         """Retrieve the canonical project name"""
         if to_lower:
-            return self.desc['names'][0].lower()
-        return self.desc['names'][0]
+            return self.desc["names"][0].lower()
+        return self.desc["names"][0]
 
     def register_component(self, cname, comp):
         """Register a project specific component"""
@@ -145,12 +145,12 @@ class NVPProject(NVPObject):
                 # we will put that directly in the 'cmd' slot
                 del desc[key]
             else:
-                cmd = desc['cmd']
+                cmd = desc["cmd"]
 
             bdir = self.get_path(self.get_root_dir(), "tools", plat)
             folders = self.get_all_folders(bdir)
             pypath = None
-            pdesc = self.ctx.get_component('tools').get_tool_desc('python')
+            pdesc = self.ctx.get_component("tools").get_tool_desc("python")
 
             for fname in folders:
                 if fname.startswith("python-"):
@@ -161,7 +161,7 @@ class NVPProject(NVPObject):
 
             assert pypath is not None, f"Cannot find local python path in project {self.get_name()}"
             cmd = cmd.replace("${PYTHON}", pypath)
-            desc['cmd'] = cmd
+            desc["cmd"] = cmd
 
         return desc
 

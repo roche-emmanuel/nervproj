@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def register_builder(bman: BuildManager):
     """Register the build function"""
 
-    bman.register_builder('FastNoise2', FastNoise2Builder(bman))
+    bman.register_builder("FastNoise2", FastNoise2Builder(bman))
 
 
 class FastNoise2Builder(NVPBuilder):

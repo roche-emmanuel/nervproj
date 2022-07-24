@@ -9,22 +9,22 @@ _F32 = 1 << 31
 
 def to_int64(val):
     """Convert an uint64 value to a int64"""
-    return val if (val & _F64) == 0 else val-2*_F64
+    return val if (val & _F64) == 0 else val - 2 * _F64
 
 
 def to_int32(val):
     """Convert an uint32 value to a int32"""
-    return val if (val & _F32) == 0 else val-2*_F32
+    return val if (val & _F32) == 0 else val - 2 * _F32
 
 
 def to_uint64(val):
     """Convert an int64 to an uint64 value"""
-    return val if val >= 0 else val+2*_F64
+    return val if val >= 0 else val + 2 * _F64
 
 
 def to_uint32(val):
     """Convert an int32 to an uint32 value"""
-    return val if val >= 0 else val+2*_F32
+    return val if val >= 0 else val + 2 * _F32
 
 
 def bytes_to_hex(data):
@@ -34,7 +34,7 @@ def bytes_to_hex(data):
 
 def string_to_hex(data):
     """Convert string to an hex string"""
-    return bytes_to_hex(data.encode('utf-8'))
+    return bytes_to_hex(data.encode("utf-8"))
 
 
 def hex_to_bytes(data):
@@ -44,34 +44,34 @@ def hex_to_bytes(data):
 
 def hex_to_string(data):
     """Convert an hex string to a string"""
-    return bytes.fromhex(data).decode('utf-8')
+    return bytes.fromhex(data).decode("utf-8")
 
 
 def b64_to_bytes(data):
     """Convert base64 to bytes"""
-    base64_bytes = data.encode('ascii')
+    base64_bytes = data.encode("ascii")
     message_bytes = base64.b64decode(base64_bytes)
     return message_bytes
 
 
 def b64_to_string(data):
     """Convert base64 to string"""
-    return b64_to_bytes(data).decode('utf-8')
+    return b64_to_bytes(data).decode("utf-8")
 
 
 def bytes_to_b64(message_bytes):
     """Covnert bytes to base64"""
     base64_bytes = base64.b64encode(message_bytes)
-    return base64_bytes.decode('ascii')
+    return base64_bytes.decode("ascii")
 
 
 def string_to_b64(data):
     """Convert string to base64"""
-    return bytes_to_b64(data.encode('utf-8'))
+    return bytes_to_b64(data.encode("utf-8"))
 
 
 def send_rocketchat_message(msg, channel=None):
     """Send a message on rocket chat"""
     ctx = NVPContext.get()
-    rchat = ctx.get_component('rchat')
+    rchat = ctx.get_component("rchat")
     rchat.send_message(msg, channel=channel)

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def register_component(ctx: NVPContext):
     """Register this component in the given context"""
     comp = ProjectManager(ctx)
-    ctx.register_component('project', comp)
+    ctx.register_component("project", comp)
 
 
 class ProjectManager(NVPComponent):
@@ -31,12 +31,12 @@ class ProjectManager(NVPComponent):
     def process_command(self, cmd0):
         """Re-implementation of the process_command method."""
 
-        if cmd0 != 'proj':
+        if cmd0 != "proj":
             return False
 
         cmd1 = self.ctx.get_command(1)
 
-        if cmd1 == 'build':
+        if cmd1 == "build":
             proj = self.ctx.get_current_project()
             if proj is None:
                 logger.warning("No project to build.")
@@ -54,7 +54,7 @@ class ProjectManager(NVPComponent):
         for dep_name in deps:
             dep_dir = builder.get_library_root_dir(dep_name)
             assert dep_dir is not None, f"Library {dep_name} is not available."
-            result.append(f"-D{dep_name.upper()}_DIR=\"{dep_dir}\"")
+            result.append(f'-D{dep_name.upper()}_DIR="{dep_dir}"')
 
         return result
 
@@ -83,21 +83,22 @@ class ProjectManager(NVPComponent):
         prefix = self.get_path(proj_dir, "dist", "bin", flavor)
         self.make_folder(prefix)
 
-        with open(build_file, 'w', encoding="utf-8") as bfile:
+        with open(build_file, "w", encoding="utf-8") as bfile:
             bfile.write(f"call {builder.get_msvc_setup_path()} amd64\n")
             # Configure with cmake:
-            cmd = [tools.get_cmake_path(),
-                   f"-G \"{generator}\"",
-                   f"-DCMAKE_BUILD_TYPE={build_type}",
-                   f"-DCMAKE_INSTALL_PREFIX=\"{prefix}\"",
-                   ]
+            cmd = [
+                tools.get_cmake_path(),
+                f'-G "{generator}"',
+                f"-DCMAKE_BUILD_TYPE={build_type}",
+                f'-DCMAKE_INSTALL_PREFIX="{prefix}"',
+            ]
 
             # Add the path of the dependencies for this project:
             deps = proj.get_dependencies()
             cmd += self.write_cmake_dependencies(deps)
 
             # Add the final project source path:
-            cmd += [f"\"{proj_dir}\"\n"]
+            cmd += [f'"{proj_dir}"\n']
 
             bfile.write(" ".join(cmd))
 

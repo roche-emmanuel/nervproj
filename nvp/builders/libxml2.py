@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def register_builder(bman: BuildManager):
     """Register the build function"""
 
-    bman.register_builder('libxml2', Builder(bman))
+    bman.register_builder("libxml2", Builder(bman))
 
 
 class Builder(NVPBuilder):
@@ -27,13 +27,15 @@ class Builder(NVPBuilder):
         z_lib = "zlibstatic.lib" if self.is_windows else "libz.a"
         iconv_lib = "libiconvStatic.lib" if self.is_windows else "libiconv.a"
 
-        return [f"-DIconv_LIBRARY={iconv_dir}/lib/{iconv_lib}",
-                f"-DIconv_INCLUDE_DIR={iconv_dir}/include",
-                f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
-                f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
-                "-DLIBXML2_WITH_LZMA=OFF",
-                "-DLIBXML2_WITH_PYTHON=OFF",
-                "-DBUILD_SHARED_LIBS=OFF"]
+        return [
+            f"-DIconv_LIBRARY={iconv_dir}/lib/{iconv_lib}",
+            f"-DIconv_INCLUDE_DIR={iconv_dir}/include",
+            f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
+            f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
+            "-DLIBXML2_WITH_LZMA=OFF",
+            "-DLIBXML2_WITH_PYTHON=OFF",
+            "-DBUILD_SHARED_LIBS=OFF",
+        ]
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build on windows method"""

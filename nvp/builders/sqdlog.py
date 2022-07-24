@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def register_builder(bman: BuildManager):
     """Register the build function"""
 
-    bman.register_builder('spdlog', SpdLogBuilder(bman))
+    bman.register_builder("spdlog", SpdLogBuilder(bman))
 
 
 class SpdLogBuilder(NVPBuilder):

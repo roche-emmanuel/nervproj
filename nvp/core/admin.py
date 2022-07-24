@@ -1,7 +1,7 @@
 """Collection of admin utility functions"""
+import logging
 import os
 import sys
-import logging
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -25,7 +25,7 @@ class AdminManager(NVPComponent):
         """Install a CLI script in .bashrc if application"""
 
         # Check if an $HOME folder is provider:
-        home_dir = os.getenv('HOME')
+        home_dir = os.getenv("HOME")
         if home_dir is None:
             logger.error("Cannot install cli alias: no $HOME environment variable detected.")
             return
@@ -46,7 +46,7 @@ class AdminManager(NVPComponent):
             script_path = self.to_cygwin_path(script_path)
             assert script_path is not None, "Invalid cygwin environment."
 
-        sline = f"\n[ -f \"{script_path}\" ] && source \"{script_path}\"\n"
+        sline = f'\n[ -f "{script_path}" ] && source "{script_path}"\n'
 
         # Check if this string is already in the bashrc file:
         content = self.read_text_file(bashrc_file)
@@ -56,8 +56,8 @@ class AdminManager(NVPComponent):
             logger.info("Adding source file in .bashrc for NervProj")
 
             # Make a backup of the file:
-            self.copy_file(bashrc_file, bashrc_file+".bak", force=True)
-            self.write_text_file(content+sline, bashrc_file, newline='\n')
+            self.copy_file(bashrc_file, bashrc_file + ".bak", force=True)
+            self.write_text_file(content + sline, bashrc_file, newline="\n")
         else:
             logger.info("NervProj setup file already referenced in .bashrc")
 
@@ -88,7 +88,7 @@ class AdminManager(NVPComponent):
             return
 
         # We need to bootstrap in a temp folder:
-        git = self.get_component('git')
+        git = self.get_component("git")
 
         url = self.config["repository_url"]
 
@@ -133,17 +133,18 @@ class AdminManager(NVPComponent):
             ref_config = self.read_json(cfg_file)
 
         # Now write the changes we want:
-        tools = self.get_component('tools')
+        tools = self.get_component("tools")
 
         config["git.path"] = tools.get_git_path()
         config["python.linting.pylintEnabled"] = True
         config["python.linting.enabled"] = True
-        config["python.linting.pylintPath"] = tools.get_tool_path('pylint')
+        config["python.linting.pylintPath"] = tools.get_tool_path("pylint")
         config["python.linting.pylintArgs"] = [
             "--max-line-length=120",
             "--good-names=i,j,k,ex,Run,_,x,y,z,w,t,dt",
-            "--good-names-rgxs=[a-z][0-9]$"]
-        config["python.defaultInterpreterPath"] = tools.get_tool_path('python')
+            "--good-names-rgxs=[a-z][0-9]$",
+        ]
+        config["python.defaultInterpreterPath"] = tools.get_tool_path("python")
         config["python.formatting.autopep8Path"] = tools.get_tool_path("autopep8")
         config["python.formatting.provider"] = "autopep8"
         config["python.formatting.autopep8Args"] = ["--max-line-length=120", "--experimental"]
@@ -194,10 +195,10 @@ class AdminManager(NVPComponent):
             sevenzip_vers = {}
 
             for plat_name in ["windows", "linux"]:
-                for el in self.config[f'{plat_name}_tools']:
-                    if el["name"] == 'python':
+                for el in self.config[f"{plat_name}_tools"]:
+                    if el["name"] == "python":
                         py_vers[plat_name] = el["version"]
-                    if el["name"] == '7zip':
+                    if el["name"] == "7zip":
                         sevenzip_vers[plat_name] = el["version"]
 
             for plat_name, py_version in py_vers.items():
@@ -214,36 +215,48 @@ class AdminManager(NVPComponent):
 
             ext = ".exe" if self.is_windows else ""
 
-            config["python.defaultInterpreterPath"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/python{ext}"
+            config[
+                "python.defaultInterpreterPath"
+            ] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/python{ext}"
 
             config["python.linting.enabled"] = True
 
             config["python.linting.flake8Enabled"] = True
-            config["python.linting.flake8Path"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/flake8{ext}"
-            config["python.linting.flake8Args"] = ["--max-line-length=120",
-                                                   "--ignore=E203,W503",
-                                                   "--per-file-ignores=\"__init__.py:F401\""]
+            config[
+                "python.linting.flake8Path"
+            ] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/flake8{ext}"
+            config["python.linting.flake8Args"] = [
+                "--max-line-length=120",
+                "--ignore=E203,W503",
+                '--per-file-ignores="__init__.py:F401"',
+            ]
 
             config["python.linting.pylintEnabled"] = True
-            config["python.linting.pylintPath"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/pylint{ext}"
-            config["python.linting.pylintArgs"] = ["--max-line-length=120",
-                                                   "--good-names=i,j,k,ex,Run,_,x,y,z,w,t,dt",
-                                                   "--good-names-rgxs=[a-z][0-9]$"]
+            config[
+                "python.linting.pylintPath"
+            ] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/pylint{ext}"
+            config["python.linting.pylintArgs"] = [
+                "--max-line-length=120",
+                "--good-names=i,j,k,ex,Run,_,x,y,z,w,t,dt",
+                "--good-names-rgxs=[a-z][0-9]$",
+            ]
 
             config["//python.formatting.provider"] = "autopep8"
-            config["//python.formatting.autopep8Path"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/autopep8{ext}"
+            config[
+                "//python.formatting.autopep8Path"
+            ] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/autopep8{ext}"
             config["//python.formatting.autopep8Args"] = ["--max-line-length=120", "--experimental"]
             config["python.formatting.provider"] = "black"
-            config["python.formatting.blackPath"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/black{ext}"
+            config[
+                "python.formatting.blackPath"
+            ] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/black{ext}"
             config["python.formatting.blackArgs"] = ["--line-length", "120"]
 
-            config["python.sortImports.path"] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/isort{ext}"
+            config[
+                "python.sortImports.path"
+            ] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/isort{ext}"
             config["python.sortImports.args"] = ["--profile", "black"]
-            config["[python]"] = {
-                "editor.codeActionsOnSave": {
-                    "source.organizeImports": True
-                }
-            }
+            config["[python]"] = {"editor.codeActionsOnSave": {"source.organizeImports": True}}
 
             config["editor.formatOnSave"] = True
 
@@ -256,25 +269,29 @@ class AdminManager(NVPComponent):
                 self.copy_folder(src_folder, dst_folder)
 
             # Update the ignore elements:
-            ignore_elems += ["",
-                             "# Ignore all the windows tools except the 7zip folder:",
-                             "tools/windows/*",
-                             "!tools/windows/7zip-*",
-                             "tools/linux/*"]
+            ignore_elems += [
+                "",
+                "# Ignore all the windows tools except the 7zip folder:",
+                "tools/windows/*",
+                "!tools/windows/7zip-*",
+                "tools/linux/*",
+            ]
 
             # Should also install an requirements.txt file:
             dest_file = self.get_path(proj_dir, "tools", "requirements.txt")
             if not self.file_exists(dest_file):
                 logger.info("Installing pythong requirements file.")
-                content = ["# List here all the required python packages",
-                           "# Then call cli.{sh/bat} --install-py-reqs",
-                           "",
-                           "black",
-                           "flake8",
-                           "isort",
-                           "pylint",
-                           "#autopep8",
-                           ""]
+                content = [
+                    "# List here all the required python packages",
+                    "# Then call cli.{sh/bat} --install-py-reqs",
+                    "",
+                    "black",
+                    "flake8",
+                    "isort",
+                    "pylint",
+                    "#autopep8",
+                    "",
+                ]
                 content = "\n".join(content)
                 self.write_text_file(content, dest_file)
 
@@ -291,7 +308,7 @@ class AdminManager(NVPComponent):
                 content = self.read_text_file(template_dir, "cli.sh.tpl")
                 content = content.replace("${PROJ_NAME}", proj_name.lower())
                 # Use the linux python version below:
-                content = content.replace("${PY_VERSION}", py_vers['linux'])
+                content = content.replace("${PY_VERSION}", py_vers["linux"])
                 self.write_text_file(content, dest_file, newline="\n")
 
             dest_file = self.get_path(proj_dir, "cli.bat")
@@ -300,8 +317,8 @@ class AdminManager(NVPComponent):
                 content = self.read_text_file(template_dir, "cli.bat.tpl")
                 content = content.replace("${PROJ_NAME}", proj_name.upper())
                 # Use the windows versionq below:
-                content = content.replace("${PY_VERSION}", py_vers['windows'])
-                content = content.replace("${ZIP_VERSION}", sevenzip_vers['windows'])
+                content = content.replace("${PY_VERSION}", py_vers["windows"])
+                content = content.replace("${ZIP_VERSION}", sevenzip_vers["windows"])
                 self.write_text_file(content, dest_file)
 
         # Finish writting the vscode config:
@@ -372,17 +389,17 @@ class AdminManager(NVPComponent):
         config = self.read_ini(cfg_file)
         save_needed = False
 
-        if 'pull' not in config:
+        if "pull" not in config:
             logger.info("Adding pull section in git config.")
-            config['pull'] = {
+            config["pull"] = {
                 "rebase": "false",
             }
             save_needed = True
         else:
-            pull = config['pull']
-            if pull['rebase'] != 'false':
-                logger.info("Updating git pull rebase from %s to %s", pull['rebase'], 'false')
-                pull['rebase'] = 'false'
+            pull = config["pull"]
+            if pull["rebase"] != "false":
+                logger.info("Updating git pull rebase from %s to %s", pull["rebase"], "false")
+                pull["rebase"] = "false"
                 save_needed = True
 
         if save_needed:
@@ -391,19 +408,19 @@ class AdminManager(NVPComponent):
     def process_cmd_path(self, cmd):
         """Check if this component can process the given command"""
 
-        if cmd == 'install.cli':
+        if cmd == "install.cli":
             self.install_cli()
             return True
 
-        if cmd == 'install.reqs':
+        if cmd == "install.reqs":
             self.install_python_requirements()
             return True
 
-        if cmd == 'install.repo':
+        if cmd == "install.repo":
             self.install_repository_bootstrap()
             return True
 
-        if cmd == 'init':
+        if cmd == "init":
             self.setup_global_vscode_config()
             proj_name = self.get_param("project_name")
 

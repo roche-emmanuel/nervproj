@@ -1,8 +1,8 @@
 """Collection of admin utility functions"""
-import logging
-import os
 # import re
 import configparser
+import logging
+import os
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -60,18 +60,18 @@ class GitManager(NVPComponent):
             self.set_chmod(ssh_dir, "600")
 
         # Install the SSH keys:
-        ssh_keys = ssh_cfg.get('keys', {})
+        ssh_keys = ssh_cfg.get("keys", {})
 
         # add support to call ssh app here:
         ssh = "ssh"
         if self.is_windows:
             tools = self.get_component("tools")
-            git_dir = tools.get_tool_root_dir('git')
+            git_dir = tools.get_tool_root_dir("git")
             ssh = self.get_path(git_dir, "usr", "bin", "ssh.exe")
 
         # prepare an environment with the desired home:
         env = os.environ.copy()
-        env['HOME'] = home_dir
+        env["HOME"] = home_dir
 
         ports = ssh_cfg.get("ports", {})
 
@@ -86,12 +86,12 @@ class GitManager(NVPComponent):
 
                 # Get the server name from the key:
                 if kfile.startswith("id_rsa_") and kfile.endswith("_git"):
-                    sname = kfile[7: -4]
+                    sname = kfile[7:-4]
                     # sname = re.sub('^id_rsa_', '', kfile)
                     # sname = re.sub('_git$', '', sname)
                     logger.info("Adding %s to known_hosts...", sname)
                     port = ports.get(sname, 22)
-                    cmd = [ssh, "-q", "-o", "StrictHostKeyChecking=no",  f"git@{sname}", "-p", str(port)]
+                    cmd = [ssh, "-q", "-o", "StrictHostKeyChecking=no", f"git@{sname}", "-p", str(port)]
                     logger.debug("Executing command %s", cmd)
                     self.execute(cmd, env=env, check=False)
 
@@ -100,7 +100,7 @@ class GitManager(NVPComponent):
         if not self.file_exists(cfg_file):
             logger.info("Creating global gitconfig file %s", cfg_file)
             config = configparser.ConfigParser()
-            config['user'] = {
+            config["user"] = {
                 "email": user_email,
                 "name": user_name,
             }
@@ -111,23 +111,23 @@ class GitManager(NVPComponent):
             config = self.read_ini(cfg_file)
             save_needed = False
 
-            if 'user' not in config:
+            if "user" not in config:
                 logger.info("Adding user section in git config.")
-                config['user'] = {
+                config["user"] = {
                     "email": user_email,
                     "name": user_name,
                 }
                 save_needed = True
             else:
-                user = config['user']
-                if user['email'] != user_email:
-                    logger.info("Updating git user email from %s to %s", user['email'], user_email)
-                    user['email'] = user_email
+                user = config["user"]
+                if user["email"] != user_email:
+                    logger.info("Updating git user email from %s to %s", user["email"], user_email)
+                    user["email"] = user_email
                     save_needed = True
 
-                if user['name'] != user_name:
-                    logger.info("Updating git user name from %s to %s", user['name'], user_name)
-                    user['name'] = user_name
+                if user["name"] != user_name:
+                    logger.info("Updating git user name from %s to %s", user["name"], user_name)
+                    user["name"] = user_name
                     save_needed = True
 
             if save_needed:
@@ -146,39 +146,39 @@ class GitManager(NVPComponent):
     def process_cmd_path(self, cmd):
         """Process a given command path"""
 
-        if cmd == 'clone':
+        if cmd == "clone":
             pname = self.get_param("project")
             proj = self.ctx.get_project(pname)
             dest_dir = self.get_param("dest_folder")
             self.clone_project_repository(dest_dir, proj)
             return True
 
-        if cmd == 'status':
+        if cmd == "status":
             cwd = self.get_canonical_cwd()
             self.git_status(cwd)
             return True
 
-        if cmd == 'diff':
+        if cmd == "diff":
             cwd = self.get_canonical_cwd()
             self.git_diff(cwd)
             return True
 
-        if cmd == 'push':
+        if cmd == "push":
             cwd = self.get_canonical_cwd()
             self.git_push(cwd)
             return True
 
-        if cmd == 'pull':
+        if cmd == "pull":
             cwd = self.get_canonical_cwd()
             self.git_pull(cwd)
             return True
 
-        if cmd == 'setup':
+        if cmd == "setup":
             # Setup the git configuration
             self.setup_global_config()
             return True
 
-        if cmd == 'pullall':
+        if cmd == "pullall":
             # Pull all the known repositories:
             # We start with the NVP framework itself:
             logger.info("Pulling NVP framework...")
@@ -196,8 +196,8 @@ class GitManager(NVPComponent):
 
     def execute_git(self, args, cwd=None):
         """execute a git command with the provided arguments"""
-        tools = self.get_component('tools')
-        cmd = [tools.get_git_path()]+args
+        tools = self.get_component("tools")
+        cmd = [tools.get_git_path()] + args
 
         # Execute the command:
         logger.debug("git command: %s", cmd)
@@ -246,7 +246,7 @@ class GitManager(NVPComponent):
         assert self.file_exists(cfg_file), f"Cannot fine git config file at {cfg_file}"
         # Load that config:
         config = self.read_ini(cfg_file)
-        config['user'] = {
+        config["user"] = {
             "email": user_email,
             "name": user_name,
         }
@@ -296,9 +296,7 @@ if __name__ == "__main__":
     context.define_subparsers("main", ["status", "diff", "setup", "push", "pull", "pullall"])
 
     psr = context.build_parser("clone")
-    psr.add_str("dest_folder", nargs='?', default=None)(
-        help="Name of the folder where to checkout the project")
-    psr.add_str("-p", "--project", dest="project")(
-        help="The project that should be cloned.")
+    psr.add_str("dest_folder", nargs="?", default=None)(help="Name of the folder where to checkout the project")
+    psr.add_str("-p", "--project", dest="project")(help="The project that should be cloned.")
 
     comp.run()

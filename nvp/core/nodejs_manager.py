@@ -125,7 +125,7 @@ class NodeJsManager(NVPComponent):
 
         if not self.dir_exists(dest_folder):
             # Should extract the nodejs package first:
-            vers = desc['nodejs_version']
+            vers = desc["nodejs_version"]
             ext = ".7z" if self.is_windows else ".tar.xz"
             suffix = "win-x64" if self.is_windows else "linux-x64"
             base_name = f"node-v{vers}-{suffix}"
@@ -149,9 +149,9 @@ class NodeJsManager(NVPComponent):
         # self.run_node(env_name, args=["--version"])
 
         # trigger the update of pip:
-        packages = desc['packages']
+        packages = desc["packages"]
         logger.info("Installing packages: %s", packages)
-        self.run_npm(env_name, args=["install", "--location=global"]+packages)
+        self.run_npm(env_name, args=["install", "--location=global"] + packages)
         # self.run_npm(env_name, args=["update", "--location=global"])
 
     def process_cmd_path(self, cmd):
@@ -185,20 +185,14 @@ if __name__ == "__main__":
 
     context.define_subparsers("main", ["setup", "remove"])
 
-    psr = context.get_parser('main.setup')
-    psr.add_argument("env_name", type=str,
-                     help="Name of the environment to setup")
-    psr.add_argument("--dir", dest="env_dir", type=str,
-                     help="Environments root dir")
-    psr.add_argument("--update-npm", dest="update_npm", action="store_true",
-                     help="Request the update of npm")
-    psr.add_argument("--renew", dest="renew_env", action="store_true",
-                     help="Renew the environment completely")
+    psr = context.get_parser("main.setup")
+    psr.add_argument("env_name", type=str, help="Name of the environment to setup")
+    psr.add_argument("--dir", dest="env_dir", type=str, help="Environments root dir")
+    psr.add_argument("--update-npm", dest="update_npm", action="store_true", help="Request the update of npm")
+    psr.add_argument("--renew", dest="renew_env", action="store_true", help="Renew the environment completely")
 
-    psr = context.get_parser('main.remove')
-    psr.add_argument("env_name", type=str,
-                     help="Name of the environment to remove")
-    psr.add_argument("--dir", dest="env_dir", type=str,
-                     help="Environments root dir")
+    psr = context.get_parser("main.remove")
+    psr.add_argument("env_name", type=str, help="Name of the environment to remove")
+    psr.add_argument("--dir", dest="env_dir", type=str, help="Environments root dir")
 
     comp.run()

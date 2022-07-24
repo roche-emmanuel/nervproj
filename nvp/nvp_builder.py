@@ -17,9 +17,9 @@ class NVPBuilder(NVPObject):
         self.man = bman
         self.compiler = bman.compiler
         self.env = None
-        self.tools = self.ctx.get_component('tools')
+        self.tools = self.ctx.get_component("tools")
         desc = desc or {}
-        self.tool_envs = desc.get('tool_envs', ['ninja'])
+        self.tool_envs = desc.get("tool_envs", ["ninja"])
 
     def init_env(self):
         """Init the compiler environment"""
@@ -83,12 +83,12 @@ class NVPBuilder(NVPObject):
         """Run a custom ninja command line"""
         ninja_path = self.tools.get_ninja_path()
         flags = flags or []
-        self.execute([ninja_path]+flags, cwd=build_dir, env=self.env, **kwargs)
+        self.execute([ninja_path] + flags, cwd=build_dir, env=self.env, **kwargs)
 
     def run_ninja(self, build_dir, **kwargs):
         """Execute the standard ninja build/install commands"""
         self.exec_ninja(build_dir, flags=None, **kwargs)
-        self.exec_ninja(build_dir, ['install'], **kwargs)
+        self.exec_ninja(build_dir, ["install"], **kwargs)
 
     def run_make(self, build_dir, **kwargs):
         """Execute the standard make build/install commands"""
@@ -97,8 +97,13 @@ class NVPBuilder(NVPObject):
 
     def run_cmake(self, build_dir, prefix, src_dir=None, flags=None, generator="Ninja", **kwargs):
         """Execute Standard cmake configuration command"""
-        cmd = [self.tools.get_cmake_path(), "-G", generator, "-DCMAKE_BUILD_TYPE=Release",
-               f"-DCMAKE_INSTALL_PREFIX={prefix}"]
+        cmd = [
+            self.tools.get_cmake_path(),
+            "-G",
+            generator,
+            "-DCMAKE_BUILD_TYPE=Release",
+            f"-DCMAKE_INSTALL_PREFIX={prefix}",
+        ]
         if flags is not None:
             cmd += flags
 

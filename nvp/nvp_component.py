@@ -1,8 +1,8 @@
 """Collection of filesystem utility functions"""
 import logging
+
 from nvp.nvp_context import NVPContext
 from nvp.nvp_object import NVPObject
-
 
 logger = logging.getLogger(__name__)
 

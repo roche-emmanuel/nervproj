@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def register_builder(bman: BuildManager):
     """Register the build function"""
 
-    bman.register_builder('LuaJIT', LuaJITBuilder(bman))
+    bman.register_builder("LuaJIT", LuaJITBuilder(bman))
 
 
 class LuaJITBuilder(NVPBuilder):
@@ -30,8 +30,9 @@ class LuaJITBuilder(NVPBuilder):
         self.make_folder(prefix, "lib")
 
         # replace the /MD flag with /MT:
-        self.replace_in_file(build_dir+"/src/msvcbuild.bat", "%LJCOMPILE% /MD /DLUA_BUILD_AS_DLL",
-                             "%LJCOMPILE% /MT /DLUA_BUILD_AS_DLL")
+        self.replace_in_file(
+            build_dir + "/src/msvcbuild.bat", "%LJCOMPILE% /MD /DLUA_BUILD_AS_DLL", "%LJCOMPILE% /MT /DLUA_BUILD_AS_DLL"
+        )
 
         # change the compiler to clang if needed:
         build_file = self.get_path(build_dir, "src", "msvcbuild.bat")
@@ -46,24 +47,24 @@ class LuaJITBuilder(NVPBuilder):
 
         logger.debug("Building LuaJIT static version...")
 
-        self.execute([build_file, "static"], cwd=build_dir+"/src", env=self.env)
+        self.execute([build_file, "static"], cwd=build_dir + "/src", env=self.env)
 
         # install the static library:
-        self.copy_file(build_dir+"/src/lua51.lib", prefix+"/lib/lua51_s.lib")
-        self.copy_file(build_dir+"/src/luajit.exe", prefix+"/bin/luajit.exe")
+        self.copy_file(build_dir + "/src/lua51.lib", prefix + "/lib/lua51_s.lib")
+        self.copy_file(build_dir + "/src/luajit.exe", prefix + "/bin/luajit.exe")
 
         logger.debug("Building LuaJIT shared version...")
-        self.execute([build_file, "amalg"], cwd=build_dir+"/src", env=self.env)
+        self.execute([build_file, "amalg"], cwd=build_dir + "/src", env=self.env)
 
         # Perform the installation manually:
-        self.copy_file(build_dir+"/src/lua51.dll", prefix+"/bin/lua51.dll")
-        self.copy_file(build_dir+"/src/lua51.lib", prefix+"/lib/lua51.lib")
-        self.copy_file(build_dir+"/src/lauxlib.h", prefix+"/include/luajit/lauxlib.h")
-        self.copy_file(build_dir+"/src/lua.h", prefix+"/include/luajit/lua.h")
-        self.copy_file(build_dir+"/src/lua.hpp", prefix+"/include/luajit/lua.hpp")
-        self.copy_file(build_dir+"/src/luaconf.h", prefix+"/include/luajit/luaconf.h")
-        self.copy_file(build_dir+"/src/luajit.h", prefix+"/include/luajit/luajit.h")
-        self.copy_file(build_dir+"/src/lualib.h", prefix+"/include/luajit/lualib.h")
+        self.copy_file(build_dir + "/src/lua51.dll", prefix + "/bin/lua51.dll")
+        self.copy_file(build_dir + "/src/lua51.lib", prefix + "/lib/lua51.lib")
+        self.copy_file(build_dir + "/src/lauxlib.h", prefix + "/include/luajit/lauxlib.h")
+        self.copy_file(build_dir + "/src/lua.h", prefix + "/include/luajit/lua.h")
+        self.copy_file(build_dir + "/src/lua.hpp", prefix + "/include/luajit/lua.hpp")
+        self.copy_file(build_dir + "/src/luaconf.h", prefix + "/include/luajit/luaconf.h")
+        self.copy_file(build_dir + "/src/luajit.h", prefix + "/include/luajit/luajit.h")
+        self.copy_file(build_dir + "/src/lualib.h", prefix + "/include/luajit/lualib.h")
 
     def build_on_linux(self, build_dir, prefix, desc):
         """Build method for LuaJIT on linux"""

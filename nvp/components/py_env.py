@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 def register_component(ctx: NVPContext):
     """Register this component in the given context"""
     comp = PyEnvManager(ctx)
-    ctx.register_component('pyenvs', comp)
+    ctx.register_component("pyenvs", comp)
 
 
 class PyEnvManager(NVPComponent):
@@ -23,39 +23,30 @@ class PyEnvManager(NVPComponent):
         self.scripts = ctx.get_config().get("scripts", {})
 
         # Also extend the parser:
-        ctx.define_subparsers("main", {'pyenv': {
-            "setup": None,
-            "remove": None
-        }})
-        psr = ctx.get_parser('main.pyenv.setup')
-        psr.add_argument("env_name", type=str,
-                         help="Name of the python environment to setup/deploy")
-        psr.add_argument("--dir", dest='env_dir', type=str,
-                         help="Location where to install the environment")
-        psr.add_argument("--renew", dest='renew_env', action='store_true',
-                         help="Rebuild the environment completely")
-        psr.add_argument("--update-pip", dest='update_pip', action='store_true',
-                         help="Update pip module")
+        ctx.define_subparsers("main", {"pyenv": {"setup": None, "remove": None}})
+        psr = ctx.get_parser("main.pyenv.setup")
+        psr.add_argument("env_name", type=str, help="Name of the python environment to setup/deploy")
+        psr.add_argument("--dir", dest="env_dir", type=str, help="Location where to install the environment")
+        psr.add_argument("--renew", dest="renew_env", action="store_true", help="Rebuild the environment completely")
+        psr.add_argument("--update-pip", dest="update_pip", action="store_true", help="Update pip module")
 
-        psr = ctx.get_parser('main.pyenv.remove')
-        psr.add_argument("env_name", type=str,
-                         help="Name of the python environment to remove")
-        psr.add_argument("--dir", dest='env_dir', type=str,
-                         help="Location where to install the environment")
+        psr = ctx.get_parser("main.pyenv.remove")
+        psr.add_argument("env_name", type=str, help="Name of the python environment to remove")
+        psr.add_argument("--dir", dest="env_dir", type=str, help="Location where to install the environment")
 
     def process_command(self, cmd):
         """Check if this component can process the given command"""
 
-        if cmd == 'pyenv':
+        if cmd == "pyenv":
 
             cmd1 = self.ctx.get_command(1)
-            if cmd1 == 'setup':
-                env_name = self.get_param('env_name')
+            if cmd1 == "setup":
+                env_name = self.get_param("env_name")
                 self.setup_py_env(env_name)
                 return True
 
-            if cmd1 == 'remove':
-                env_name = self.get_param('env_name')
+            if cmd1 == "remove":
+                env_name = self.get_param("env_name")
                 self.remove_py_env(env_name)
                 return True
 
@@ -127,7 +118,7 @@ class PyEnvManager(NVPComponent):
         tools = self.get_component("tools")
         new_env = False
 
-        if self.dir_exists(dest_folder) and self.get_param('renew_env'):
+        if self.dir_exists(dest_folder) and self.get_param("renew_env"):
             logger.info("Removing previous python environment at %s", dest_folder)
             self.remove_folder(dest_folder)
 
@@ -143,7 +134,7 @@ class PyEnvManager(NVPComponent):
             tools.extract_package(pkg_file, env_dir, target_dir=dest_folder, extracted_dir=f"python-{pdesc['version']}")
             new_env = True
 
-        py_path = self.get_path(dest_folder, pdesc['sub_path'])
+        py_path = self.get_path(dest_folder, pdesc["sub_path"])
 
         if new_env or self.get_param("update_pip"):
             # trigger the update of pip:

@@ -1,13 +1,12 @@
 """Module for build management system"""
 
+import logging
 import os
 import sys
 import time
-import logging
 from importlib import import_module
 
 from nvp.nvp_compiler import NVPCompiler
-
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
 
@@ -41,7 +40,7 @@ class BuildManager(NVPComponent):
         if self.initialized is False:
             self.initialized = True
             self.select_compiler()
-            self.tools = self.ctx.get_component('tools')
+            self.tools = self.ctx.get_component("tools")
 
     def select_compiler(self, comp_type=None):
         """Find the available compilers on the current platform"""
@@ -59,12 +58,11 @@ class BuildManager(NVPComponent):
         if self.is_windows:
             # Check if we have MSVC paths to use:
 
-            msvc_setup_path = os.getenv('NVL_MSVC_SETUP')
+            msvc_setup_path = os.getenv("NVL_MSVC_SETUP")
 
             if msvc_setup_path is None:
-                msvc_paths = self.config.get('msvc_install_paths', [])
-                msvc_paths = [self.get_path(bdir, "VC/Auxiliary/Build/vcvarsall.bat")
-                              for bdir in msvc_paths]
+                msvc_paths = self.config.get("msvc_install_paths", [])
+                msvc_paths = [self.get_path(bdir, "VC/Auxiliary/Build/vcvarsall.bat") for bdir in msvc_paths]
                 msvc_setup_path = self.ctx.select_first_valid_path(msvc_paths)
 
             assert msvc_setup_path is not None, "No MSVC compiler found."
@@ -79,27 +77,28 @@ class BuildManager(NVPComponent):
 
             base_lib_dir = self.get_path(self.ctx.get_root_dir(), "libraries")
 
-            all_libs = self.config['libraries']
+            all_libs = self.config["libraries"]
             for lib in all_libs:
-                if lib['name'] == 'LLVM':
+                if lib["name"] == "LLVM":
                     # Here we need to figure out if we already have that library built/installed
                     # for a given flavor
                     for flavor in flavors:
                         vers = self.get_package_version(lib)
                         comp_dir = self.get_path(base_lib_dir, flavor, f"{lib['name']}-{vers}")
                         if self.path_exists(comp_dir):
-                            compiler = NVPCompiler(self.ctx, {'type': 'clang', "root_dir": comp_dir})
+                            compiler = NVPCompiler(self.ctx, {"type": "clang", "root_dir": comp_dir})
                             self.compilers.append(compiler)
 
             # Check if we have tools providing compilers:
             all_tools = self.config[f"{self.platform}_tools"]
-            tools_dir = self.get_component('tools').get_tools_dir()
+            tools_dir = self.get_component("tools").get_tools_dir()
 
             for tdesc in all_tools:
-                if tdesc['name'] == "clang":
+                if tdesc["name"] == "clang":
                     vers = self.get_package_version(tdesc)
-                    compiler = NVPCompiler(self.ctx, {'type': 'clang', "root_dir": self.get_path(
-                        tools_dir, f"{tdesc['name']}-{vers}")})
+                    compiler = NVPCompiler(
+                        self.ctx, {"type": "clang", "root_dir": self.get_path(tools_dir, f"{tdesc['name']}-{vers}")}
+                    )
                     self.compilers.append(compiler)
 
         assert len(self.compilers) > 0, "No compiler available"
@@ -154,15 +153,15 @@ class BuildManager(NVPComponent):
 
     def has_library(self, lib_name):
         """Check if a given library is available"""
-        for ldesc in self.config['libraries']:
-            if ldesc['name'] == lib_name:
+        for ldesc in self.config["libraries"]:
+            if ldesc["name"] == lib_name:
                 return True
         return False
 
     def get_library_desc(self, lib_name):
         """Retrieve library desc if available"""
-        for ldesc in self.config['libraries']:
-            if ldesc['name'] == lib_name:
+        for ldesc in self.config["libraries"]:
+            if ldesc["name"] == lib_name:
                 return ldesc
         return None
 
@@ -170,12 +169,12 @@ class BuildManager(NVPComponent):
         """Retrieve the root dir for a given library"""
 
         # Iterate on all the available libraries:
-        for ldesc in self.config['libraries']:
+        for ldesc in self.config["libraries"]:
             dep_name = self.get_std_package_name(ldesc)
 
             # First we check if we have the dependency target folder already:
 
-            if ldesc['name'] == lib_name or dep_name == lib_name:
+            if ldesc["name"] == lib_name or dep_name == lib_name:
                 dep_dir = self.get_path(self.libs_dir, dep_name)
 
                 if auto_setup and not self.dir_exists(dep_dir):
@@ -198,14 +197,14 @@ class BuildManager(NVPComponent):
 
         # Iterate on each dependency:
         logger.debug("Checking libraries:")
-        alldeps = self.config['libraries']
+        alldeps = self.config["libraries"]
 
         doall = "all" in dep_list
 
         for dep in alldeps:
 
             # Check if we should process that dependency:
-            if not doall and not dep['name'].lower() in dep_list:
+            if not doall and not dep["name"].lower() in dep_list:
                 continue
 
             if preview:
@@ -245,7 +244,7 @@ class BuildManager(NVPComponent):
         # if the package is not already available locally, maybe we can retrieve it remotely:
         if not self.file_exists(src_pkg_path) and not rebuild and not append:
             pkg_urls = self.config.get("package_urls", [])
-            pkg_urls = [base_url+'libraries/'+src_pkg_name for base_url in pkg_urls]
+            pkg_urls = [base_url + "libraries/" + src_pkg_name for base_url in pkg_urls]
 
             pkg_url = self.ctx.select_first_valid_path(pkg_urls)
             if pkg_url is not None:
@@ -256,7 +255,7 @@ class BuildManager(NVPComponent):
             self.tools.extract_package(src_pkg_path, self.libs_dir, target_dir=dep_name)
         else:
             # We really need to build the dependency from sources instead:
-            lib_name = desc['name']
+            lib_name = desc["name"]
 
             if self.builders is None:
                 self.load_builders()
@@ -296,7 +295,7 @@ class BuildManager(NVPComponent):
             return desc[sp_vers]
 
         # Return default version number:
-        return desc['version']
+        return desc["version"]
 
     def get_std_package_name(self, desc):
         """Return a standard package naem from base name and version"""
@@ -310,7 +309,7 @@ class BuildManager(NVPComponent):
         base_build_dir = self.libs_build_dir
 
         # get the filename from the url:
-        url = desc.get(f"{self.platform}_url", desc.get('url', None))
+        url = desc.get(f"{self.platform}_url", desc.get("url", None))
         assert url is not None, f"Invalid source url for {desc['name']}"
 
         filename = os.path.basename(url)
@@ -367,10 +366,10 @@ class BuildManager(NVPComponent):
         if cmd == "libs":
             self.initialize()
             # logger.info("List of settings: %s", self.settings)
-            dlist = self.get_param('lib_names').split(',')
-            rebuild = self.get_param('rebuild')
-            preview = self.get_param('preview')
-            append = self.get_param('append')
+            dlist = self.get_param("lib_names").split(",")
+            rebuild = self.get_param("rebuild")
+            preview = self.get_param("preview")
+            append = self.get_param("append")
             keep_build = self.get_param("keep_build", False)
             ctype = self.get_param("compiler_type")
             if ctype is not None:
@@ -382,7 +381,7 @@ class BuildManager(NVPComponent):
         if cmd == "project":
             proj_name = self.get_param("proj_name")
             proj = self.ctx.get_project(proj_name)
-            self.get_component('project').build_project(proj)
+            self.get_component("project").build_project(proj)
             return True
 
         return False

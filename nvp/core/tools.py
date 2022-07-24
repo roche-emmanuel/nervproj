@@ -1,8 +1,9 @@
 """Collection of tools utility functions"""
+import logging
 import os
 import sys
 import time
-import logging
+
 import requests
 import urllib3
 
@@ -38,24 +39,24 @@ class ToolsManager(NVPComponent):
     def setup_tools(self):
         """Setup all the tools on this platform."""
         # Prepare the tool paths:
-        tools = self.config[f'{self.platform}_tools']
+        tools = self.config[f"{self.platform}_tools"]
 
         sep = "\\" if self.is_windows else "/"
 
         for desc in tools:
-            tname = desc['name']
-            if 'path' in desc:
+            tname = desc["name"]
+            if "path" in desc:
                 # logger.debug("Using system path '%s' for %s tool", desc['path'], tname)
                 self.tools[tname] = {
-                    'name': tname,
-                    'path': desc['path'],
+                    "name": tname,
+                    "path": desc["path"],
                 }
 
-                assert 'sub_tools' not in desc, f"Cannot add sub tools from system tool desc {tname}"
+                assert "sub_tools" not in desc, f"Cannot add sub tools from system tool desc {tname}"
             else:
                 full_name = f"{tname}-{desc['version']}"
                 install_path = self.get_path(self.tools_dir, full_name)
-                tpath = self.get_path(install_path, desc['sub_path'])
+                tpath = self.get_path(install_path, desc["sub_path"])
                 if not self.file_exists(tpath):
 
                     # retrieve the most appropriate source package for that tool:
@@ -79,28 +80,28 @@ class ToolsManager(NVPComponent):
 
                 # Store the tool path:
                 tdesc = {
-                    'base_path': install_path,
-                    "sub_path": desc['sub_path'],
-                    'path': tpath.replace("/", sep),
-                    'name': tname,
-                    'version': desc['version'],
+                    "base_path": install_path,
+                    "sub_path": desc["sub_path"],
+                    "path": tpath.replace("/", sep),
+                    "name": tname,
+                    "version": desc["version"],
                 }
                 self.tools[tname] = tdesc
 
                 # Ensure the execution permission is set:
-                self.add_execute_permission(tdesc['path'])
+                self.add_execute_permission(tdesc["path"])
 
                 # Check if we have sub_tools inside this tool folder:
-                subs = desc.get('sub_tools', {})
+                subs = desc.get("sub_tools", {})
                 for sub_name, sub_path in subs.items():
                     sdesc = {
-                        'base_path': install_path,
-                        'sub_path': sub_path,
-                        'name': sub_name,
-                        'path': self.get_path(install_path, sub_path).replace("/", sep)
+                        "base_path": install_path,
+                        "sub_path": sub_path,
+                        "name": sub_name,
+                        "path": self.get_path(install_path, sub_path).replace("/", sep),
                     }
                     self.tools[sub_name] = sdesc
-                    self.add_execute_permission(sdesc['path'])
+                    self.add_execute_permission(sdesc["path"])
 
     def retrieve_tool_package(self, desc):
         """Retrieve the most appropriate package for a given tool and
@@ -118,7 +119,7 @@ class ToolsManager(NVPComponent):
         canonical_pkg_name = f"tools/{full_name}-{self.platform}"
         extensions = [".7z", ".tar.xz"]
         pkg_urls = self.config.get("package_urls", [])
-        pkg_urls = [base_url+canonical_pkg_name+ext for base_url in pkg_urls for ext in extensions]
+        pkg_urls = [base_url + canonical_pkg_name + ext for base_url in pkg_urls for ext in extensions]
 
         if self.config.get("prioritize_package_urls", False):
             urls = pkg_urls + urls
@@ -154,7 +155,7 @@ class ToolsManager(NVPComponent):
     def get_tool_path(self, tname):
         """Retrieve the path for a given tool"""
         desc = self.get_tool_desc(tname)
-        return desc['path']
+        return desc["path"]
 
     def get_tool_dir(self, tname):
         """Retrieve the parent directory for a given tool"""
@@ -164,7 +165,7 @@ class ToolsManager(NVPComponent):
     def get_tool_root_dir(self, tname):
         """Retrieve the root directory where a given tool is installed."""
         desc = self.get_tool_desc(tname)
-        return desc['base_path']
+        return desc["base_path"]
 
     def get_tools_dir(self):
         """Retrieve the base tools directory"""
@@ -172,28 +173,28 @@ class ToolsManager(NVPComponent):
 
     def get_unzip_path(self):
         """Retrieve unzip tool path."""
-        return self.get_tool_path('7zip')
+        return self.get_tool_path("7zip")
 
     def get_cmake_path(self):
         """Retrieve cmake tool path."""
-        return self.get_tool_path('cmake')
+        return self.get_tool_path("cmake")
 
     def get_ninja_path(self):
         """Retrieve ninja tool path."""
-        return self.get_tool_path('ninja')
+        return self.get_tool_path("ninja")
 
     def get_git_path(self):
         """Retrieve git tool path."""
-        return self.get_tool_path('git')
+        return self.get_tool_path("git")
 
     def get_par2_path(self):
         """Retrieve par2 tool path."""
-        return self.get_tool_path('par2')
+        return self.get_tool_path("par2")
 
     def process_cmd_path(self, cmd):
         """Re-implementation of the process_command method."""
 
-        if cmd == 'install':
+        if cmd == "install":
             self.initialize()
             return True
 
@@ -219,7 +220,7 @@ class ToolsManager(NVPComponent):
         dlsize = 0
         count = 0
 
-        tmp_file = dest_file+".download"
+        tmp_file = dest_file + ".download"
 
         while count < max_retries:
             try:
@@ -227,7 +228,7 @@ class ToolsManager(NVPComponent):
                 response = requests.get(url, stream=True, timeout=timeout, headers=headers)
 
                 logger.debug("Retrieving content-length.")
-                total_length = response.headers.get('content-length')
+                total_length = response.headers.get("content-length")
                 if total_length is None:
                     count += 1
                     logger.info("Detected invalid stream size for %s, retrying (%d/%d)...", url, count, max_retries)
@@ -256,7 +257,8 @@ class ToolsManager(NVPComponent):
                         frac = dlsize / total_length
                         done = int(50 * frac)
                         sys.stdout.write(
-                            f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}%")
+                            f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}%"
+                        )
                         sys.stdout.flush()
                         if max_speed > 0:
                             # We should take a speed limit into consideration here:
@@ -266,14 +268,14 @@ class ToolsManager(NVPComponent):
                             # we downloaded nbytes in elapsed seconds
                             # and we have the limit of max_speed bytes per seconds.
                             # Compute how long we should take to download nbytes in seconds:
-                            dl_dur = nbytes/max_speed
+                            dl_dur = nbytes / max_speed
                             if elapsed < dl_dur:
                                 # We took less time than the requirement so far, so we should speed
                                 # for the remaining time:
                                 time.sleep(dl_dur - elapsed)
                                 last_time = time.time()
 
-                    sys.stdout.write('\n')
+                    sys.stdout.write("\n")
                     sys.stdout.flush()
 
                 # The file was completely downloaded
@@ -281,7 +283,11 @@ class ToolsManager(NVPComponent):
                 self.rename_file(tmp_file, dest_file)
                 return True
 
-            except (urllib3.exceptions.ReadTimeoutError, requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
+            except (
+                urllib3.exceptions.ReadTimeoutError,
+                requests.exceptions.ConnectionError,
+                requests.exceptions.ReadTimeout,
+            ):
                 count += 1
                 logger.error("Exception occured while downloading %s, retrying (%d/%d)...", url, count, max_retries)
                 self.remove_file(tmp_file)
@@ -301,10 +307,10 @@ class ToolsManager(NVPComponent):
         elif src_pkg_path.endswith(".7z.exe"):
             if target_name is None:
                 target_name = self.remove_file_extension(os.path.basename(src_pkg_path))
-            cmd = [self.get_unzip_path(), "x", "-o"+dest_dir+"/"+target_name, src_pkg_path]
+            cmd = [self.get_unzip_path(), "x", "-o" + dest_dir + "/" + target_name, src_pkg_path]
         else:
-            cmd = [self.get_unzip_path(), "x", "-o"+dest_dir, src_pkg_path]
-        self.execute(cmd, verbose=self.settings['verbose'])
+            cmd = [self.get_unzip_path(), "x", "-o" + dest_dir, src_pkg_path]
+        self.execute(cmd, verbose=self.settings["verbose"])
 
     def extract_package(self, src_pkg_path, dest_dir, target_dir=None, extracted_dir=None):
         """Extract source package into the target dir folder."""
@@ -349,16 +355,26 @@ class ToolsManager(NVPComponent):
         # Check if we should create a tar.xz here:
         if package_name.endswith(".tar.xz"):
             # Generate a tar.xz:
-            cmd = ["tar", "cJf", dest_file,
-                   "-C", self.get_parent_folder(src_path), self.get_filename(src_path)]
+            cmd = ["tar", "cJf", dest_file, "-C", self.get_parent_folder(src_path), self.get_filename(src_path)]
         else:
             # Generate a 7zip package:
-            cmd = [self.get_unzip_path(), "a", "-t7z", dest_file, src_path,
-                   "-m0=lzma2", "-mx=9", "-aoa", "-mfb=64",
-                   "-ms=on", "-mmt=2", "-r"]
+            cmd = [
+                self.get_unzip_path(),
+                "a",
+                "-t7z",
+                dest_file,
+                src_path,
+                "-m0=lzma2",
+                "-mx=9",
+                "-aoa",
+                "-mfb=64",
+                "-ms=on",
+                "-mmt=2",
+                "-r",
+            ]
             # "-md=32m",
 
-        self.execute(cmd, verbose=self.settings['verbose'])
+        self.execute(cmd, verbose=self.settings["verbose"])
         logger.debug("Done generating package %s", package_name)
         return True
 
@@ -373,8 +389,13 @@ class ToolsManager(NVPComponent):
         # as this would trigger an error:
         self.replace_in_file(sfile, "@DEL post-install.bat", "")
 
-        cmd = [self.get_path(install_path, "git-cmd.exe"), "--no-needs-console",
-               "--hide", "--no-cd", "--command=post-install.bat"]
+        cmd = [
+            self.get_path(install_path, "git-cmd.exe"),
+            "--no-needs-console",
+            "--hide",
+            "--no-cd",
+            "--command=post-install.bat",
+        ]
 
         logger.info("Executing command: %s", cmd)
         self.execute(cmd, cwd=install_path, verbose=True)
@@ -383,7 +404,7 @@ class ToolsManager(NVPComponent):
         self.remove_file(sfile)
 
         # here we should also ensure that we have a global .gitconfig file registered for our user:
-        git = self.get_component('git')
+        git = self.get_component("git")
         git.setup_global_config()
 
     def create_par2_archives(self, src_path, redundancy=10, nblocks=3000):

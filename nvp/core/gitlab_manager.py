@@ -1,8 +1,9 @@
 """Collection of gitlab utility functions"""
+import json
 import logging
 import re
 import time
-import json
+
 import requests
 
 from nvp.nvp_component import NVPComponent
@@ -34,26 +35,26 @@ class GitlabManager(NVPComponent):
     def send_request(self, req_type, url, data=None, max_retries=5, auth=True):
         """Method used to send a generic request to the server."""
 
-        headers = {'content-type': "application/json", 'cache-control': "no-cache"}
+        headers = {"content-type": "application/json", "cache-control": "no-cache"}
 
         assert self.base_url is not None, "Invalid base url."
 
         if auth:
             assert self.access_token is not None, "Invalid access token."
-            headers['PRIVATE-TOKEN'] = self.access_token
+            headers["PRIVATE-TOKEN"] = self.access_token
 
         try_count = 0
         while max_retries <= 0 or try_count < max_retries:
             try:
                 if req_type == "GET":
-                    response = requests.request(req_type, self.base_url+url, params=data, headers=headers)
+                    response = requests.request(req_type, self.base_url + url, params=data, headers=headers)
                     res = json.loads(response.text)
                 elif req_type == "DELETE":
-                    response = requests.request(req_type, self.base_url+url, headers=headers)
+                    response = requests.request(req_type, self.base_url + url, headers=headers)
                     res = response.text
                 else:
                     payload = json.dumps(data)
-                    response = requests.request(req_type, self.base_url+url, data=payload, headers=headers)
+                    response = requests.request(req_type, self.base_url + url, data=payload, headers=headers)
                     res = json.loads(response.text)
 
                 if not response.ok:
@@ -94,7 +95,7 @@ class GitlabManager(NVPComponent):
     def process_command(self, cmd0):
         """Process a command"""
 
-        if cmd0 == 'milestone':
+        if cmd0 == "milestone":
             cmd1 = self.ctx.get_command(1)
 
             hname = f"process_{cmd0}" if cmd1 is None else f"process_{cmd0}_{cmd1}"
@@ -116,9 +117,7 @@ class GitlabManager(NVPComponent):
         if not self.file_exists(cfg_file):
             return None
 
-        cfg = {
-            'remotes': {}
-        }
+        cfg = {"remotes": {}}
 
         # Read the config file and split on lines:
         lines = self.read_text_file(cfg_file).split("\n")
@@ -145,8 +144,8 @@ class GitlabManager(NVPComponent):
                 if mval is not None:
                     url = mval.group(1)
                     # logger.info("Found url %s for remote %s", url, ctx_name)
-                    desc = cfg['remotes'].setdefault(ctx_name, {})
-                    desc['url'] = url
+                    desc = cfg["remotes"].setdefault(ctx_name, {})
+                    desc["url"] = url
 
                     # find the git user prefix in the url
                     gitm = git_ssh_pat.match(url) if url.startswith("ssh://") else git_pat.match(url)
@@ -155,12 +154,12 @@ class GitlabManager(NVPComponent):
                     else:
                         # logger.info("Groups: %s", gitm.groups())
                         ngrp = len(gitm.groups())
-                        desc['server'] = gitm.group(1)
+                        desc["server"] = gitm.group(1)
                         if ngrp == 2:
-                            desc['sub_path'] = gitm.group(2)
+                            desc["sub_path"] = gitm.group(2)
                         else:
-                            desc['port'] = int(gitm.group(2)[1:])
-                            desc['sub_path'] = gitm.group(3)
+                            desc["port"] = int(gitm.group(2)[1:])
+                            desc["sub_path"] = gitm.group(3)
 
             mval = ctx_pat.match(line)
             if mval is not None:
@@ -189,23 +188,23 @@ class GitlabManager(NVPComponent):
 
         # get the origin remote:
         rname = "origin"
-        if not rname in git_cfg['remotes']:
+        if rname not in git_cfg["remotes"]:
             logger.error("No '%s' remote git repository in %s", rname, proj_dir)
             return False
 
-        remote_cfg = git_cfg['remotes'][rname]
+        remote_cfg = git_cfg["remotes"][rname]
 
         # retrieve the server from that remote:
-        if not 'server' in remote_cfg:
+        if "server" not in remote_cfg:
             logger.error("No server extracted from remote config: %s", remote_cfg)
             return False
 
-        sname = remote_cfg['server']
+        sname = remote_cfg["server"]
 
         # Check if we have an access token for that server:
         tokens = self.config.get("gitlab_access_tokens", {})
 
-        if not sname in tokens:
+        if sname not in tokens:
             logger.error("No access token availble for gitlab server %s", sname)
             return False
 
@@ -216,7 +215,7 @@ class GitlabManager(NVPComponent):
         self.access_token = tokens[sname]
 
         # We should now URL encode the project name:
-        self.proj_id = self.url_encode_path(remote_cfg['sub_path'].replace(".git", ""))
+        self.proj_id = self.url_encode_path(remote_cfg["sub_path"].replace(".git", ""))
 
         # logger.info("Using project URL encoded path: %s", self.proj_id)
         return True
@@ -229,7 +228,7 @@ class GitlabManager(NVPComponent):
 
         params = {}
         assert title is not None, "Invalid milestone title"
-        params['title'] = title
+        params["title"] = title
 
         res = self.get(f"/projects/{self.proj_id}/milestones", params)
         # logger.info("Got result: %s", self.pretty_print(res))
@@ -256,24 +255,22 @@ class GitlabManager(NVPComponent):
         if not self.setup_gitlab_api(project):
             return
 
-        assert data['title'] is not None, "Title is mandatory to create a milestone."
+        assert data["title"] is not None, "Title is mandatory to create a milestone."
         logger.info("Project url: %s", self.proj_id)
         res = self.post(f"/projects/{self.proj_id}/milestones", data)
         # res = self.post(f"/projects/10/milestones", data)
         # logger.info("Got result: %s", self.pretty_print(res))
         if res is not None:
-            mid = res['id']
-            web_url = res['web_url']
-            logger.info("Created milestone '%s': id=%s, url=%s", data['title'], mid, web_url)
+            mid = res["id"]
+            web_url = res["web_url"]
+            logger.info("Created milestone '%s': id=%s, url=%s", data["title"], mid, web_url)
 
     def close_milestone(self, mid, project=None):
         """Close a milestone given its ID"""
 
         if not self.setup_gitlab_api(project):
             return
-        data = {
-            'state_event': 'close'
-        }
+        data = {"state_event": "close"}
 
         res = self.put(f"/projects/{self.proj_id}/milestones/{mid}", data)
         logger.info("Closed milestone: %s", self.pretty_print(res))
@@ -297,8 +294,8 @@ class GitlabManager(NVPComponent):
             return
 
         # Ensure the file path is url-encoded:
-        src_path = data['file_path']
-        del data['file_path']
+        src_path = data["file_path"]
+        del data["file_path"]
         fpath = self.url_encode_path(src_path)
 
         res = self.put(f"/projects/{self.proj_id}/repository/files/{fpath}", data)
@@ -326,7 +323,7 @@ class GitlabManager(NVPComponent):
         """List of the milestone available in the current project"""
 
         # logger.info("Should list all milestones here from %s", self.proj)
-        title = self.settings['title']
+        title = self.settings["title"]
         if title is not None:
             res = self.find_milestone_by_title(title)
         else:
@@ -341,21 +338,26 @@ class GitlabManager(NVPComponent):
         start and end date"""
 
         # logger.info("Should list all milestones here from %s", self.proj)
-        title = self.settings['title']
-        desc = self.settings['description']
-        start_date = self.settings['start_date']
-        end_date = self.settings['end_date']
+        title = self.settings["title"]
+        desc = self.settings["description"]
+        start_date = self.settings["start_date"]
+        end_date = self.settings["end_date"]
 
-        logger.info("Should add a new milestone with: title=%s, desc=%s, start_date=%s, end_date=%s",
-                    title, desc, start_date, end_date)
+        logger.info(
+            "Should add a new milestone with: title=%s, desc=%s, start_date=%s, end_date=%s",
+            title,
+            desc,
+            start_date,
+            end_date,
+        )
 
-        data = {'title': title}
+        data = {"title": title}
         if desc is not None:
-            data['description'] = desc
+            data["description"] = desc
         if start_date is not None:
-            data['start_date'] = start_date
+            data["start_date"] = start_date
         if end_date is not None:
-            data['due_date'] = end_date
+            data["due_date"] = end_date
 
         self.add_milestone(data)
 
@@ -363,16 +365,16 @@ class GitlabManager(NVPComponent):
         """Close a milestone in the current project given a title or id"""
 
         # logger.info("Should list all milestones here from %s", self.proj)
-        mid = self.settings['milestone_id']
+        mid = self.settings["milestone_id"]
 
         if mid is None:
-            title = self.settings['title']
+            title = self.settings["title"]
             assert title is not None, "Title or id are required to close a milestone."
             mstone = self.find_milestone_by_title(title)
             if mstone is None:
                 logger.warning("No milestone found with title %s", title)
                 return
-            mid = mstone['id']
+            mid = mstone["id"]
 
         self.close_milestone(mid)
 
@@ -386,26 +388,18 @@ if __name__ == "__main__":
 
     context.define_subparsers("main", {"milestone": ["add", "list", "close"]})
 
-    psr = context.get_parser('main.milestone.add')
-    psr.add_argument("-p", "--project", dest='project', type=str, default="none",
-                     help="Select the current sub-project")
-    psr.add_argument("-t", "--title", dest='title', type=str,
-                     help="Title for the new milestone")
-    psr.add_argument("-d", "--desc", dest='description', type=str,
-                     help="Description for the new milestone")
-    psr.add_argument("-s", "--start", dest='start_date', type=str,
-                     help="Start date for the new milestone")
-    psr.add_argument("-e", "--end", dest='end_date', type=str,
-                     help="End date for the new milestone")
+    psr = context.get_parser("main.milestone.add")
+    psr.add_argument("-p", "--project", dest="project", type=str, default="none", help="Select the current sub-project")
+    psr.add_argument("-t", "--title", dest="title", type=str, help="Title for the new milestone")
+    psr.add_argument("-d", "--desc", dest="description", type=str, help="Description for the new milestone")
+    psr.add_argument("-s", "--start", dest="start_date", type=str, help="Start date for the new milestone")
+    psr.add_argument("-e", "--end", dest="end_date", type=str, help="End date for the new milestone")
 
-    psr = context.get_parser('main.milestone.list')
-    psr.add_argument("-t", "--title", dest='title', type=str,
-                     help="Title of the listed milestone")
+    psr = context.get_parser("main.milestone.list")
+    psr.add_argument("-t", "--title", dest="title", type=str, help="Title of the listed milestone")
 
-    psr = context.get_parser('main.milestone.close')
-    psr.add_argument("-t", "--title", dest='title', type=str,
-                     help="Title for the milestone to close")
-    psr.add_argument("--id", dest='milestone_id', type=int,
-                     help="ID for the milestone to close")
+    psr = context.get_parser("main.milestone.close")
+    psr.add_argument("-t", "--title", dest="title", type=str, help="Title for the milestone to close")
+    psr.add_argument("--id", dest="milestone_id", type=int, help="ID for the milestone to close")
 
     comp.run()

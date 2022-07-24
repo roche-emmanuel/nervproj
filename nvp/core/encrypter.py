@@ -1,13 +1,14 @@
 """Encrypter utility functions"""
 import logging
 
-# cf. https://gist.github.com/YannBouyeron/c5367809904a682767669b6a51f03aa3
-from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 
+# cf. https://gist.github.com/YannBouyeron/c5367809904a682767669b6a51f03aa3
+from Crypto.PublicKey import RSA
+
+import nvp.core.utils as utl
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
-import nvp.core.utils as utl
 
 logger = logging.getLogger(__name__)
 
@@ -104,17 +105,17 @@ class Encrypter(NVPComponent):
     def encrypt(self, msg):
         """Encrypt a given message"""
         pub = PKCS1_OAEP.new(self.get_public_key())
-        return utl.bytes_to_b64(pub.encrypt(msg.encode('utf-8')))
+        return utl.bytes_to_b64(pub.encrypt(msg.encode("utf-8")))
 
     def decrypt(self, msg):
         """Decrypt a given message"""
         priv = PKCS1_OAEP.new(self.get_private_key())
-        return priv.decrypt(utl.b64_to_bytes(msg)).decode('utf-8')
+        return priv.decrypt(utl.b64_to_bytes(msg)).decode("utf-8")
 
     def process_command(self, cmd):
         """Check if this component can process the given command"""
 
-        if cmd == 'gen-keys':
+        if cmd == "gen-keys":
             size = self.get_param("key_size")
             # logger.info("Should generate key of size %d", size)
             self.generate_keys(size, True)
@@ -147,21 +148,13 @@ if __name__ == "__main__":
     # Add our component:
     comp = context.register_component("encrypter", Encrypter(context))
 
-    context.define_subparsers("main", {
-        'gen-keys': None,
-        'show-pub': None,
-        "encrypt": None,
-        "decrypt": None
-    })
+    context.define_subparsers("main", {"gen-keys": None, "show-pub": None, "encrypt": None, "decrypt": None})
 
-    psr = context.get_parser('main.gen-keys')
-    psr.add_argument("-s", "--size", dest="key_size", type=int, default=2048,
-                     help="Specify the size of the rsa keys.")
-    psr = context.get_parser('main.encrypt')
-    psr.add_argument("message", type=str,
-                     help="Message to encrypt")
-    psr = context.get_parser('main.decrypt')
-    psr.add_argument("message", type=str,
-                     help="Message to decrypt")
+    psr = context.get_parser("main.gen-keys")
+    psr.add_argument("-s", "--size", dest="key_size", type=int, default=2048, help="Specify the size of the rsa keys.")
+    psr = context.get_parser("main.encrypt")
+    psr.add_argument("message", type=str, help="Message to encrypt")
+    psr = context.get_parser("main.decrypt")
+    psr.add_argument("message", type=str, help="Message to decrypt")
 
     comp.run()

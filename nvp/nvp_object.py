@@ -464,7 +464,7 @@ class NVPObject(object):
         if not response.ok:
             return False
 
-        if not "content-length" in response.headers:
+        if "content-length" not in response.headers:
             return False
 
         return int(response.headers.get("content-length")) > 0

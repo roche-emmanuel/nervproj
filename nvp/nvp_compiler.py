@@ -26,7 +26,7 @@ def get_environment_from_batch_command(env_cmd, initial=None):
     # construct the command that will alter the environment
     env_cmd = subprocess.list2cmdline(env_cmd)
     # create a tag so we can tell in the output when the proc is done
-    tag = '------------- ENV VARS -------------'
+    tag = "------------- ENV VARS -------------"
     # construct a cmd.exe command to do accomplish this
     cmd = f'cmd.exe /s /c "{env_cmd} && echo {tag} && set"'
     # cmd = ["cmd.exe", "/s", "/s", f'\"{env_cmd} && echo "{tag}" && set\"']
@@ -63,10 +63,10 @@ class NVPCompiler(NVPObject):
 
     def __init__(self, ctx, desc):
         """Compiler class constructor"""
-        assert 'type' in desc, "Invalid compiler type"
+        assert "type" in desc, "Invalid compiler type"
         self.ctx = ctx
         self.desc = desc
-        self.type = desc['type']
+        self.type = desc["type"]
         self.cxxflags = None
         self.linkflags = None
         self.libs_path = None
@@ -79,9 +79,9 @@ class NVPCompiler(NVPObject):
 
         ext = ".exe" if self.is_windows else ""
 
-        if self.type == 'msvc':
+        if self.type == "msvc":
             # This compiler must always be available:
-            setup_file = desc['setup_path']
+            setup_file = desc["setup_path"]
             assert self.file_exists(setup_file), f"Invalid MSVC setup path: {setup_file}"
             # setup is: VC/Auxiliary/Build/vcvarsall.bat
             self.root_dir = self.get_parent_folder(setup_file)  # Build dir
@@ -96,11 +96,11 @@ class NVPCompiler(NVPObject):
             logger.info("MSVC root dir is: %s", self.root_dir)
 
         else:
-            assert self.type == 'clang', f"No support for compiler type {self.type}"
-            self.root_dir = desc['root_dir']
+            assert self.type == "clang", f"No support for compiler type {self.type}"
+            self.root_dir = desc["root_dir"]
 
-            self.cxx_path = self.get_path(self.root_dir, "bin", "clang++"+ext)
-            self.cc_path = self.get_path(self.root_dir, "bin", "clang"+ext)
+            self.cxx_path = self.get_path(self.root_dir, "bin", "clang++" + ext)
+            self.cc_path = self.get_path(self.root_dir, "bin", "clang" + ext)
             self.libs_path = self.get_path(self.root_dir, "lib")
 
             # self.cxxflags = "-stdlib=libc++ -nodefaultlibs -lc++ -lc++abi -lm -lc -lgcc_s -lpthread"
@@ -110,7 +110,7 @@ class NVPCompiler(NVPObject):
             # self.linkflags = "-stdlib=libc++ -nodefaultlibs -lc++ -lc++abi -lm -lc -lgcc_s -lpthread"
 
             # extract the version number from the root_dir:
-            parts = self.root_dir.split('-')
+            parts = self.root_dir.split("-")
             assert len(parts) >= 2, f"Invalid root dir format for compiler {self.root_dir}"
             self.version = parts[-1]
 
@@ -123,7 +123,7 @@ class NVPCompiler(NVPObject):
 
     def get_type(self):
         """Return this compiler type"""
-        return self.desc['type']
+        return self.desc["type"]
 
     def is_msvc(self):
         """Check if this is an MSVC compiler"""
@@ -135,7 +135,7 @@ class NVPCompiler(NVPObject):
 
     def is_available(self):
         """Check if this compiler is currently available."""
-        if self.type == 'msvc':
+        if self.type == "msvc":
             return True
 
         return self.file_exists(self.get_cxx_path())
@@ -146,7 +146,7 @@ class NVPCompiler(NVPObject):
             return 0
 
         # Compiler is available:
-        return self.get_major_version()*1000 + self.get_minor_version()
+        return self.get_major_version() * 1000 + self.get_minor_version()
 
     def get_cxxflags(self):
         """Retrieve the cxxflags"""
@@ -196,12 +196,12 @@ class NVPCompiler(NVPObject):
             # We should keep only a very minimal PATH here:
             drive = os.getenv("HOMEDRIVE")
             assert drive is not None, "Invalid HOMEDRIVE variable."
-            orig_env['PATH'] = f"{drive}\\Windows\\System32;{drive}\\Windows"
+            orig_env["PATH"] = f"{drive}\\Windows\\System32;{drive}\\Windows"
 
             # remove everything from our path:
             # del orig_env['PATH']
 
-            cmd = [self.desc['setup_path'], "amd64"]
+            cmd = [self.desc["setup_path"], "amd64"]
             result_env = get_environment_from_batch_command(cmd, orig_env)
             # logger.info("Collected updated MSVC environemt: %s", result_env)
 
@@ -220,27 +220,27 @@ class NVPCompiler(NVPObject):
 
         if self.is_clang():
             env = {}
-            env['PATH'] = self.get_cxx_dir()
+            env["PATH"] = self.get_cxx_dir()
 
             # inc_dir = f"{self.root_dir}/include/c++/v1"
 
-            env['CC'] = self.get_cc_path()
-            env['CXX'] = self.get_cxx_path()
+            env["CC"] = self.get_cc_path()
+            env["CXX"] = self.get_cxx_path()
 
             # Do not use fPIC on windows:
             # fpic = " -fPIC" if self.is_linux else ""
             # env['CXXFLAGS'] = f"-I{inc_dir} {self.cxxflags}{fpic}"
             # env['CFLAGS'] = f"-I{inc_dir} -w{fpic}"
 
-            env['LD_LIBRARY_PATH'] = f"{self.libs_path}"
+            env["LD_LIBRARY_PATH"] = f"{self.libs_path}"
 
             # If we are on windows, we also need the library path from the MSVC compiler:
             if self.is_windows:
-                bman = self.ctx.get_component('builder')
-                msvc_comp = bman.get_compiler('msvc')
+                bman = self.ctx.get_component("builder")
+                msvc_comp = bman.get_compiler("msvc")
                 msvc_env = msvc_comp.get_env()
                 # logger.info("MSVC compiler env: %s", self.pretty_print(msvc_env))
-                env = self.prepend_env_list(msvc_env['LIB'], env, 'LIB')
+                env = self.prepend_env_list(msvc_env["LIB"], env, "LIB")
             self.comp_env = env
 
         assert self.comp_env is not None, "Cannot init compiler environment"
@@ -252,10 +252,10 @@ class NVPCompiler(NVPObject):
             env = os.environ.copy()
             # We don't want to keep any default PATH:
             if self.is_windows:
-                del env['PATH']
+                del env["PATH"]
             if self.is_linux:
                 # use a minimal path:
-                env['PATH'] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+                env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
         if self.comp_env is None:
             self.init_compiler_env()
