@@ -9,6 +9,10 @@
     "D:\\Softs\\VisualStudio\\VS2022",
     "D:\\Softs\\VisualStudio\\VS2017"
   ],
+
+  // No ssh keys by default:
+  "ssh": {},
+
   // list of location where we should search for packages:
   // "package_urls": ["https://gitlab.nervtech.org/shared/packages/-/raw/main/"],
   "package_urls": ["http://files.nervtech.org/nvp_packages/"],
