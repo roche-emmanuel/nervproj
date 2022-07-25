@@ -296,7 +296,7 @@ class NVPContext(NVPObject):
         # Check if we have an $HOME/.nvp/config.yml file
         cfg_file = self.get_path(self.get_home_dir(), ".nvp", "config.yml")
         if self.file_exists(cfg_file):
-            logger.info("Loading user config from file %s", cfg_file)
+            logger.debug("Loading user config from file %s", cfg_file)
 
             user_cfg = self.read_yaml(cfg_file)
             self.extend_config(user_cfg)
