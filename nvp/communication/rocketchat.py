@@ -44,7 +44,11 @@ class RocketChat(NVPComponent):
         """Method used to send a message on the configured rocketchat server."""
         # logger.info("Should send the rocketchat message: '%s'", message)
 
-        assert self.config is not None, "No configuration provided for rocketchat."
+        if self.config is None:
+            logger.error("No configuration provided for rocketchat: cannot send message:\n%s", message)
+            return
+
+        # assert self.config is not None, "No configuration provided for rocketchat."
 
         self.user_id = self.config["user_id"]
         self.token = self.config["token"]
