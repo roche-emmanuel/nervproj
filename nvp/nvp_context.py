@@ -262,6 +262,29 @@ class NVPContext(NVPObject):
         """Check if a given parser is already created."""
         return name in self.parsers
 
+    def extend_config(self, user_cfg):
+        """Extend the current config with the user provided config"""
+
+        # If a key starts with a "+" symbol then we append to the existing element instead of overriding it:
+        for key, val in user_cfg.items():
+            if key[0] == "+":
+                # Should append here:
+                key = key[1:]
+                if key in self.config:
+                    # Should have the same types:
+                    assert type(self.config[key]) == type(val), f"Type mismatch on config key {key}"
+                    if isinstance(self.config[key], list):
+                        self.config[key] += val
+                    else:
+                        # assume that we have a dict:
+                        self.config[key].update(val)
+                else:
+                    # add the new key value:
+                    self.config[key] = val
+            else:
+                # regular keys:
+                self.config[key] = val
+
     def load_config(self):
         """Load the config.json file, can only be done after we have the root path."""
 
@@ -270,32 +293,21 @@ class NVPContext(NVPObject):
         logger.log(0, "Loaded config: %s", self.config)
 
         # Apply config override if any:
+        # Check if we have an $HOME/.nvp/config.yml file
+        cfg_file = self.get_path(self.get_home_dir(), ".nvp", "config.yml")
+        if self.file_exists(cfg_file):
+            logger.info("Loading user config from file %s", cfg_file)
+
+            user_cfg = self.read_yaml(cfg_file)
+            self.extend_config(user_cfg)
+
         # First we should retrieve the list of potential paths for that file:
         cfg_paths = self.config.get("user_config_urls", ["${NVP_DIR}/config.user.json"])
         cfg_file = self.select_first_valid_path(cfg_paths)
 
         if cfg_file is not None:
             user_cfg = self.read_json(cfg_file)
-
-            # If a key starts with a "+" symbol then we append to the existing element instead of overriding it:
-            for key, val in user_cfg.items():
-                if key[0] == "+":
-                    # Should append here:
-                    key = key[1:]
-                    if key in self.config:
-                        # Should have the same types:
-                        assert type(self.config[key]) == type(val), f"Type mismatch on config key {key}"
-                        if isinstance(self.config[key], list):
-                            self.config[key] += val
-                        else:
-                            # assume that we have a dict:
-                            self.config[key].update(val)
-                    else:
-                        # add the new key value:
-                        self.config[key] = val
-                else:
-                    # regular keys:
-                    self.config[key] = val
+            self.extend_config(user_cfg)
 
             # self.config.update(user_cfg)
 
