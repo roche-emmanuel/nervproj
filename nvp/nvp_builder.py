@@ -79,11 +79,21 @@ class NVPBuilder(NVPObject):
         """Run the build operation. Should be re-implemented."""
         raise NotImplementedError
 
+    def check_execute(self, cmd, *args, **kwargs):
+        """Run a command and throw if we get an error."""
+        res, rcode, _ = self.execute(cmd, *args, **kwargs)
+        if res is False:
+            self.throw(
+                "Error when executing build operation:\nCommand '%s' finished with return code %d.\n=> Stopping build process.",
+                cmd,
+                rcode,
+            )
+
     def exec_ninja(self, build_dir, flags=None, **kwargs):
         """Run a custom ninja command line"""
         ninja_path = self.tools.get_ninja_path()
         flags = flags or []
-        self.execute([ninja_path] + flags, cwd=build_dir, env=self.env, **kwargs)
+        self.check_execute([ninja_path] + flags, cwd=build_dir, env=self.env, **kwargs)
 
     def run_ninja(self, build_dir, **kwargs):
         """Execute the standard ninja build/install commands"""
@@ -92,8 +102,8 @@ class NVPBuilder(NVPObject):
 
     def run_make(self, build_dir, **kwargs):
         """Execute the standard make build/install commands"""
-        self.execute(["make"], cwd=build_dir, env=self.env, **kwargs)
-        self.execute(["make", "install"], cwd=build_dir, env=self.env, **kwargs)
+        self.check_execute(["make"], cwd=build_dir, env=self.env, **kwargs)
+        self.check_execute(["make", "install"], cwd=build_dir, env=self.env, **kwargs)
 
     def run_cmake(self, build_dir, prefix, src_dir=None, flags=None, generator="Ninja", **kwargs):
         """Execute Standard cmake configuration command"""
@@ -112,7 +122,7 @@ class NVPBuilder(NVPObject):
             cmd.append(src_dir)
 
         logger.info("Cmake command: %s", cmd)
-        self.execute(cmd, cwd=build_dir, env=self.env, **kwargs)
+        self.check_execute(cmd, cwd=build_dir, env=self.env, **kwargs)
 
     def run_configure(self, build_dir, prefix, flags=None, src_dir=None):
         """Execute Standard configure command"""
@@ -124,4 +134,4 @@ class NVPBuilder(NVPObject):
             cmd += flags
 
         logger.info("configure command: %s", cmd)
-        self.execute(cmd, cwd=build_dir, env=self.env)
+        self.check_execute(cmd, cwd=build_dir, env=self.env)

@@ -47,7 +47,7 @@ class BuildManager(NVPComponent):
 
         # Figure out what type of compiler should be used:
         if self.is_windows:
-            supported_compilers = self.config.get("windows_supported_compilers", ["msvc", "clang"])
+            supported_compilers = self.config.get("windows_supported_compilers", ["clang", "msvc"])
             comp_type = comp_type or self.config.get("windows_default_compiler_type", "msvc")
         if self.is_linux:
             supported_compilers = self.config.get("linux_supported_compilers", ["clang"])
@@ -111,7 +111,7 @@ class BuildManager(NVPComponent):
                 break
 
         assert self.compiler is not None, f"Cannot find compiler of type {comp_type}"
-        logger.info("Selecting compiler %s", self.compiler.get_name())
+        logger.info("Selecting compiler %s (in %s)", self.compiler.get_name(), self.compiler.get_root_dir())
 
         self.setup_paths()
 

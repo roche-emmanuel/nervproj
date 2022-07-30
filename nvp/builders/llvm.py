@@ -57,9 +57,16 @@ class LLVMBuilder(NVPBuilder):
 
         self.append_compileflag(f"-DLIBXML_STATIC -I{iconv_dir}/include -I{xml2_dir}/include/libxml2")
         if self.is_windows:
-            self.append_linkflag(f"/LIBPATH:{xml2_dir}/lib {xml2_lib}")
-            self.append_linkflag(f"/LIBPATH:{iconv_dir}/lib {iconv_lib}")
-            self.append_linkflag("Ws2_32.lib")
+            if self.compiler.is_msvc():
+                self.append_linkflag(f"/LIBPATH:{xml2_dir}/lib {xml2_lib}")
+                self.append_linkflag(f"/LIBPATH:{iconv_dir}/lib {iconv_lib}")
+                self.append_linkflag("Ws2_32.lib")
+            else:
+                self.append_cflag("-std=gnu99")
+                self.append_linkflag(f"-L{xml2_dir}/lib -llibxml2s")
+                self.append_linkflag(f"-L{iconv_dir}/lib -llibiconvStatic")
+                self.append_linkflag("-lWs2_32")
+
         # else:
         # self.append_linkflag("-Wl,-Bstatic")
         # self.append_linkflag(f"-L{iconv_dir}/lib")
@@ -78,6 +85,10 @@ class LLVMBuilder(NVPBuilder):
             f"-DLIBXML2_LIBRARY={xml2_dir}/lib/{xml2_lib}",
             f"-DLIBXML2_INCLUDE_DIR={xml2_dir}/include/libxml2",
         ]
+
+        # When compiling with clang on windows we should specify the Host triple:
+        if self.is_windows and self.compiler.is_clang():
+            flags += ["-DLLVM_HOST_TRIPLE=x86_64-pc-win32", "-DLLVM_ENABLE_PEDANTIC=OFF"]
 
         if self.is_linux:
             flags += [
@@ -106,6 +117,30 @@ class LLVMBuilder(NVPBuilder):
         self.replace_in_file(
             libc_file, "set(LIBC_INSTALL_LIBRARY_DIR lib${LLVM_LIBDIR_SUFFIX})", "set(LIBC_INSTALL_LIBRARY_DIR lib)"
         )
+
+        if self.is_windows and self.compiler.is_clang():
+            # Do not export symbols with def file in libclang:
+            # file = self.get_path(build_dir, "clang", "tools", "libclang", "CMakeLists.txt")
+            # self.replace_in_file(
+            #     file,
+            #     "if (LLVM_EXPORTED_SYMBOL_FILE)",
+            #     "set(LLVM_EXPORTED_SYMBOL_FILE)\nif (LLVM_EXPORTED_SYMBOL_FILE)",
+            # )
+
+            file = self.get_path(build_dir, "llvm", "cmake", "modules", "AddLLVM.cmake")
+            self.replace_in_file(
+                file,
+                "add_llvm_symbol_exports( ${name} ${LLVM_EXPORTED_SYMBOL_FILE} )",
+                'message(STATUS "NervProj: Ignoring symbol file ${LLVM_EXPORTED_SYMBOL_FILE}")',
+            )
+
+            # disable the pedantic warnings in Clang:
+            file = self.get_path(build_dir, "clang", "CMakeLists.txt")
+            self.replace_in_file(
+                file,
+                'set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -Wno-long-long")',
+                'set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-long-long")',
+            )
 
         # On linux we must also patch the usage of the LIBXML2 library to link to the static iconv library too
         #  for the compilation of LLDB:

@@ -117,6 +117,7 @@ class ScriptRunner(NVPComponent):
         hlocs["${PYTHON}"] = py_path
         hlocs["${PY_ENV_DIR}"] = pyenv_dir
         hlocs["${NVP}"] = f"{py_path} {self.ctx.get_root_dir()}/cli.py"
+        hlocs["${NINJA}"] = tools.get_tool_path("ninja")
 
         if "nodejs_env" in desc:
             nodejs = self.get_component("nodejs")
@@ -136,7 +137,11 @@ class ScriptRunner(NVPComponent):
 
         cmd = [el for el in cmd if el != ""]
 
-        cwd = self.fill_placeholders(desc.get("cwd", None), hlocs)
+        cwd = desc.get("cwd", None)
+        if cwd is None:
+            cwd = self.get_cwd()
+
+        cwd = self.fill_placeholders(cwd, hlocs)
 
         env = None
 

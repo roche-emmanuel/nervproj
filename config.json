@@ -291,6 +291,10 @@
       "help": "Run a gitlab command",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/gitlab_manager.py",
       "python_path": ["${NVP_ROOT_DIR}"]
+    },
+    "ninja": {
+      "help": "Run a ninja command",
+      "cmd": "${NINJA}"
     }
   },
   "notify_script_errors": true,

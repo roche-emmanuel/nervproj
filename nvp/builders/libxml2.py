@@ -45,6 +45,12 @@ class Builder(NVPBuilder):
 
         self.run_ninja(build_dir)
 
+        if self.compiler.is_clang():
+            # Add the s suffix to the library:
+            srcfile = self.get_path(prefix, "lib", "libxml2.lib")
+            dstfile = self.get_path(prefix, "lib", "libxml2s.lib")
+            self.move_path(srcfile, dstfile)
+
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
 

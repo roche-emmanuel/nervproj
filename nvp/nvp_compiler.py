@@ -220,7 +220,13 @@ class NVPCompiler(NVPObject):
 
         if self.is_clang():
             env = {}
-            env["PATH"] = self.get_cxx_dir()
+
+            if self.is_windows:
+                drive = os.getenv("HOMEDRIVE")
+                assert drive is not None, "Invalid HOMEDRIVE variable."
+                env["PATH"] = f"{self.get_cxx_dir()};{drive}\\Windows\\System32;{drive}\\Windows"
+            else:
+                env["PATH"] = self.get_cxx_dir()
 
             # inc_dir = f"{self.root_dir}/include/c++/v1"
 
