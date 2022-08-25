@@ -60,6 +60,18 @@
       "name": "par2",
       "sub_path": "par2j64.exe",
       "version": "1.2.8.6"
+    },
+    {
+      "name": "ffmpeg",
+      "sub_path": "bin/ffmpeg.exe",
+      "version": "2022.08.25",
+      "sub_tools": {
+        "ffprobe": "bin/ffprobe.exe"
+      },
+      "urls": [
+        "http://files.nervtech.org/nvp_packages/tools/ffmpeg-2022.08.25-windows.7z",
+        "https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z"
+      ]
     }
   ],
   "linux_tools": [
@@ -108,6 +120,18 @@
         "/mnt/array1/dev/compilers/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz",
         "http://files.nervtech.org/nvp_packages/tools/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz",
         "https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz"
+      ]
+    },
+    {
+      "name": "ffmpeg",
+      "sub_path": "ffmpeg",
+      "version": "2022.07.22",
+      "sub_tools": {
+        "ffprobe": "ffprobe"
+      },
+      "urls": [
+        "http://files.nervtech.org/nvp_packages/tools/ffmpeg-2022.08.25-linux.tar.xz",
+        "https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz"
       ]
     }
   ],
@@ -252,6 +276,12 @@
       "help": "Generate a pair of RSA key",
       "custom_python_env": "min_env",
       "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/encrypter.py decrypt",
+      "python_path": ["${NVP_ROOT_DIR}"]
+    },
+    "tools": {
+      "help": "Run the tools manager",
+      "custom_python_env": "min_env",
+      "cmd": "${PYTHON} ${NVP_ROOT_DIR}/nvp/core/tools.py",
       "python_path": ["${NVP_ROOT_DIR}"]
     },
     "email": {
