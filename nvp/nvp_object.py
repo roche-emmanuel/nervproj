@@ -830,6 +830,10 @@ class NVPObject(object):
         if content is None:
             return None
 
+        # If content is a list, then we process each element in the list:
+        if isinstance(content, list):
+            return [self.fill_placeholders(elem, hlocs) for elem in content]
+
         for loc, rep in hlocs.items():
             if rep is None:
                 logger.debug("Ignoring invalid replacement for %s in %s", loc, content)

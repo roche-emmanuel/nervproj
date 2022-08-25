@@ -57,6 +57,13 @@ class NVPProject(NVPObject):
                 except ModuleNotFoundError as err:
                     logger.error("Cannot load project %s: exception: %s", self.get_name(False), str(err))
 
+        # For each available script we replace the $PROJECT_ROOT_DIR variable where applicable:
+        hlocs = {'${PROJECT_ROOT_DIR}': proj_path}
+        for _, desc in self.scripts.items():
+            for entry in ["cmd", "windows_cmd", "linux_cmd", "cwd"]:
+                if entry in desc:
+                    desc[entry] = self.fill_placeholders(desc[entry], hlocs)
+
     def has_name(self, pname):
         """Check if this project has the given name"""
         return pname in self.desc["names"]
