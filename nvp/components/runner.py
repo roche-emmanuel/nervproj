@@ -139,7 +139,11 @@ class ScriptRunner(NVPComponent):
 
         cwd = desc.get("cwd", None)
         if cwd is None:
+            # If no CWD is provided we should use the current HOME folder as default:
+            # Update: actually we really need to use get_cwd() or None here.
+            # Otherwise some commands (like "nvp git commit") will not work.
             cwd = self.get_cwd()
+            # cwd = self.ctx.get_home_dir()
 
         cwd = self.fill_placeholders(cwd, hlocs)
 

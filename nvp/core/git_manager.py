@@ -153,6 +153,12 @@ class GitManager(NVPComponent):
             self.clone_project_repository(dest_dir, proj)
             return True
 
+        if cmd == "commit":
+            msg = self.get_param("message")
+            cwd = self.get_canonical_cwd()
+            self.commit_all(msg, cwd)
+            return True
+
         if cmd == "status":
             cwd = self.get_canonical_cwd()
             self.git_status(cwd)
@@ -190,6 +196,20 @@ class GitManager(NVPComponent):
                 if ppath is not None:
                     logger.info("Pulling %s...", proj.get_name())
                     self.git_pull(ppath)
+            return True
+
+        if cmd == "pushall":
+            # Push all the known repositories:
+            # We start with the NVP framework itself:
+            logger.info("Pushing NVP framework...")
+            self.git_push(self.ctx.get_root_dir())
+
+            # Next we iterate on all the projects:
+            for proj in self.ctx.get_projects():
+                ppath = proj.get_root_dir()
+                if ppath is not None:
+                    logger.info("Pushing %s...", proj.get_name())
+                    self.git_push(ppath)
             return True
 
         return False
@@ -293,10 +313,13 @@ if __name__ == "__main__":
     # Add our component:
     comp = context.get_component("git")
 
-    context.define_subparsers("main", ["status", "diff", "setup", "push", "pull", "pullall"])
+    context.define_subparsers("main", ["status", "diff", "setup", "push", "pull", "pullall", "pushall"])
 
     psr = context.build_parser("clone")
     psr.add_str("dest_folder", nargs="?", default=None)(help="Name of the folder where to checkout the project")
     psr.add_str("-p", "--project", dest="project")(help="The project that should be cloned.")
+
+    psr = context.build_parser("commit")
+    psr.add_str("message")(help="Commit message")
 
     comp.run()

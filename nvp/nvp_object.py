@@ -611,6 +611,10 @@ class NVPObject(object):
             logger.error("Error occured in subprocess for %s:\n%s", cmd, str(err))
             return False, None, lastest_outputs
 
+        except PermissionError as err:
+            logger.error("PermissionError occured in subprocess for %s:\n%s\nkwargs=%s", cmd, str(err), kwargs)
+            return False, None, lastest_outputs
+
         except KeyboardInterrupt:
             logger.info("Interrupting subprocess...")
             os.kill(proc.pid, signal.SIGINT)
