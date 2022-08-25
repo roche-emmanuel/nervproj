@@ -199,6 +199,9 @@ class BuildManager(NVPComponent):
         logger.debug("Checking libraries:")
         alldeps = self.config["libraries"]
 
+        # Ensure we use only lower case for dependency names:
+        dep_list = [dname.lower() for dname in dep_list]
+
         doall = "all" in dep_list
 
         for dep in alldeps:

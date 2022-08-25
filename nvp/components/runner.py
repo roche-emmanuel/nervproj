@@ -2,6 +2,7 @@
 import logging
 import os
 import time
+import copy
 from pathlib import Path
 
 from nvp.nvp_component import NVPComponent
@@ -59,10 +60,8 @@ class ScriptRunner(NVPComponent):
         desc = self.scripts.get(script_name, None)
         return desc is not None
 
-    def run_script(self, script_name: str, proj: NVPProject | None):
-        """Run a given script on a given project"""
-
-        # Get the script from the config:
+    def get_script_desc(self, script_name: str, proj: NVPProject | None):
+        """Retrieve a script desc by name"""
         desc = None
         if proj is not None:
             desc = proj.get_script(script_name)
@@ -78,8 +77,65 @@ class ScriptRunner(NVPComponent):
         if desc is None:
             desc = self.scripts.get(script_name, None)
 
+        return desc
+
+    def run_script(self, script_name: str, proj: NVPProject | None):
+        """Run a given script given by name on a given project"""
+        desc = self.get_script_desc(script_name, proj)
+        self.run_script_desc(desc, script_name, proj)
+
+    def run_script_desc(self, desc, script_name: str, proj: NVPProject | None):
+        """Run a given script desc on a given project"""
+
         if desc is None:
             logger.warning("No script named %s found", script_name)
+            return
+
+        # If the desc contains a "script" entry, then we should retrive the corresponding script and
+        # extend it with the settings we have in the current desc:
+        if "script" in desc:
+            sname = desc["script"]
+
+            # We should not have both "script" and "cmd" entries:
+            self.check("cmd" not in desc, "Should not have cmd here")
+            self.check("windows_cmd" not in desc, "Should not have windows_cmd here")
+            self.check("linux_cmd" not in desc, "Should not have linux_cmd here")
+
+            # Retrieve the curresponding script desc:
+            # The name of the script will be the first word, and the
+            # following words should be considered additional command line arguments:
+            words = sname.split()
+            sname = words.pop(0)
+            args = " ".join(words) if len(words) > 0 else None
+
+            desc2 = self.get_script_desc(sname, proj)
+
+            if desc2 is None:
+                logger.warning("No script named %s found", sname)
+                return
+
+            # We should adapt the subscript desc and then run it:
+            desc2 = copy.deepcopy(desc2)
+
+            for key, val in desc.items():
+                if key in ["script"]:
+                    # We do not override that entry.
+                    continue
+
+                desc2[key] = val
+
+            # If desc2 is a script call then we append the args to the script,
+            # otherwise we append to the cmd entry:
+            if args is not None:
+                if "script" in desc2:
+                    desc2["script"] += f" {args}"
+                else:
+                    for key in ["cmd", f"{self.platform}_cmd"]:
+                        if key in desc2:
+                            desc2[key] += f" {args}"
+
+            # Finally we run that script and return:
+            self.run_script_desc(desc2, sname, proj)
             return
 
         key = f"{self.platform}_cmd"
