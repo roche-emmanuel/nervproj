@@ -573,7 +573,8 @@ class NVPObject(object):
                             line = line.decode(encoding)
                         except UnicodeDecodeError:
                             try:
-                                line = line.decode("cp1252")
+                                # line = line.decode("cp1252")
+                                line = line.decode("cp850")
                             except UnicodeDecodeError:
                                 logger.error("Unicode error on subprocess output line: %s", line)
                                 continue
