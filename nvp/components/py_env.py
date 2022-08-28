@@ -99,6 +99,24 @@ class PyEnvManager(NVPComponent):
             logger.info("Removing python environment at %s", dest_folder)
             self.remove_folder(dest_folder)
 
+    def get_all_packages(self, desc):
+        """Retrieve all the python packages requested for a given environment desc"""
+        pkgs = []
+
+        if "inherit" in desc:
+            parent_name = desc["inherit"]
+            pdesc = self.get_py_env_desc(parent_name)
+            pkgs = self.get_all_packages(pdesc)
+
+        # Add the packages from this desc:
+        added = desc["packages"]
+        for pkg in added:
+            if pkg not in pkgs:
+                pkgs.append(pkg)
+
+        # Return all the packages:
+        return pkgs
+
     def setup_py_env(self, env_name):
         """Setup a given python environment"""
 
@@ -143,7 +161,10 @@ class PyEnvManager(NVPComponent):
 
         # Next we should prepare the requirements file:
         req_file = self.get_path(dest_folder, "requirements.txt")
-        content = "\n".join(desc["packages"])
+
+        packages = self.get_all_packages(desc)
+
+        content = "\n".join(packages)
         self.write_text_file(content, req_file)
 
         logger.info("Installing python requirements...")

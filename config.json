@@ -330,17 +330,16 @@
   "notify_script_errors": true,
   // Available custom python environments:
   "custom_python_envs": {
+    "default_env": {
+      "packages": ["requests", "jstyleson", "pyyaml", "xxhash"]
+    },
     "min_env": {
-      "packages": ["requests", "jstyleson", "pyyaml", "xxhash", "pycryptodome"]
+      "inherit": "default_env",
+      "packages": [ "pycryptodome" ]
     },
     "social_env": {
-      "packages": [
-        "requests",
-        "jstyleson",
-        "pyyaml",
-        "xxhash",
-        "requests-oauthlib"
-      ]
+      "inherit": "default_env",
+      "packages": [ "requests-oauthlib" ]
     }
   },
   // Available dynamic components:
