@@ -1,0 +1,298 @@
+# Folder where to search for VisualStudio installations:
+# This is applicable when targetting the flavor "msvc64" which
+# is the default on windows:
+# Note that the first valid path in this list will be used here.
+msvc_install_paths:
+  - D:\Softs\VisualStudio2022CE
+  - D:\Softs\VisualStudio\VS2022
+  - D:\Softs\VisualStudio\VS2017
+
+# No ssh keys by default:
+ssh: {}
+
+# list of location where we should search for packages:
+# "package_urls": ["https://gitlab.nervtech.org/shared/packages/-/raw/main/"],
+package_urls:
+  - http://files.nervtech.org/nvp_packages/
+prioritize_package_urls: true
+
+# Tools that can be used on windows:
+windows_tools:
+  - name: python
+    sub_path: python.exe
+    sub_tools:
+      autopep8: Scripts/autopep8.exe
+      cmake_format: Scripts/cmake-format.exe
+      pylint: Scripts/pylint.exe
+      pytest: Scripts/pytest.exe
+    version: 3.10.1
+  - name: 7zip
+    sub_path: 7za.exe
+    version: "9.20"
+  - name: ninja
+    sub_path: ninja.exe
+    version: 1.10.2
+  - name: cmake
+    sub_path: bin/cmake.exe
+    urls:
+      - https://github.com/Kitware/CMake/releases/download/v3.22.3/cmake-3.22.3-windows-x86_64.zip
+    version: 3.22.3
+  - name: git
+    sub_path: bin/git.exe
+    urls:
+      - https://github.com/git-for-windows/git/releases/download/v2.35.1.windows.2/PortableGit-2.35.1.2-64-bit.7z.exe
+    version: 2.35.1
+  - name: par2
+    sub_path: par2j64.exe
+    version: 1.2.8.6
+  - name: ffmpeg
+    sub_path: bin/ffmpeg.exe
+    sub_tools:
+      ffprobe: bin/ffprobe.exe
+    urls:
+      - http://files.nervtech.org/nvp_packages/tools/ffmpeg-2022.08.25-windows.7z
+      - https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z
+    version: 2022.08.25
+
+# Tools that can be used on linux:
+linux_tools:
+  - name: python
+    sub_path: bin/python3
+    sub_tools:
+      autopep8: bin/autopep8
+      cmake_format: bin/cmake-format
+      pylint: bin/pylint
+      pytest: bin/pytest
+    version: 3.10.2
+  - name: 7zip
+    sub_path: 7zzs
+    version: "21.07"
+  - name: ninja
+    sub_path: ninja
+    version: 1.10.2
+  - name: cmake
+    sub_path: bin/cmake
+    urls:
+      - https://github.com/Kitware/CMake/releases/download/v3.22.3/cmake-3.22.3-linux-x86_64.tar.gz
+    version: 3.22.3
+  - name: git
+    path: git
+  - name: par2
+    path: par2
+  - name: clang
+    sub_path: bin/clang++
+    urls:
+      - /mnt/array1/dev/compilers/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+      - http://files.nervtech.org/nvp_packages/tools/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+      - https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+    version: 13.0.1
+  - name: ffmpeg
+    sub_path: ffmpeg
+    sub_tools:
+      ffprobe: ffprobe
+    urls:
+      - http://files.nervtech.org/nvp_packages/tools/ffmpeg-2022.08.25-linux.tar.xz
+      - https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz
+    version: 2022.07.22
+
+# List of libraries that we can build:
+libraries:
+  - linux_url: https://www.zlib.net/zlib-1.2.12.tar.gz
+    name: zlib
+    version: 1.2.12
+    windows_url: https://www.zlib.net/zlib1212.zip
+  - name: libiconv
+    url: https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.16.tar.gz
+    version: "1.16"
+  - linux_url: https://gitlab.gnome.org/GNOME/libxml2/-/archive/v2.9.13/libxml2-v2.9.13.tar.gz
+    name: libxml2
+    version: 2.9.13
+    windows_url: https://gitlab.gnome.org/GNOME/libxml2/-/archive/v2.9.13/libxml2-v2.9.13.zip
+  - extracted_dir: llvm-project-llvmorg-14.0.6
+    linux_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.6.tar.gz
+    name: LLVM
+    version: 14.0.6
+    windows_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.6.zip
+  - name: boost
+    url: https://boostorg.jfrog.io/artifactory/main/release/1.79.0/source/boost_1_79_0.7z
+    version: 1.79.0
+  - name: SDL2
+    url: https://www.libsdl.org/release/SDL2-2.0.20.zip
+    version: 2.0.20
+  - name: LuaJIT
+    url: git@github.com:roche-emmanuel/LuaJIT.git
+    version: "2.1"
+  - name: FastNoise2
+    url: git@github.com:roche-emmanuel/FastNoise2.git
+    version: 0.9.4
+  - name: spdlog
+    url: git@github.com:roche-emmanuel/spdlog.git
+    version: 1.10.0
+
+# list of available projects:
+projects: []
+
+# Default project search paths:
+project_paths:
+  - D:\Projects
+  - /mnt/array1/dev/projects
+
+# Paths where to search for the user config file:
+user_config_urls:
+  - D:\Seafile\Perso\Admin\nervproj.config.json
+  - D:\Documents\Perso\Admin\nervproj.config.json
+  - /home/kenshin/seafile/Perso/Admin/nervproj.config.json
+  - /home/kenshin/Seafile/Perso/Admin/nervproj.config.json
+
+# Repository url for the NervProj project itself:
+repository_url: git@github.com:roche-emmanuel/nervproj.git
+
+# Git configuration elements:
+git:
+  user_email: your_email@domain.com
+  user_name: your_user_name
+
+# List of cmake projects:
+cmake_projects:
+  # Fastnoise2 python bindings:
+  - dependencies:
+      BOOST_DIR: boost
+      FASTNOISE2_DIR: FastNoise2
+      PYTHON_DIR: python
+      PY_VERS_MAJOR: python:version_major
+      PY_VERS_MINOR: python:version_minor
+    install_dir: ${NVP_ROOT_DIR}/dist/bin
+    name: pyfn2
+    root_dir: ${NVP_ROOT_DIR}/sources/pyfn2
+
+# list of scripts commands:
+scripts:
+  admin:
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/admin.py
+    custom_python_env: min_env
+    help: Admin commands
+    python_path:
+      - ${NVP_ROOT_DIR}
+  build:
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/build_manager.py
+    custom_python_env: min_env
+    help: Builder commands
+    python_path:
+      - ${NVP_ROOT_DIR}
+  cmake:
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/cmake_manager.py
+    custom_python_env: min_env
+    help: Cmake commands
+    output_encoding: latin1
+    python_path:
+      - ${NVP_ROOT_DIR}
+  decrypt:
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/encrypter.py decrypt
+    custom_python_env: min_env
+    help: Generate a pair of RSA key
+    python_path:
+      - ${NVP_ROOT_DIR}
+  email:
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/communication/email_handler.py send
+    custom_python_env: min_env
+    help: Send an email
+    python_path:
+      - ${NVP_ROOT_DIR}
+  encrypt:
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/encrypter.py encrypt
+    custom_python_env: min_env
+    help: Generate a pair of RSA key
+    python_path:
+      - ${NVP_ROOT_DIR}
+  encrypter:
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/encrypter.py
+    custom_python_env: min_env
+    help: Generate a pair of RSA key
+    python_path:
+      - ${NVP_ROOT_DIR}
+  git:
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/git_manager.py
+    help: Run a git command
+    python_path:
+      - ${NVP_ROOT_DIR}
+  gitlab:
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/gitlab_manager.py
+    help: Run a gitlab command
+    python_path:
+      - ${NVP_ROOT_DIR}
+  ninja:
+    cmd: ${NINJA}
+    help: Run a ninja command
+  nodejs:
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/nodejs_manager.py
+    custom_python_env: min_env
+    help: Run nodejs manager
+    python_path:
+      - ${NVP_ROOT_DIR}
+  pip:
+    cmd: ${PYTHON} -m pip
+    help: Run a pip command
+    python_path:
+      - ${PROJECT_ROOT_DIR}
+    use_local_python: true
+  python:
+    cmd: ${PYTHON}
+    help: Run a python command
+    python_path:
+      - ${PROJECT_ROOT_DIR}
+    use_local_python: true
+  rchat:
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/communication/rocketchat.py send
+    custom_python_env: social_env
+    help: Send a message on the configured rocketchat server
+    python_path:
+      - ${NVP_ROOT_DIR}
+  test-pyfn2:
+    cmd: ${PYTHON} -m pytest -s
+    cwd: ${NVP_ROOT_DIR}/tests/pyfn2
+    help: Test the bindings generated for the fastnoise2 library
+    python_path:
+      - ${NVP_ROOT_DIR}
+  tidy:
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/libraries/windows_msvc/LLVM-14.0.6/bin/clang-tidy.exe
+    help: Run clang-tidy command
+  tools:
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/tools.py
+    custom_python_env: min_env
+    help: Run the tools manager
+    python_path:
+      - ${NVP_ROOT_DIR}
+
+# Notify in case of script error:
+notify_script_errors: true
+
+# Available custom python environments:
+custom_python_envs:
+  default_env:
+    packages:
+      - requests
+      - jstyleson
+      - pyyaml
+      - xxhash
+  min_env:
+    inherit: default_env
+    packages:
+      - pycryptodome
+  social_env:
+    inherit: default_env
+    packages:
+      - requests-oauthlib
+
+# Available dynamic components:
+components:
+  admin: nvp.core.admin
+  builder: nvp.core.build_manager
+  cmake: nvp.core.cmake_manager
+  email: nvp.communication.email_handler
+  encrypter: nvp.core.encrypter
+  git: nvp.core.git_manager
+  gitlab: nvp.core.gitlab_manager
+  nodejs: nvp.core.nodejs_manager
+  psutils: nvp.core.process_utils
+  rchat: nvp.communication.rocketchat
+  tools: nvp.core.tools

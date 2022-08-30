@@ -288,8 +288,15 @@ class NVPContext(NVPObject):
     def load_config(self):
         """Load the config.json file, can only be done after we have the root path."""
 
-        cfgfile = self.get_path(self.root_dir, "config.json")
-        self.config = self.read_json(cfgfile)
+        # Check if we have a config.yml file:
+        cfg_file = self.get_path(self.root_dir, "config.yml")
+        if self.file_exists(cfg_file):
+            self.config = self.read_yaml(cfg_file)
+        else:
+            # fallback to the config.json file:
+            cfgfile = self.get_path(self.root_dir, "config.json")
+            self.config = self.read_json(cfgfile)
+
         logger.log(0, "Loaded config: %s", self.config)
 
         # Apply config override if any:
