@@ -1,8 +1,8 @@
 """Collection of admin utility functions"""
+import copy
 import logging
 import os
 import time
-import copy
 from pathlib import Path
 
 from nvp.nvp_component import NVPComponent
@@ -199,6 +199,7 @@ class ScriptRunner(NVPComponent):
             # Update: actually we really need to use get_cwd() or None here.
             # Otherwise some commands (like "nvp git commit") will not work.
             cwd = self.get_cwd()
+
             # cwd = self.ctx.get_home_dir()
 
         cwd = self.fill_placeholders(cwd, hlocs)

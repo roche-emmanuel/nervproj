@@ -247,7 +247,8 @@ class NVPObject(object):
     def get_cwd(self):
         """Return the current CWD"""
         cwd = os.getenv("PWD", os.getcwd())
-        if cwd.startswith("/cygdrive/"):
+        if self.is_windows and cwd.startswith("/"):
+            # We are probably in a cygwin env:
             cwd = self.from_cygwin_path(cwd)
         return cwd
 
