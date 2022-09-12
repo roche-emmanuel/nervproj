@@ -468,6 +468,10 @@ class NVPContext(NVPObject):
         # assert cname in self.components, f"Could not register component for {cname}"
         # return self.components[cname]
 
+    def import_module(self, mname):
+        """Import a given module and return it"""
+        return import_module(mname)
+
     def create_component(self, cname, args=None, do_init=True):
         """Create a new dynamic component given it's name and optional arguments"""
         dyn_comps = self.config.get("components", {})
