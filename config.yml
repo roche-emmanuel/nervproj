@@ -128,6 +128,8 @@ libraries:
   - name: spdlog
     url: git@github.com:roche-emmanuel/spdlog.git
     version: 1.10.0
+  - name: Vulkan
+    version: 1.3.224.1
 
 # list of available projects:
 projects: []
