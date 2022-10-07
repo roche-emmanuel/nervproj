@@ -185,6 +185,11 @@ class ScriptRunner(NVPComponent):
             hlocs["${NODE}"] = node_path
             hlocs["${NPM}"] = f"{node_path} {node_root_dir}/node_modules/npm/bin/npm-cli.js"
 
+        if "params" in desc:
+            params = desc["params"]
+            for pname, pvalue in params.items():
+                hlocs[f"${{{pname}}}"] = self.fill_placeholders(pvalue, hlocs)
+
         if isinstance(cmd, str):
             cmd = self.fill_placeholders(cmd, hlocs)
             cmd = cmd.split(" ")
@@ -237,6 +242,11 @@ class ScriptRunner(NVPComponent):
 
         if self.get_param("show_script_help", False):
             cmd += ["--help"]
+
+        if "env_vars" in desc:
+            evars = desc["env_vars"]
+            for vname, value in evars.items():
+                env[vname] = self.fill_placeholders(value, hlocs)
 
         logfile = None
         if "log_file" in desc:
