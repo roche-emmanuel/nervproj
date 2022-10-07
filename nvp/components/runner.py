@@ -60,6 +60,18 @@ class ScriptRunner(NVPComponent):
         desc = self.scripts.get(script_name, None)
         return desc is not None
 
+    def get_script_parameters(self):
+        """Retrieve all the script parameters"""
+        projs = self.ctx.get_projects()
+        sparams = {}
+        for proj in projs:
+            params = proj.get_config().get("script_parameters", {})
+            for pname, pval in params.items():
+                if pname in sparams and sparams[pname] != pval:
+                    logger.warning("Overriding script parameter %s: %s => %s", pname, sparams[pname], pval)
+                sparams[pname] = pval
+        return sparams
+
     def get_script_desc(self, script_name: str, proj: NVPProject | None):
         """Retrieve a script desc by name"""
         desc = None
@@ -184,6 +196,11 @@ class ScriptRunner(NVPComponent):
             node_path = nodejs.get_node_path(env_name)
             hlocs["${NODE}"] = node_path
             hlocs["${NPM}"] = f"{node_path} {node_root_dir}/node_modules/npm/bin/npm-cli.js"
+
+        sparams = self.get_script_parameters()
+        # logger.info("Using script parameters: %s", sparams)
+        for pname, pvalue in sparams.items():
+            hlocs[f"${{{pname}}}"] = self.fill_placeholders(pvalue, hlocs)
 
         if "params" in desc:
             params = desc["params"]
