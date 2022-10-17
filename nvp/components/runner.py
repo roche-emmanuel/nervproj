@@ -89,6 +89,14 @@ class ScriptRunner(NVPComponent):
         if desc is None:
             desc = self.scripts.get(script_name, None)
 
+        if desc is not None and "inherit" in desc:
+            # Inherit the given script:
+            ihname = desc["inherit"]
+            pdesc = self.get_script_desc(ihname, proj)
+            for key, val in pdesc.items():
+                if key not in desc:
+                    desc[key] = val
+
         return desc
 
     def run_script(self, script_name: str, proj: NVPProject | None):
