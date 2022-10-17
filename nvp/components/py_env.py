@@ -117,6 +117,26 @@ class PyEnvManager(NVPComponent):
         # Return all the packages:
         return pkgs
 
+    def get_all_modules(self, desc):
+        """Retrieve the list of modules that should be installed in the python environment"""
+        mods = {}
+
+        if "inherit" in desc:
+            parent_name = desc["inherit"]
+            pdesc = self.get_py_env_desc(parent_name)
+            mods = self.get_all_modules(pdesc)
+
+        # Add the packages from this desc:
+        added = desc.get("additional_modules", {})
+        for mname, mpath in added.items():
+            if mname in mods and mpath != mods[mname]:
+                logger.info("Overriding additional module %s: %s => %s", mname, mods[mname], mpath)
+
+            mods[mname] = mpath
+
+        # Return all the modules:
+        return mods
+
     def setup_py_env(self, env_name):
         """Setup a given python environment"""
 
@@ -169,3 +189,13 @@ class PyEnvManager(NVPComponent):
 
         logger.info("Installing python requirements...")
         self.execute([py_path, "-m", "pip", "install", "-r", req_file, "--no-warn-script-location"])
+
+        # Also install the additional modules if any:
+        mods = self.get_all_modules(desc)
+
+        tools = self.get_component("tools")
+
+        for mname, mpath in mods.items():
+            logger.info("Installing module %s...", mname)
+            dest_path = self.get_path(dest_folder, mname)
+            tools.download_file(mpath, dest_path)

@@ -226,15 +226,23 @@ class ScriptRunner(NVPComponent):
 
         cwd = self.fill_placeholders(cwd, hlocs)
 
-        env = None
+        env = os.environ.copy()
 
-        key = f"{self.platform}_env"
-        env_dict = desc[key] if key in desc else desc.get("env", None)
+        key = f"{self.platform}_env_vars"
+        env_dict = desc[key] if key in desc else desc.get("env_vars", None)
 
         if env_dict is not None:
-            env = os.environ.copy()
             for key, val in env_dict.items():
+
                 env[key] = self.fill_placeholders(val, hlocs)
+
+        if "env_paths" in desc:
+            sep = ";" if self.is_windows else ":"
+            val = desc["env_paths"].replace(";", sep)
+            prev_paths = os.environ["PATH"]
+            os.environ["PATH"] = self.fill_placeholders(val, hlocs) + sep + prev_paths
+            env["PATH"] = os.environ["PATH"]
+            # logger.info("Using env paths: %s", os.environ["PATH"])
 
         if "python_path" in desc:
             elems = desc["python_path"]
@@ -259,11 +267,6 @@ class ScriptRunner(NVPComponent):
 
         if self.get_param("show_script_help", False):
             cmd += ["--help"]
-
-        if "env_vars" in desc:
-            evars = desc["env_vars"]
-            for vname, value in evars.items():
-                env[vname] = self.fill_placeholders(value, hlocs)
 
         logfile = None
         if "log_file" in desc:
