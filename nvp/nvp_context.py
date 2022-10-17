@@ -645,7 +645,11 @@ class NVPContext(NVPObject):
 
         for pdesc in self.config.get("projects", []):
             proj = NVPProject(pdesc, self)
-            self.projects.append(proj)
+            self.add_project(proj)
+
+    def add_project(self, proj):
+        """Add a project to the list"""
+        self.projects.append(proj)
 
     def get_projects(self):
         """Retrieve the list of available projects"""

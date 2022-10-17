@@ -57,13 +57,50 @@ class NVPProject(NVPObject):
                 except ModuleNotFoundError as err:
                     logger.error("Cannot load project %s: exception: %s", self.get_name(False), str(err))
 
+            # Check if we have subprojects:
+            sub_projects = self.config.get("sub_projects", [])
+            for sproj_cfg in sub_projects:
+                # check if this is an absolute path:
+
+                if not self.is_absolute_path(sproj_cfg):
+                    # Prepend this project path:
+                    sproj_cfg = self.get_path(proj_path, sproj_cfg)
+
+                if not self.file_exists(sproj_cfg):
+                    logger.info("Ignoring missing sub_project at %s", sproj_cfg)
+                    continue
+
+                # Read that config file:
+                scfg = self.read_yaml(sproj_cfg)
+
+                # Ensure we have the project_root_dir set in that config:
+                if "project_root_dir" in scfg:
+                    sub_root_dir = scfg.get("project_root_dir", proj_path)
+
+                    # Replace the placeholder as needed:
+                    hlocs = {"${PARENT_ROOT_DIR}": proj_path}
+                    sub_root_dir = self.fill_placeholders(sub_root_dir, hlocs)
+                    scfg["project_root_dir"] = sub_root_dir
+
+                if "names" not in scfg:
+                    # Add the names from the parent project:
+                    scfg["names"] = self.config["names"]
+
+                # logger.info("Should load sub project from %s", sproj_cfg)
+                sproj = NVPProject(scfg, self.ctx)
+                self.ctx.add_project(sproj)
+
         # For each available script we replace the $PROJECT_ROOT_DIR variable where applicable:
-        hlocs = {'${PROJECT_ROOT_DIR}': proj_path}
+        hlocs = {"${PROJECT_ROOT_DIR}": proj_path}
         for _, desc in self.scripts.items():
             # for entry in ["cmd", "windows_cmd", "linux_cmd", "cwd", "python_path"]:
             #     if entry in desc:
             for entry in desc:
                 desc[entry] = self.fill_placeholders(desc[entry], hlocs)
+
+        script_parameters = self.config.get("script_parameters", {})
+        for pname, pval in script_parameters.items():
+            script_parameters[pname] = self.fill_placeholders(pval, hlocs)
 
     def has_name(self, pname):
         """Check if this project has the given name"""
@@ -72,6 +109,11 @@ class NVPProject(NVPObject):
     def get_root_dir(self):
         """Search for the location of a project given its name"""
         if self.root_dir is not None:
+            return self.root_dir
+
+        if "project_root_dir" in self.config:
+            self.root_dir = self.config["project_root_dir"]
+            logger.info("Using custom subproject root dir: %s", self.root_dir)
             return self.root_dir
 
         proj_path = None
