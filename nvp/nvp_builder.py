@@ -95,9 +95,9 @@ class NVPBuilder(NVPObject):
         flags = flags or []
         self.check_execute([ninja_path] + flags, cwd=build_dir, env=self.env, **kwargs)
 
-    def run_ninja(self, build_dir, **kwargs):
+    def run_ninja(self, build_dir, flags=None, **kwargs):
         """Execute the standard ninja build/install commands"""
-        self.exec_ninja(build_dir, flags=None, **kwargs)
+        self.exec_ninja(build_dir, flags=flags, **kwargs)
         self.exec_ninja(build_dir, ["install"], **kwargs)
 
     def run_make(self, build_dir, **kwargs):

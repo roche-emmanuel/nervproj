@@ -587,7 +587,13 @@ class CMakeManager(NVPComponent):
             # Don't actually run the build
             return
 
-        builder.run_ninja(build_dir, outfile=outfile)
+        nthreads = self.get_param("num_threads", None)
+        flags = None
+        if nthreads is not None:
+            logger.info("Building with %d threads.", nthreads)
+            flags = ["-j", str(nthreads)]
+
+        builder.run_ninja(build_dir, outfile=outfile, flags=flags)
         outfile.close()
 
     def install_module_sets(self, proj: NVPProject, bpctx):
@@ -622,6 +628,7 @@ if __name__ == "__main__":
     psr.add_str("-d", "--dir", dest="mod_install_dir")("Install folder")
     psr.add_flag("-r", "--rebuild", dest="rebuild")("Force rebuilding completely")
     psr.add_str("-c", "--compiler", dest="compiler_type", default="clang")("Select the compiler")
+    psr.add_int("-j", "--num-threads", dest="num_threads")("Specify the number of threads to use during build.")
 
     psr = context.build_parser("install")
     psr.add_str("ctx_names", nargs="?", default="default")("List of module context to install")
