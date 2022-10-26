@@ -107,11 +107,12 @@ class NVPBuilder(NVPObject):
 
     def run_cmake(self, build_dir, prefix, src_dir=None, flags=None, generator="Ninja", **kwargs):
         """Execute Standard cmake configuration command"""
+        build_type = kwargs.get("build_type", "Release")
         cmd = [
             self.tools.get_cmake_path(),
             "-G",
             generator,
-            "-DCMAKE_BUILD_TYPE=Release",
+            f"-DCMAKE_BUILD_TYPE={build_type}",
             f"-DCMAKE_INSTALL_PREFIX={prefix}",
         ]
         if flags is not None:

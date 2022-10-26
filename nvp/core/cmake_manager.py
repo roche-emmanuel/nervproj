@@ -1,5 +1,7 @@
 """CMakeManager module"""
 import logging
+import math
+import time
 
 from nvp.nvp_builder import NVPBuilder
 from nvp.nvp_component import NVPComponent
@@ -520,9 +522,13 @@ class CMakeManager(NVPComponent):
         bman = self.get_component("builder")
         ctype = bman.get_compiler().get_type()
 
+        build_type = self.get_param("build_type", "Release")
+        logger.info("Cmake build type: %s", build_type)
+
         # we should run a cmake command
         # For the build dir we should also append the compiler type:
-        build_dir = self.get_path(self.build_dir, f"{proj_name}_{ctype}")
+        build_dir = self.get_path(self.build_dir, f"{proj_name}_{ctype}_{build_type.lower()}")
+
         if rebuild and self.dir_exists(build_dir):
             logger.info("Removing build folder %s", build_dir)
             self.remove_folder(build_dir, recursive=True)
@@ -574,7 +580,7 @@ class CMakeManager(NVPComponent):
         outfile = None if gen_commands else open(build_file, "w", encoding="utf-8", newline="")
 
         builder = self.get_builder()
-        builder.run_cmake(build_dir, install_dir, src_dir, flags, outfile=outfile)
+        builder.run_cmake(build_dir, install_dir, src_dir, flags, outfile=outfile, build_type=build_type)
 
         if bman.get_compiler().is_clang():
             # Copy the compile_commands.json file:
@@ -592,9 +598,16 @@ class CMakeManager(NVPComponent):
         if nthreads is not None:
             logger.info("Building with %d threads.", nthreads)
             flags = ["-j", str(nthreads)]
-
+        start_tick = time.time()
         builder.run_ninja(build_dir, outfile=outfile, flags=flags)
         outfile.close()
+        elapsed = time.time() - start_tick
+        mins = math.floor(elapsed / 60)
+        elapsed = elapsed - mins * 60.0
+        if mins > 0:
+            logger.info("Build completed in %d mins %.3f secs", mins, elapsed)
+        else:
+            logger.info("Build completed in %.3f secs", elapsed)
 
     def install_module_sets(self, proj: NVPProject, bpctx):
         """Install a list of module contexts in a given project"""
@@ -627,6 +640,7 @@ if __name__ == "__main__":
     psr.add_str("proj_names")("List of modules to build")
     psr.add_str("-d", "--dir", dest="mod_install_dir")("Install folder")
     psr.add_flag("-r", "--rebuild", dest="rebuild")("Force rebuilding completely")
+    psr.add_str("-t", "--build-type", dest="build_type", default="Release")("Specify the cmake build type")
     psr.add_str("-c", "--compiler", dest="compiler_type", default="clang")("Select the compiler")
     psr.add_int("-j", "--num-threads", dest="num_threads")("Specify the number of threads to use during build.")
 
