@@ -28,15 +28,19 @@ class NVPProject(NVPObject):
 
         proj_path = self.get_root_dir()
 
+        dir0 = self.config.get("parent_root_dir", "parent")
+        dir1 = self.config.get("project_root_dir", "proj")
+        is_local_sub_proj = dir0 == dir1
+
         if proj_path is not None:
             # Load the additional project config elements:
             cfg_file = self.get_path(proj_path, "nvp_config.json")
-            if self.file_exists(cfg_file):
+            if self.file_exists(cfg_file) and not is_local_sub_proj:
                 self.config.update(self.read_json(cfg_file))
 
             # Prefer the yaml config if available:
             cfg_file = self.get_path(proj_path, "nvp_config.yml")
-            if self.file_exists(cfg_file):
+            if self.file_exists(cfg_file) and not is_local_sub_proj:
                 cfg = self.read_yaml(cfg_file)
                 # logger.info("Project %s config: %s", self.get_name(False), cfg)
                 self.config.update(cfg)
@@ -45,7 +49,7 @@ class NVPProject(NVPObject):
             self.scripts.update(self.config.get("scripts", {}))
 
             # Note: the nvp_plug system bellow is obsolete and should be removed eventually:
-            if ctx.is_master_context() and self.file_exists(proj_path, "nvp_plug.py"):
+            if ctx.is_master_context() and self.file_exists(proj_path, "nvp_plug.py") and not is_local_sub_proj:
                 # logger.info("Loading NVP plugin from %s...", proj_name)
                 try:
                     sys.path.insert(0, proj_path)
@@ -73,6 +77,8 @@ class NVPProject(NVPObject):
                 # Read that config file:
                 scfg = self.read_yaml(sproj_cfg)
 
+                scfg["parent_root_dir"] = proj_path
+
                 # Ensure we have the project_root_dir set in that config:
                 if "project_root_dir" in scfg:
                     sub_root_dir = scfg.get("project_root_dir", proj_path)
@@ -81,6 +87,9 @@ class NVPProject(NVPObject):
                     hlocs = {"${PARENT_ROOT_DIR}": proj_path}
                     sub_root_dir = self.fill_placeholders(sub_root_dir, hlocs)
                     scfg["project_root_dir"] = sub_root_dir
+                else:
+                    # Assign parent path as root path:
+                    scfg["project_root_dir"] = proj_path
 
                 if "names" not in scfg:
                     # Add the names from the parent project:
@@ -113,7 +122,7 @@ class NVPProject(NVPObject):
 
         if "project_root_dir" in self.config:
             self.root_dir = self.config["project_root_dir"]
-            logger.info("Using custom subproject root dir: %s", self.root_dir)
+            # logger.info("Using custom subproject root dir: %s", self.root_dir)
             return self.root_dir
 
         proj_path = None
