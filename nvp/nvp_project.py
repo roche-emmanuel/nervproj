@@ -87,13 +87,20 @@ class NVPProject(NVPObject):
                     hlocs = {"${PARENT_ROOT_DIR}": proj_path}
                     sub_root_dir = self.fill_placeholders(sub_root_dir, hlocs)
                     scfg["project_root_dir"] = sub_root_dir
-                else:
-                    # Assign parent path as root path:
-                    scfg["project_root_dir"] = proj_path
 
                 if "names" not in scfg:
                     # Add the names from the parent project:
                     scfg["names"] = self.config["names"]
+
+                # if we had no project root dir in the config then we can build one using the provided project names:
+                if "project_root_dir" not in scfg:
+                    proj_dir = self.find_project_folder(scfg["names"][0])
+                    if proj_dir is None:
+                        # Use our parent project path as fallback:
+                        proj_dir = proj_path
+
+                    # Assign parent path as root path:
+                    scfg["project_root_dir"] = proj_dir
 
                 # logger.info("Should load sub project from %s", sproj_cfg)
                 sproj = NVPProject(scfg, self.ctx)
@@ -115,6 +122,19 @@ class NVPProject(NVPObject):
         """Check if this project has the given name"""
         return pname in self.desc["names"]
 
+    def find_project_folder(self, pname, additional_paths=None):
+        """Find a project folder using all the available names for that project"""
+
+        def_paths = self.ctx.get_config().get("project_paths", [])
+
+        all_paths = [self.get_path(base_path, pname) for base_path in def_paths]
+
+        if additional_paths is not None:
+            all_paths = additional_paths + all_paths
+
+        # logger.info("Checking all project paths: %s", all_paths)
+        return self.ctx.select_first_valid_path(all_paths)
+
     def get_root_dir(self):
         """Search for the location of a project given its name"""
         if self.root_dir is not None:
@@ -125,18 +145,7 @@ class NVPProject(NVPObject):
             # logger.info("Using custom subproject root dir: %s", self.root_dir)
             return self.root_dir
 
-        proj_path = None
-        def_paths = self.ctx.get_config().get("project_paths", [])
-
-        # all_paths = [self.get_path(base_path, proj_name) for base_path in def_paths
-        #              for proj_name in self.desc['names']]
-        all_paths = [self.get_path(base_path, self.get_name(False)) for base_path in def_paths]
-
-        if "paths" in self.desc:
-            all_paths = self.desc["paths"] + all_paths
-
-        # logger.info("Checking all project paths: %s", all_paths)
-        proj_path = self.ctx.select_first_valid_path(all_paths)
+        proj_path = self.find_project_folder(self.get_name(False), self.desc.get("paths", None))
 
         # Actually the project path might be "None" if it is not available yet:
         # pname = self.get_name()
