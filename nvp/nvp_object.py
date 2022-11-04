@@ -564,6 +564,9 @@ class NVPObject(object):
         try:
             proc = subprocess.Popen(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, bufsize=0)
             if verbose:
+                # cf. https://stackoverflow.com/questions/4374455/how-to-set-sys-stdout-encoding-in-python-3
+                sys.stdout.reconfigure(encoding="utf-8")
+
                 myq = Queue()
                 Thread(target=reader, args=[proc.stdout, myq, 0]).start()
                 Thread(target=reader, args=[proc.stderr, myq, 1]).start()
