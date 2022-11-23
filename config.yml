@@ -108,11 +108,15 @@ libraries:
     name: libxml2
     version: 2.9.13
     windows_url: https://gitlab.gnome.org/GNOME/libxml2/-/archive/v2.9.13/libxml2-v2.9.13.zip
-  - extracted_dir: llvm-project-llvmorg-14.0.6
-    linux_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.6.tar.gz
-    name: LLVM
-    version: 14.0.6
-    windows_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.6.zip
+  - name: LLVM
+    version: 15.0.4
+    extracted_dir: llvm-project-llvmorg-15.0.4
+    windows_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-15.0.4.zip
+    linux_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-15.0.4.tar.gz
+    # version: 14.0.6
+    # extracted_dir: llvm-project-llvmorg-14.0.6
+    # windows_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.6.zip
+    # linux_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.6.tar.gz
   - name: boost
     url: https://boostorg.jfrog.io/artifactory/main/release/1.79.0/source/boost_1_79_0.7z
     version: 1.79.0
