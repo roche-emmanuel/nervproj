@@ -200,6 +200,19 @@ class ToolsManager(NVPComponent):
 
         return False
 
+    def get_time_string(self, seconds):
+        """Convert number of seconds into time string"""
+        if seconds is None:
+            return "???"
+
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        if hours > 0:
+            return f"{hours:.0f}h{minutes:.0f}m{seconds:.0f}s"
+        if minutes > 0:
+            return f"{minutes:.0f}m{seconds:.0f}s"
+        return f"{seconds:.0f}s"
+
     def download_file(self, url, dest_file, prefix="", max_speed=0, max_retries=20, timeout=6, headers=None):
         """Helper function used to download a file with progress report."""
 
@@ -219,6 +232,9 @@ class ToolsManager(NVPComponent):
         logger.info("Downloading file from %s...", url)
         dlsize = 0
         count = 0
+
+        mean_speed = 0
+        speed_adapt = 0.001
 
         tmp_file = dest_file + ".download"
 
@@ -252,19 +268,32 @@ class ToolsManager(NVPComponent):
                 with open(tmp_file, "wb") as fdd:
                     for data in response.iter_content(chunk_size=4096):
                         nbytes = len(data)
+
+                        cur_time = time.time()
+                        elapsed = cur_time - last_time
+                        last_time = cur_time
+                        if elapsed > 0.0:
+                            # cur speed in kbytes/secs
+                            cur_speed = nbytes / (1024 * elapsed)
+                            mean_speed += (cur_speed - mean_speed) * speed_adapt
+
                         dlsize += nbytes
+
+                        # Compute the estimated remaining time:
+                        remaining_size = total_length - dlsize
+                        remaining_time = remaining_size / mean_speed if mean_speed > 0 else None
+                        time_str = self.get_time_string(remaining_time)
+
                         fdd.write(data)
                         frac = dlsize / total_length
                         done = int(50 * frac)
                         sys.stdout.write(
-                            f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}%"
+                            f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}% @ {mean_speed:.0f}KB/s ETA: {time_str}"
                         )
                         sys.stdout.flush()
                         if max_speed > 0:
                             # We should take a speed limit into consideration here:
-                            cur_time = time.time()
-                            elapsed = cur_time - last_time
-                            last_time = cur_time
+
                             # we downloaded nbytes in elapsed seconds
                             # and we have the limit of max_speed bytes per seconds.
                             # Compute how long we should take to download nbytes in seconds:
@@ -291,6 +320,8 @@ class ToolsManager(NVPComponent):
                 count += 1
                 logger.error("Exception occured while downloading %s, retrying (%d/%d)...", url, count, max_retries)
                 self.remove_file(tmp_file)
+                # Reset the dl size:
+                dlsize = 0
                 # self.remove_file(dest_file)
 
         logger.error("Cannot download file from %s in %d retries", url, max_retries)
