@@ -308,10 +308,18 @@ class ToolsManager(NVPComponent):
                     sys.stdout.write("\n")
                     sys.stdout.flush()
 
-                # The file was completely downloaded
-                # So we can rename it:
-                self.rename_file(tmp_file, dest_file)
-                return True
+                # Check that we got all the bytes:
+                if dlsize != total_length:
+                    logger.error("Unexpected final file size: %d != %d", dlsize, total_length)
+                    self.remove_file(tmp_file)
+                    # The download failed, so we retry it:
+                    count += 1
+                    dlsize = 0
+                else:
+                    # The file was completely downloaded
+                    # So we can rename it:
+                    self.rename_file(tmp_file, dest_file)
+                    return True
 
             except (
                 urllib3.exceptions.ReadTimeoutError,
