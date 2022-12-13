@@ -207,11 +207,12 @@ class ToolsManager(NVPComponent):
 
         hours, remainder = divmod(seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
+        hours, minutes, seconds = int(hours), int(minutes), int(seconds)
         if hours > 0:
-            return f"{hours:.0f}h{minutes:.0f}m{seconds:.0f}s"
+            return f"{hours}h{minutes:02d}m{seconds:02d}s"
         if minutes > 0:
-            return f"{minutes:.0f}m{seconds:.0f}s"
-        return f"{seconds:.0f}s"
+            return f"{minutes}m{seconds:02d}s"
+        return f"{seconds}s"
 
     def download_file(self, url, dest_file, prefix="", max_speed=0, max_retries=20, timeout=6, headers=None):
         """Helper function used to download a file with progress report."""
@@ -281,7 +282,7 @@ class ToolsManager(NVPComponent):
 
                         # Compute the estimated remaining time:
                         remaining_size = total_length - dlsize
-                        remaining_time = remaining_size / mean_speed if mean_speed > 0 else None
+                        remaining_time = remaining_size / (1024.0 * mean_speed) if mean_speed > 0 else None
                         time_str = self.get_time_string(remaining_time)
 
                         fdd.write(data)
