@@ -2,6 +2,9 @@
 
 SETLOCAL ENABLEDELAYEDEXPANSION
 
+@REM Store the source folder:
+set cdir=%cd%
+
 @REM Retrieve the current folder:
 @REM cli script is located directly in the root, so we don't need the '..' in path:
 @REM cd /D %~dp0..
@@ -34,6 +37,9 @@ IF /i "%~1" == "--install-py-reqs" goto install_reqs
 IF /i "%~1" == "--pre-commit" goto pre_commit
 IF /i "%~1" == "python" goto run_python
 IF /i "%~1" == "pip" goto run_pip
+
+@REM Get back into the source folder:
+cd /D %cdir%
 
 @REM call the python app with the provided arguments:
 %PYTHON% %NVP_DIR%\cli.py %*
