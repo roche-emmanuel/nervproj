@@ -10,6 +10,7 @@ import pprint
 import re
 import shutil
 import signal
+import socket
 import stat
 import subprocess
 import sys
@@ -121,6 +122,10 @@ class NVPObject(object):
             return "None"
 
         return printer.pformat(obj)
+
+    def get_hostname(self):
+        """Retrieve the hostname of the system"""
+        return socket.gethostname()
 
     def get_thread_id(self):
         """Retrieve the current thread id"""
