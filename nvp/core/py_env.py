@@ -7,10 +7,9 @@ from nvp.nvp_context import NVPContext
 logger = logging.getLogger(__name__)
 
 
-def register_component(ctx: NVPContext):
-    """Register this component in the given context"""
-    comp = PyEnvManager(ctx)
-    ctx.register_component("pyenvs", comp)
+def create_component(ctx: NVPContext):
+    """Create an instance of the component"""
+    return PyEnvManager(ctx)
 
 
 class PyEnvManager(NVPComponent):
@@ -22,33 +21,18 @@ class PyEnvManager(NVPComponent):
 
         self.scripts = ctx.get_config().get("scripts", {})
 
-        # Also extend the parser:
-        ctx.define_subparsers("main", {"pyenv": {"setup": None, "remove": None}})
-        psr = ctx.get_parser("main.pyenv.setup")
-        psr.add_argument("env_name", type=str, help="Name of the python environment to setup/deploy")
-        psr.add_argument("--dir", dest="env_dir", type=str, help="Location where to install the environment")
-        psr.add_argument("--renew", dest="renew_env", action="store_true", help="Rebuild the environment completely")
-        psr.add_argument("--update-pip", dest="update_pip", action="store_true", help="Update pip module")
-
-        psr = ctx.get_parser("main.pyenv.remove")
-        psr.add_argument("env_name", type=str, help="Name of the python environment to remove")
-        psr.add_argument("--dir", dest="env_dir", type=str, help="Location where to install the environment")
-
-    def process_command(self, cmd):
+    def process_cmd_path(self, cmd):
         """Check if this component can process the given command"""
 
-        if cmd == "pyenv":
+        if cmd == "setup":
+            env_name = self.get_param("env_name")
+            self.setup_py_env(env_name)
+            return True
 
-            cmd1 = self.ctx.get_command(1)
-            if cmd1 == "setup":
-                env_name = self.get_param("env_name")
-                self.setup_py_env(env_name)
-                return True
-
-            if cmd1 == "remove":
-                env_name = self.get_param("env_name")
-                self.remove_py_env(env_name)
-                return True
+        if cmd == "remove":
+            env_name = self.get_param("env_name")
+            self.remove_py_env(env_name)
+            return True
 
         return False
 
@@ -199,3 +183,24 @@ class PyEnvManager(NVPComponent):
             logger.info("Installing module %s...", mname)
             dest_path = self.get_path(dest_folder, mname)
             tools.download_file(mpath, dest_path)
+
+
+if __name__ == "__main__":
+    # Create the context:
+    context = NVPContext()
+
+    # Add our component:
+    # comp = context.register_component("pyenvs", PyEnvManager(context))
+    comp = context.get_component("pyenvs")
+
+    psr = context.build_parser("setup")
+    psr.add_str("env_name")("Name of the environment to setup")
+    psr.add_str("--dir", dest="env_dir")("Environments root dir")
+    psr.add_flag("--update-npm", dest="update_npm")("Request the update of npm")
+    psr.add_flag("--renew", dest="renew_env")("Renew the environment completely")
+
+    psr = context.build_parser("remove")
+    psr.add_str("env_name")("Name of the environment to remove")
+    psr.add_str("--dir", dest="env_dir")("Environments root dir")
+
+    comp.run()

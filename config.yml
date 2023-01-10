@@ -178,6 +178,13 @@ cmake_projects:
 
 # list of scripts commands:
 scripts:
+  pyenv:
+    notify: false
+    custom_python_env: default_env
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/core/py_env.py
+    python_path:
+      - "${PROJECT_ROOT_DIR}"
+
   admin:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/admin.py
     custom_python_env: min_env
@@ -307,3 +314,4 @@ components:
   psutils: nvp.core.process_utils
   rchat: nvp.communication.rocketchat
   tools: nvp.core.tools
+  pyenvs: nvp.core.py_env
