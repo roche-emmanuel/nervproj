@@ -188,6 +188,35 @@ class NVPObject(object):
 
         os.chmod(my_path, mode)
 
+    def get_chmod(self, my_path):
+        """Retrieve the chmod of a file as a string"""
+
+        stt = os.stat(my_path)
+        smode = stt.st_mode
+        uval = 0
+        if smode & stat.S_IRUSR:
+            uval += 4
+        if smode & stat.S_IWUSR:
+            uval += 2
+        if smode & stat.S_IXUSR:
+            uval += 1
+        gval = 0
+        if smode & stat.S_IRGRP:
+            gval += 4
+        if smode & stat.S_IWGRP:
+            gval += 2
+        if smode & stat.S_IXGRP:
+            gval += 1
+        oval = 0
+        if smode & stat.S_IROTH:
+            oval += 4
+        if smode & stat.S_IWOTH:
+            oval += 2
+        if smode & stat.S_IXOTH:
+            oval += 1
+
+        return f"{uval}{gval}{oval}"
+
     def dir_exists(self, *parts):
         """Check if a directory exists."""
         return os.path.isdir(self.get_path(*parts))
