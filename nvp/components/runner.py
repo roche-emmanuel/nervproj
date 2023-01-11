@@ -49,6 +49,24 @@ class ScriptRunner(NVPComponent):
 
         return False
 
+    def list_scripts(self):
+        """List of all available scripts"""
+        # logger.info("Should list all the available scripts here.")
+        snames = []
+
+        projs = self.ctx.get_projects()
+        for proj in projs:
+            snames += proj.get_script_names()
+
+        snames += list(self.scripts.keys())
+
+        snames = list(set(snames))
+        snames.sort()
+
+        print("List of available NVP scripts:")
+        for sname in snames:
+            print(f"- {sname}")
+
     def has_script(self, script_name):
         """Check if a given script name is available."""
         projs = self.ctx.get_projects()

@@ -199,6 +199,10 @@ class NVPProject(NVPObject):
         """Retrieve the list of dependencies declared for this project."""
         return self.config.get("dependencies", [])
 
+    def get_script_names(self):
+        """Retrieve the list of script names available in this project"""
+        return list(self.scripts.keys())
+
     def get_script(self, script_name):
         """Retrieve a script desc by name"""
         desc = self.scripts.get(script_name, None)

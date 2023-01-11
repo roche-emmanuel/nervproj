@@ -243,7 +243,7 @@ class NVPContext(NVPObject):
         self.parsers = {"main": parser}
 
         if is_main:
-            self.define_subparsers("main", ["get_dir"])
+            self.define_subparsers("main", ["get_dir", "list-scripts"])
             psr = self.get_parser("main.get_dir")
             psr.add_argument("-p", "--project", dest="project", type=str, help="Select the current sub-project")
 
@@ -628,6 +628,11 @@ class NVPContext(NVPObject):
 
         if cmd == "get_dir":
             self.process_get_dir()
+            return
+
+        if cmd == "list-scripts":
+            runner = self.get_component("runner")
+            runner.list_scripts()
             return
 
         proj = self.get_current_project()
