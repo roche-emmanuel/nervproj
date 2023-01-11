@@ -341,6 +341,14 @@ class NVPObject(object):
         parts = os.path.splitext(src_path)
         return parts[1]
 
+    def read_binary_file(self, *parts, mode="rb"):
+        """Read the content of a file as string."""
+
+        fname = self.get_path(*parts)
+        with open(fname, mode) as file:
+            content = file.read()
+        return content
+
     def read_text_file(self, *parts, mode="r"):
         """Read the content of a file as string."""
 
@@ -348,6 +356,13 @@ class NVPObject(object):
         with open(fname, mode, encoding="utf-8") as file:
             content = file.read()
         return content
+
+    def write_binary_file(self, content, *parts, mode="wb"):
+        """Write content of file"""
+
+        fname = self.get_path(*parts)
+        with open(fname, mode) as file:
+            file.write(content)
 
     def write_text_file(self, content, *parts, mode="w", newline=None):
         """Write content of file"""
