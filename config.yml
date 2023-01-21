@@ -280,6 +280,11 @@ scripts:
     help: Run the tools manager
     python_path:
       - ${NVP_ROOT_DIR}
+  compose-video:
+    notify: false
+    custom_python_env: media_env
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/media/movie_handler.py compose
+    python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
 
 # Notify in case of script error:
 notify_script_errors: true
@@ -300,6 +305,13 @@ custom_python_envs:
     inherit: default_env
     packages:
       - requests-oauthlib
+  media_env:
+    inherit: default_env
+    packages:
+      - moviepy
+      - Pillow
+      - ffmpeg-python
+      - opencv-python
 
 # Available dynamic components:
 components:
