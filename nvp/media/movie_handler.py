@@ -46,7 +46,7 @@ class MovieHandler(NVPComponent):
 
     def compose_video(self, vfile, afile):
         """Compose a video file adding a given audio file in background."""
-        logger.info("Should compose '%s' into '%s'", afile, vfile)
+        # logger.info("Should compose '%s' into '%s'", afile, vfile)
 
         if ".rush." in vfile:
             dst_file = vfile.replace(".rush", ".final")
