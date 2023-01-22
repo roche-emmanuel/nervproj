@@ -297,10 +297,7 @@ scripts:
     notify: false
     custom_python_env: sd_env
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/ai/stable_diffusion/stable_diffusion.py txt2img
-    python_path:
-      # ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}", "taming-transformers", "CLIP"]
-      ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
-      # ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
+    python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
 
   txt2img-ref:
     notify: false
@@ -365,14 +362,10 @@ custom_python_envs:
       - torch==1.12.1
       - torchvision==0.13.1
       - torchaudio==0.12.1
-      # - taming-transformers
       - ftfy
-      - regex
+      # - regex
       - tqdm
-      # - git+https://github.com/CompVis/taming-transformers.git@master#egg=taming-transformers
-      # - git+https://github.com/openai/CLIP.git@main#egg=clip
       - http://files.nervtech.org/nvp_packages/wheels/clip-1.0-py3-none-any.whl
-      - http://files.nervtech.org/nvp_packages/wheels/taming_transformers-0.0.1-py3-none-any.whl
 
 # Available dynamic components:
 components:
