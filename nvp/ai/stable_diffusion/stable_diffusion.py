@@ -166,7 +166,7 @@ class StableDiffusion(NVPComponent):
         self.check(prompt is not None, "Invalid prompt.")
 
         logger.debug("Using prompt: %s", prompt)
-        data = [batch_size * [prompt]]
+        prompts = batch_size * [prompt]
 
         if precision == "autocast" and device != "cpu":
             precision_scope = autocast
@@ -181,78 +181,76 @@ class StableDiffusion(NVPComponent):
 
         with torch.no_grad():
 
-            for n in trange(n_iter, desc="Sampling"):
-                for prompts in tqdm(data, desc="data"):
+            for _ in trange(n_iter, desc="Sampling"):
+                with precision_scope("cuda"):
+                    model_cs.to(device)
+                    uc = None
+                    if scale != 1.0:
+                        uc = model_cs.get_learned_conditioning(batch_size * [""])
 
-                    with precision_scope("cuda"):
-                        model_cs.to(device)
-                        uc = None
-                        if scale != 1.0:
-                            uc = model_cs.get_learned_conditioning(batch_size * [""])
+                    if isinstance(prompts, tuple):
+                        prompts = list(prompts)
 
-                        if isinstance(prompts, tuple):
-                            prompts = list(prompts)
+                    subprompts, weights = split_weighted_subprompts(prompts[0])
+                    if len(subprompts) > 1:
+                        c = torch.zeros_like(uc)
+                        total_weight = sum(weights)
+                        # normalize each "sub prompt" and add it
+                        for idx, subp in enumerate(subprompts):
+                            weight = weights[idx]
+                            # if not skip_normalize:
+                            weight = weight / total_weight
+                            c = torch.add(c, model_cs.get_learned_conditioning(subp), alpha=weight)
+                    else:
+                        c = model_cs.get_learned_conditioning(prompts)
 
-                        subprompts, weights = split_weighted_subprompts(prompts[0])
-                        if len(subprompts) > 1:
-                            c = torch.zeros_like(uc)
-                            total_weight = sum(weights)
-                            # normalize each "sub prompt" and add it
-                            for idx, subp in enumerate(subprompts):
-                                weight = weights[idx]
-                                # if not skip_normalize:
-                                weight = weight / total_weight
-                                c = torch.add(c, model_cs.get_learned_conditioning(subp), alpha=weight)
-                        else:
-                            c = model_cs.get_learned_conditioning(prompts)
+                    shape = [n_samples, latent_channels, img_height // down_factor, img_width // down_factor]
 
-                        shape = [n_samples, latent_channels, img_height // down_factor, img_width // down_factor]
+                    if device != "cpu":
+                        mem = torch.cuda.memory_allocated() / 1e6
+                        model_cs.to("cpu")
+                        while torch.cuda.memory_allocated() / 1e6 >= mem:
+                            logger.info("Waiting to download model CS on CPU...")
+                            time.sleep(1)
 
-                        if device != "cpu":
-                            mem = torch.cuda.memory_allocated() / 1e6
-                            model_cs.to("cpu")
-                            while torch.cuda.memory_allocated() / 1e6 >= mem:
-                                logger.info("Waiting to download model CS on CPU...")
-                                time.sleep(1)
+                    samples_ddim = model.sample(
+                        S=ddim_steps,
+                        conditioning=c,
+                        seed=seed,
+                        shape=shape,
+                        verbose=False,
+                        unconditional_guidance_scale=scale,
+                        unconditional_conditioning=uc,
+                        eta=ddim_eta,
+                        x_T=start_code,
+                        sampler=sampler,
+                    )
 
-                        samples_ddim = model.sample(
-                            S=ddim_steps,
-                            conditioning=c,
-                            seed=seed,
-                            shape=shape,
-                            verbose=False,
-                            unconditional_guidance_scale=scale,
-                            unconditional_conditioning=uc,
-                            eta=ddim_eta,
-                            x_T=start_code,
-                            sampler=sampler,
+                    model_fs.to(device)
+
+                    logger.info("Saving images (shape: %s)...", samples_ddim.shape)
+
+                    for i in range(batch_size):
+
+                        x_samples_ddim = model_fs.decode_first_stage(samples_ddim[i].unsqueeze(0))
+                        x_sample = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
+                        x_sample = 255.0 * rearrange(x_sample[0].cpu().numpy(), "c h w -> h w c")
+                        Image.fromarray(x_sample.astype(np.uint8)).save(
+                            os.path.join(sample_path, f"{base_count:05}_seed_{seed}.{img_format}")
                         )
+                        seeds += str(seed) + ","
+                        seed += 1
+                        base_count += 1
 
-                        model_fs.to(device)
+                    if device != "cpu":
+                        mem = torch.cuda.memory_allocated() / 1e6
+                        model_fs.to("cpu")
+                        while torch.cuda.memory_allocated() / 1e6 >= mem:
+                            logger.info("Waiting to download model FS on CPU...")
+                            time.sleep(1)
 
-                        logger.info("Saving images (shape: %s)...", samples_ddim.shape)
-
-                        for i in range(batch_size):
-
-                            x_samples_ddim = model_fs.decode_first_stage(samples_ddim[i].unsqueeze(0))
-                            x_sample = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
-                            x_sample = 255.0 * rearrange(x_sample[0].cpu().numpy(), "c h w -> h w c")
-                            Image.fromarray(x_sample.astype(np.uint8)).save(
-                                os.path.join(sample_path, f"{base_count:05}_seed_{seed}.{img_format}")
-                            )
-                            seeds += str(seed) + ","
-                            seed += 1
-                            base_count += 1
-
-                        if device != "cpu":
-                            mem = torch.cuda.memory_allocated() / 1e6
-                            model_fs.to("cpu")
-                            while torch.cuda.memory_allocated() / 1e6 >= mem:
-                                logger.info("Waiting to download model FS on CPU...")
-                                time.sleep(1)
-
-                        del samples_ddim
-                        logger.info("memory_final = %s MiB", torch.cuda.memory_allocated() / 1e6)
+                    del samples_ddim
+                    logger.info("memory_final = %s MiB", torch.cuda.memory_allocated() / 1e6)
 
         toc = time.time()
 
