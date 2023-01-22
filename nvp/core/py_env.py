@@ -166,6 +166,12 @@ class PyEnvManager(NVPComponent):
         # Next we should prepare the requirements file:
         req_file = self.get_path(dest_folder, "requirements.txt")
 
+        # First we install the "wheel" package:
+        content = "wheel"
+        self.write_text_file(content, req_file)
+        logger.info("Installing base packages...")
+        self.execute([py_path, "-m", "pip", "install", "-r", req_file, "--no-warn-script-location"])
+
         packages = self.get_all_packages(desc)
 
         content = "\n".join(packages)
