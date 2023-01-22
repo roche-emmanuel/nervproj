@@ -185,13 +185,13 @@ class StableDiffusion(NVPComponent):
                         subprompts, weights = split_weighted_subprompts(prompts[0])
                         if len(subprompts) > 1:
                             c = torch.zeros_like(uc)
-                            totalWeight = sum(weights)
+                            total_weight = sum(weights)
                             # normalize each "sub prompt" and add it
-                            for i in range(len(subprompts)):
-                                weight = weights[i]
+                            for idx, subp in enumerate(subprompts):
+                                weight = weights[idx]
                                 # if not skip_normalize:
-                                weight = weight / totalWeight
-                                c = torch.add(c, model_cs.get_learned_conditioning(subprompts[i]), alpha=weight)
+                                weight = weight / total_weight
+                                c = torch.add(c, model_cs.get_learned_conditioning(subp), alpha=weight)
                         else:
                             c = model_cs.get_learned_conditioning(prompts)
 
