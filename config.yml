@@ -280,11 +280,28 @@ scripts:
     help: Run the tools manager
     python_path:
       - ${NVP_ROOT_DIR}
+
   compose-video:
     notify: false
     custom_python_env: media_env
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/media/movie_handler.py compose
     python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
+
+  txt2img:
+    notify: false
+    custom_python_env: sd_env
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/ai/stable_diffusion.py txt2img
+    python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
+
+  txt2img-ref:
+    notify: false
+    custom_python_env: sd_env
+    # --plms
+    # cmd: ${PYTHON} scripts/txt2img.py --ckpt sd-v1-4.ckpt --skip_grid --n_samples 1 --ddim_steps 70
+    # --prompt "Cyberpunk style image of a Telsa car reflection in rain"
+    # --seed 27 --n_iter 1 --n_samples 1
+    cmd: ${PYTHON} optimizedSD/optimized_txt2img.py --H 512 --W 768 --ddim_steps 70
+    python_path: [".", "taming-transformers", "CLIP"]
 
 # Notify in case of script error:
 notify_script_errors: true
@@ -312,6 +329,39 @@ custom_python_envs:
       - Pillow
       - ffmpeg-python
       - opencv-python
+  sd_env:
+    inherit: default_env
+    packages:
+      - albumentations==0.4.3
+      - diffusers
+      # - opencv-python==4.1.2.30
+      # - opencv-python==4.3.0.38
+      - opencv-python
+      - pudb==2019.2
+      - invisible-watermark
+      - imageio==2.9.0
+      - imageio-ffmpeg==0.4.2
+      - pytorch-lightning==1.4.2
+      - omegaconf==2.1.1
+      - test-tube>=0.7.5
+      - streamlit>=0.73.1
+      - einops==0.3.0
+      - torch-fidelity==0.3.0
+      - transformers==4.19.2
+      - torchmetrics==0.6.0
+      - kornia==0.6
+      - wheel
+      # - numpy==1.19.2
+      - --extra-index-url https://download.pytorch.org/whl/cu113
+      - torch==1.12.1
+      - torchvision==0.13.1
+      - torchaudio==0.12.1
+      # - taming-transformers
+      - ftfy
+      - regex
+      - tqdm
+      # - git+https://github.com/CompVis/taming-transformers.git@master#egg=taming-transformers
+      # - git+https://github.com/openai/CLIP.git@main#egg=clip
 
 # Available dynamic components:
 components:
