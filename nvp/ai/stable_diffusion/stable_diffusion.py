@@ -16,6 +16,12 @@ from pytorch_lightning import seed_everything
 from torch import autocast
 from tqdm import tqdm, trange
 
+# Disable the warning message on CLIPTextModel
+from transformers import logging as tlog
+
+tlog.set_verbosity_error()
+# tlog.set_verbosity_warning()
+
 from nvp.ai.stable_diffusion.ldm.util import instantiate_from_config
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -133,15 +139,20 @@ class StableDiffusion(NVPComponent):
         ddim_eta = self.get_param("ddim_eta")
         sampler = self.get_param("sampler")
         img_format = self.get_param("format")
+        smode = self.get_param("seed_mode")
 
         output_dir = self.get_param("output_dir")
         if output_dir is None:
             output_dir = self.get_cwd()
 
+        if self.is_relative_path(output_dir):
+            # Add the cwd if the output dir is relative:
+            output_dir = self.get_path(self.get_cwd(), output_dir)
+
         if not self.dir_exists(output_dir):
             self.make_folder(output_dir)
 
-        logger.info("Using output folder: %s", output_dir)
+        logger.debug("Using output folder: %s", output_dir)
 
         if self.get_param("fixed_code"):
             start_code = torch.randn(
@@ -154,7 +165,7 @@ class StableDiffusion(NVPComponent):
         prompt = self.get_param("prompt", None)
         self.check(prompt is not None, "Invalid prompt.")
 
-        logger.info("Using prompt: %s", prompt)
+        logger.debug("Using prompt: %s", prompt)
         data = [batch_size * [prompt]]
 
         if precision == "autocast" and device != "cpu":
@@ -163,15 +174,15 @@ class StableDiffusion(NVPComponent):
             precision_scope = nullcontext
 
         seeds = ""
+        sample_path = output_dir
+        base_count = len(os.listdir(sample_path))
+        if smode == "continue":
+            seed += base_count
+
         with torch.no_grad():
 
             for n in trange(n_iter, desc="Sampling"):
                 for prompts in tqdm(data, desc="data"):
-
-                    # sample_path = os.path.join(outpath, "_".join(re.split(":| ", prompts[0])))[:150]
-                    # os.makedirs(sample_path, exist_ok=True)
-                    sample_path = output_dir
-                    base_count = len(os.listdir(sample_path))
 
                     with precision_scope("cuda"):
                         model_cs.to(device)
@@ -227,7 +238,7 @@ class StableDiffusion(NVPComponent):
                             x_sample = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
                             x_sample = 255.0 * rearrange(x_sample[0].cpu().numpy(), "c h w -> h w c")
                             Image.fromarray(x_sample.astype(np.uint8)).save(
-                                os.path.join(sample_path, "seed_" + str(seed) + "_" + f"{base_count:05}.{img_format}")
+                                os.path.join(sample_path, f"{base_count:05}_seed_{seed}.{img_format}")
                             )
                             seeds += str(seed) + ","
                             seed += 1
@@ -248,7 +259,7 @@ class StableDiffusion(NVPComponent):
         time_taken = (toc - tic) / 60.0
 
         logger.info(
-            "Samples finished in %.2f minutes and exported to %s\n Seeds used = %s",
+            "Samples finished in %.2f minutes and exported to %s\nSeeds used = %s",
             time_taken,
             sample_path,
             str(seeds[:-1]),
@@ -276,6 +287,9 @@ if __name__ == "__main__":
     )
     psr.add_str("-o", "--output", dest="output_dir", default=None)("Output folder")
     psr.add_str("--prompt", dest="prompt")("The prompt to render")
+    psr.add_str("--smode", dest="seed_mode", default="continue")(
+        "Define how the seed number should be changed depending on the existing content in dest folder."
+    )
     psr.add_flag("--turbo", dest="turbo")("Reduces inference time on the expense of 1GB VRAM")
     psr.add_flag("--fixed-code", dest="fixed_code")("if enabled, uses the same starting code across samples")
     psr.add_int("--n_iter", dest="n_iter", default=1)("Sample this often")
