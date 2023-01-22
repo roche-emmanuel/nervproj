@@ -287,11 +287,20 @@ scripts:
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/media/movie_handler.py compose
     python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
 
+  # run_py:
+  #   notify: false
+  #   custom_python_env: sd_env
+  #   cmd: ${PYTHON}
+  #   python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
+
   txt2img:
     notify: false
     custom_python_env: sd_env
-    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/ai/stable_diffusion.py txt2img
-    python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/ai/stable_diffusion/stable_diffusion.py txt2img
+    python_path:
+      # ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}", "taming-transformers", "CLIP"]
+      ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
+      # ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
 
   txt2img-ref:
     notify: false
@@ -362,6 +371,8 @@ custom_python_envs:
       - tqdm
       # - git+https://github.com/CompVis/taming-transformers.git@master#egg=taming-transformers
       # - git+https://github.com/openai/CLIP.git@main#egg=clip
+      - http://files.nervtech.org/nvp_packages/wheels/clip-1.0-py3-none-any.whl
+      - http://files.nervtech.org/nvp_packages/wheels/taming_transformers-0.0.1-py3-none-any.whl
 
 # Available dynamic components:
 components:
