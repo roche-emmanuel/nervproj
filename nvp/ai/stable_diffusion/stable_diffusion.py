@@ -35,6 +35,7 @@ class StableDiffusion(NVPComponent):
     def __init__(self, ctx: NVPContext):
         """Component constructor"""
         NVPComponent.__init__(self, ctx)
+        self.device = None
 
         # self.config = ctx.get_config()["stable_diffusion"]
 
@@ -42,9 +43,26 @@ class StableDiffusion(NVPComponent):
         """Re-implementation of process_cmd_path"""
 
         if cmd == "txt2img":
-            return self.handle_text_to_image()
+            device = self.get_param("device")
+            return self.handle_text_to_image(device)
 
         return False
+
+    def gpu_release(self, tensor):
+        """Release a tensor/model allocated on the gpu"""
+        if tensor.device != "cpu":
+            # mem = torch.cuda.memory_allocated() / 1e6
+            del tensor
+            torch.cuda.empty_cache()
+            # while torch.cuda.memory_allocated() / 1e6 >= mem:
+            #     logger.info("Waiting to download model CS on CPU...")
+            #     time.sleep(1)
+
+    def to_device(self, tensor):
+        """Send a given tensor/model to the current target device"""
+        self.check(self.device is not None, "Device not assigned.")
+
+        return tensor.to(self.device)
 
     def load_model_from_config(self, ckpt):
         """Load the model from config."""
@@ -76,9 +94,10 @@ class StableDiffusion(NVPComponent):
         image = torch.from_numpy(image)
         return 2.0 * image - 1.0
 
-    def handle_text_to_image(self):
+    def handle_text_to_image(self, device):
         """Handle stable diffusion text to image."""
-        logger.info("Should handle text to image here.")
+        # logger.info("Should handle text to image here.")
+        self.device = device
         seed = self.get_param("seed")
 
         tic = time.time()
@@ -121,7 +140,6 @@ class StableDiffusion(NVPComponent):
 
         img_height = self.get_param("height")
         img_width = self.get_param("width")
-        device = self.get_param("device")
         precision = self.get_param("precision")
 
         img_file = self.get_param("init_image")
@@ -197,7 +215,7 @@ class StableDiffusion(NVPComponent):
             )  # move to latent space
 
             # Move to target device:
-            init_latent = init_latent.to(device)
+            init_latent = self.to_device(init_latent)
 
         if device != "cpu" and precision == "autocast":
             # Note: we only convert to half *after* preparing the init_latent array,
@@ -235,10 +253,13 @@ class StableDiffusion(NVPComponent):
 
             for _ in trange(n_iter, desc="Sampling"):
                 with precision_scope("cuda"):
-                    model_cs.to(device)
+
+                    # Send the model on the device:
+                    model_cs_dev = self.to_device(model_cs)
+
                     uc = None
                     if scale != 1.0:
-                        uc = model_cs.get_learned_conditioning(batch_size * [""])
+                        uc = model_cs_dev.get_learned_conditioning(batch_size * [""])
 
                     if isinstance(prompts, tuple):
                         prompts = list(prompts)
@@ -252,18 +273,13 @@ class StableDiffusion(NVPComponent):
                             weight = weights[idx]
                             # if not skip_normalize:
                             weight = weight / total_weight
-                            c = torch.add(c, model_cs.get_learned_conditioning(subp), alpha=weight)
+                            c = torch.add(c, model_cs_dev.get_learned_conditioning(subp), alpha=weight)
                     else:
-                        c = model_cs.get_learned_conditioning(prompts)
+                        c = model_cs_dev.get_learned_conditioning(prompts)
 
                     shape = [n_samples, latent_channels, img_height // down_factor, img_width // down_factor]
 
-                    if device != "cpu":
-                        mem = torch.cuda.memory_allocated() / 1e6
-                        model_cs.to("cpu")
-                        while torch.cuda.memory_allocated() / 1e6 >= mem:
-                            logger.info("Waiting to download model CS on CPU...")
-                            time.sleep(1)
+                    self.gpu_release(model_cs_dev)
 
                     # Starting point of the image in latent space:
                     # if none is specified then random noise will be used:
@@ -286,26 +302,6 @@ class StableDiffusion(NVPComponent):
                         )
                         num_steps = t_enc
 
-                        # img_shape = (1, latent_channels, img_height // down_factor, img_width // down_factor)
-                        # tens = []
-                        # print("seeds used = ", [seed + s for s in range(batch_size)])
-                        # for i in range(batch_size):
-                        #     torch.manual_seed(seed + i)
-                        #     tens.append(torch.randn(img_shape, device=init_latent.device))
-                        # noise = torch.cat(tens)
-                        # del tens
-
-                        # x0 = init_latent * (1.0 - strength) + noise * strength
-                        # decode it
-                        # samples_ddim = model.sample(
-                        #     S=t_enc,
-                        #     conditioning=c,
-                        #     x0=x0,
-                        #     unconditional_guidance_scale=scale,
-                        #     unconditional_conditioning=uc,
-                        #     sampler=sampler,
-                        # )
-
                     samples_ddim = model.sample(
                         S=num_steps,
                         conditioning=c,
@@ -320,13 +316,13 @@ class StableDiffusion(NVPComponent):
                         sampler=sampler,
                     )
 
-                    model_fs.to(device)
+                    model_fs_dev = self.to_device(model_fs)
 
                     logger.info("Saving images (shape: %s)...", samples_ddim.shape)
 
                     for i in range(batch_size):
 
-                        x_samples_ddim = model_fs.decode_first_stage(samples_ddim[i].unsqueeze(0))
+                        x_samples_ddim = model_fs_dev.decode_first_stage(samples_ddim[i].unsqueeze(0))
                         x_sample = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
                         x_sample = 255.0 * rearrange(x_sample[0].cpu().numpy(), "c h w -> h w c")
                         Image.fromarray(x_sample.astype(np.uint8)).save(
@@ -336,12 +332,7 @@ class StableDiffusion(NVPComponent):
                         seed += 1
                         base_count += 1
 
-                    if device != "cpu":
-                        mem = torch.cuda.memory_allocated() / 1e6
-                        model_fs.to("cpu")
-                        while torch.cuda.memory_allocated() / 1e6 >= mem:
-                            logger.info("Waiting to download model FS on CPU...")
-                            time.sleep(1)
+                    self.gpu_release(model_fs_dev)
 
                     del samples_ddim
                     logger.info("memory_final = %s MiB", torch.cuda.memory_allocated() / 1e6)
@@ -384,7 +375,7 @@ if __name__ == "__main__":
         "Define how the seed number should be changed depending on the existing content in dest folder."
     )
     psr.add_flag("--turbo", dest="turbo")("Reduces inference time on the expense of 1GB VRAM")
-    psr.add_flag("--fixed-code", dest="fixed_code")("if enabled, uses the same starting code across samples")
+    psr.add_flag("--fixed_code", dest="fixed_code")("if enabled, uses the same starting code across samples")
     psr.add_int("--n_iter", dest="n_iter", default=1)("Sample this often")
     psr.add_int("-H", "--height", dest="height", default=512)("Image height, in pixel space")
     psr.add_int("-W", "--width", dest="width", default=512)("Image width, in pixel space")
