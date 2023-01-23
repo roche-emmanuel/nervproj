@@ -8,7 +8,7 @@ from random import randint
 
 import numpy as np
 import torch
-from einops import rearrange
+from einops import rearrange, repeat
 from omegaconf import OmegaConf
 from optimUtils import split_weighted_subprompts
 from PIL import Image
@@ -56,6 +56,25 @@ class StableDiffusion(NVPComponent):
         sdict = pl_sd["state_dict"]
         return sdict
 
+    def load_img(self, path, h0, w0):
+        """Load an image from the system and prepare a torch tensor from it"""
+
+        image = Image.open(path).convert("RGB")
+        w, h = image.size
+
+        logger.info("Loaded input image of size (%d, %d) from %s", w, h, path)
+        if h0 is not None and w0 is not None:
+            h, w = h0, w0
+
+        w, h = map(lambda x: x - x % 64, (w, h))  # resize to integer multiple of 32
+
+        logger.info("New image size (%d,%d)", w, h)
+        image = image.resize((w, h), resample=Image.LANCZOS)
+        image = np.array(image).astype(np.float32) / 255.0
+        image = image[None].transpose(0, 3, 1, 2)
+        image = torch.from_numpy(image)
+        return 2.0 * image - 1.0
+
     def handle_text_to_image(self):
         """Handle stable diffusion text to image."""
         logger.info("Should handle text to image here.")
@@ -99,14 +118,26 @@ class StableDiffusion(NVPComponent):
 
         config = OmegaConf.load(config_file)
 
+        img_height = self.get_param("height")
+        img_width = self.get_param("width")
+        device = self.get_param("device")
+        precision = self.get_param("precision")
+
+        img_file = self.get_param("init_image")
+        init_image = None
+        init_latent = None
+        if img_file is not None:
+            # load the init image:
+            logger.info("Using init image: %s", img_file)
+            # we keep the init image on the cpu:
+            init_image = self.load_img(img_file, img_height, img_width)
+
         logger.info("Instanciating models...")
 
         model = instantiate_from_config(config.modelUNet)
         _, _ = model.load_state_dict(sdict, strict=False)
         model.eval()
         model.unet_bs = self.get_param("unet_bs")
-        device = self.get_param("device")
-        precision = self.get_param("precision")
 
         model.cdevice = device
         model.turbo = self.get_param("turbo")
@@ -122,15 +153,9 @@ class StableDiffusion(NVPComponent):
 
         del sdict
 
-        if device != "cpu" and precision == "autocast":
-            model.half()
-            model_cs.half()
-
         start_code = None
         n_samples = self.get_param("n_samples")
         latent_channels = self.get_param("latent_channels")
-        img_height = self.get_param("height")
-        img_width = self.get_param("width")
         down_factor = self.get_param("down_factor")
         n_rows = self.get_param("n_rows")
         n_iter = self.get_param("n_iter")
@@ -140,6 +165,11 @@ class StableDiffusion(NVPComponent):
         sampler = self.get_param("sampler")
         img_format = self.get_param("format")
         smode = self.get_param("seed_mode")
+        strength = self.get_param("strength")
+        self.check(0 <= strength <= 1.0, "Invalid strength value.")
+
+        # Prepare the t_enc variable:
+        t_enc = int(strength * ddim_steps)
 
         output_dir = self.get_param("output_dir")
         if output_dir is None:
@@ -154,13 +184,34 @@ class StableDiffusion(NVPComponent):
 
         logger.debug("Using output folder: %s", output_dir)
 
+        batch_size = n_samples
+        n_rows = n_rows if n_rows > 0 else batch_size
+
+        if init_image is not None:
+            init_image = repeat(init_image, "1 ... -> b ...", b=batch_size)
+
+            # Note: this is on the cpu side:
+            init_latent = model_fs.get_first_stage_encoding(
+                model_fs.encode_first_stage(init_image)
+            )  # move to latent space
+
+            # Move to target device:
+            init_latent = init_latent.to(device)
+
+        if device != "cpu" and precision == "autocast":
+            # Note: we only convert to half *after* preparing the init_latent array,
+            # since on the cpu "slow_conv2d_cpu" doesn't support half format.
+            model.half()
+            model_cs.half()
+            model_fs.half()
+            if init_latent is not None:
+                init_latent = init_latent.half()
+                self.check(init_latent.device != "cpu", "Invalid init latent device: %s", init_latent.device)
+
         if self.get_param("fixed_code"):
             start_code = torch.randn(
                 [n_samples, latent_channels, img_height // down_factor, img_width // down_factor], device=device
             )
-
-        batch_size = n_samples
-        n_rows = n_rows if n_rows > 0 else batch_size
 
         prompt = self.get_param("prompt", None)
         self.check(prompt is not None, "Invalid prompt.")
@@ -213,9 +264,30 @@ class StableDiffusion(NVPComponent):
                             logger.info("Waiting to download model CS on CPU...")
                             time.sleep(1)
 
+                    # Starting point of the image in latent space:
+                    # if none is specified then random noise will be used:
+                    x0 = None
+                    num_steps = ddim_steps
+
+                    if init_latent is not None:
+                        # A source image was provided,
+                        # So we encode the corresponding latents:
+                        # encode (scaled latent)
+                        self.check(init_latent.device != "cpu", "Invalid init latent device: %s", init_latent.device)
+
+                        x0 = model.stochastic_encode(
+                            init_latent,
+                            torch.tensor([t_enc] * batch_size).to(device),
+                            seed,
+                            ddim_eta,
+                            ddim_steps,
+                        )
+                        num_steps = t_enc
+
                     samples_ddim = model.sample(
-                        S=ddim_steps,
+                        S=num_steps,
                         conditioning=c,
+                        x0=x0,
                         seed=seed,
                         shape=shape,
                         verbose=False,
@@ -285,6 +357,7 @@ if __name__ == "__main__":
     )
     psr.add_str("-o", "--output", dest="output_dir", default=None)("Output folder")
     psr.add_str("--prompt", dest="prompt")("The prompt to render")
+    psr.add_str("-i", "--img", dest="init_image")("Init image to use for inference")
     psr.add_str("--smode", dest="seed_mode", default="continue")(
         "Define how the seed number should be changed depending on the existing content in dest folder."
     )
@@ -302,6 +375,9 @@ if __name__ == "__main__":
     psr.add_int("--ddim_steps", dest="ddim_steps", default=50)("number of ddim sampling steps")
     psr.add_float("--scale", dest="scale", default=7.5)(
         "unconditional guidance scale: eps = eps(x, empty) + scale * (eps(x, cond) - eps(x, empty))"
+    )
+    psr.add_float("--strength", dest="strength", default=0.5)(
+        "Strength for noising/unnoising. 1.0 corresponds to full destruction of information in init image"
     )
     psr.add_float("--ddim_eta", dest="ddim_eta", default=0.0)("ddim eta (eta=0.0 corresponds to deterministic sampling")
     psr.add_str(

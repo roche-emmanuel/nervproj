@@ -297,7 +297,7 @@ scripts:
   txt2img:
     notify: false
     custom_python_env: sd_env
-    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/ai/stable_diffusion/stable_diffusion.py txt2img
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/ai/stable_diffusion/stable_diffusion.py txt2img --turbo
     python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
 
   txt2img-ref:
