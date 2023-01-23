@@ -535,8 +535,8 @@ class UNet(DDPM):
             self.model1.to(self.cdevice)
             self.model2.to(self.cdevice)
 
+        batch_size, b1, b2, b3 = shape
         if x0 is None:
-            batch_size, b1, b2, b3 = shape
             img_shape = (1, b1, b2, b3)
             tens = []
             print("seeds used = ", [seed + s for s in range(batch_size)])
