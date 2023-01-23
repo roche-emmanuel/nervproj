@@ -69,6 +69,7 @@ class StableDiffusion(NVPComponent):
         w, h = map(lambda x: x - x % 64, (w, h))  # resize to integer multiple of 32
 
         logger.info("New image size (%d,%d)", w, h)
+        # image = image.resize((w // 8, h // 8), resample=Image.LANCZOS)
         image = image.resize((w, h), resample=Image.LANCZOS)
         image = np.array(image).astype(np.float32) / 255.0
         image = image[None].transpose(0, 3, 1, 2)
@@ -274,6 +275,7 @@ class StableDiffusion(NVPComponent):
                         # So we encode the corresponding latents:
                         # encode (scaled latent)
                         self.check(init_latent.device != "cpu", "Invalid init latent device: %s", init_latent.device)
+                        # logger.info("init_latent shape: %s", init_latent.shape)
 
                         x0 = model.stochastic_encode(
                             init_latent,
@@ -283,6 +285,26 @@ class StableDiffusion(NVPComponent):
                             ddim_steps,
                         )
                         num_steps = t_enc
+
+                        # img_shape = (1, latent_channels, img_height // down_factor, img_width // down_factor)
+                        # tens = []
+                        # print("seeds used = ", [seed + s for s in range(batch_size)])
+                        # for i in range(batch_size):
+                        #     torch.manual_seed(seed + i)
+                        #     tens.append(torch.randn(img_shape, device=init_latent.device))
+                        # noise = torch.cat(tens)
+                        # del tens
+
+                        # x0 = init_latent * (1.0 - strength) + noise * strength
+                        # decode it
+                        # samples_ddim = model.sample(
+                        #     S=t_enc,
+                        #     conditioning=c,
+                        #     x0=x0,
+                        #     unconditional_guidance_scale=scale,
+                        #     unconditional_conditioning=uc,
+                        #     sampler=sampler,
+                        # )
 
                     samples_ddim = model.sample(
                         S=num_steps,
