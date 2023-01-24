@@ -42,7 +42,56 @@ class MovieHandler(NVPComponent):
 
             return self.compose_video(file, afile)
 
+        if cmd == "concat-media":
+            files = self.get_param("input_files").split(",")
+            if len(files) < 2:
+                logger.warning("Nothing to concatenate.")
+                return True
+
+            out_file = self.get_param("output_file", None)
+            return self.concat_media(files, out_file)
+
         return False
+
+    def concat_media(self, files, out_file):
+        """Concantenate a list of media files"""
+        self.check(len(files) >= 2, "Not enough files to perform concatenation.")
+
+        logger.info("Concantenating video files: %s", files)
+
+        if out_file is None:
+            folder = self.get_parent_folder(files[0])
+            fname = self.get_filename(files[0])
+            out_file = self.get_path(folder, f"full_{fname}")
+
+        # folder = self.get_parent_folder(files[0])
+
+        lines = [f"file '{fname}'\n" for fname in files]
+        content = "".join(lines)
+
+        # listfile = self.get_path(folder, "concat_files.txt")
+        listfile = "concat_files.txt"
+        self.write_text_file(content, listfile)
+
+        # Now we build the ffmpeg command to perform the concatenation:
+        # cf. https://trac.ffmpeg.org/wiki/Concatenate
+        tools: ToolsManager = self.get_component("tools")
+        ffmpeg_path = tools.get_tool_path("ffmpeg_path")
+
+        cmd = [ffmpeg_path, "-threads", "8", "-f", "concat", "-safe", "0", "-i", listfile, "-c", "copy", out_file]
+
+        # We now execute that command:
+        logger.debug("Executing command: %s", cmd)
+        res, rcode, outs = self.execute(cmd)
+
+        self.remove_file(listfile)
+
+        if not res:
+            logger.error("Media concatenation failed with return code %d:\n%s", rcode, outs)
+            return
+
+        # Now we remove the file list file:
+        logger.debug("Done concatenating %d media files.", len(files))
 
     def compose_video(self, vfile, afile):
         """Compose a video file adding a given audio file in background."""
@@ -264,5 +313,9 @@ if __name__ == "__main__":
     psr = context.build_parser("compose")
     psr.add_str("-i", "--input", dest="input_file")("input video file to use as base.")
     psr.add_str("-a", "--add-audio", dest="add_audio")("additional audio stream to add in the video.")
+
+    psr = context.build_parser("concat-media")
+    psr.add_str("-i", "--inputs", dest="input_files")("input video files to concatenate")
+    psr.add_str("-o", "--output", dest="output_file")("Output file to generate.")
 
     comp.run()
