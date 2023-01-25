@@ -23,10 +23,10 @@ if not exist "%PYTHON%" (
     %UNZIP% x -o"%TOOLS_DIR%" "%NVP_DIR%\tools\packages\python-%py_vers%-windows.7z" > nul
 
     @REM Upgrade pip:
-    %PYTHON% -m pip install --upgrade pip
+    %PYTHON% -m pip install --upgrade pip --no-warn-script-location
 
     @REM Install requirements:
-    %PYTHON% -m pip install -r %NVP_DIR%\tools\requirements.txt
+    %PYTHON% -m pip install -r %NVP_DIR%\tools\requirements.txt --no-warn-script-location
 )
 
 @REM check if the first argument is "--install-py-reqs"
@@ -40,7 +40,7 @@ IF /i "%~1" == "pip" goto run_pip
 goto common_exit
 
 :install_reqs
-%PYTHON% -m pip install -r %NVP_DIR%\tools\requirements.txt
+%PYTHON% -m pip install -r %NVP_DIR%\tools\requirements.txt --no-warn-script-location
 goto common_exit
 
 :pre_commit

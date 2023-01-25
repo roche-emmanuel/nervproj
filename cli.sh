@@ -111,16 +111,16 @@ _nvp_run_cli_linux() {
 
         # Once we have deployed the base python tool package we start with upgrading pip:
         echo "Upgrading pip..."
-        $python_path -m pip install --upgrade pip
+        $python_path -m pip install --upgrade pip --no-warn-script-location
 
         # Finally we install the python requirements:
         echo "Installing python requirements..."
-        $python_path -m pip install -r $root_dir/tools/requirements.txt
+        $python_path -m pip install -r $root_dir/tools/requirements.txt --no-warn-script-location
     fi
 
     if [ "$1" == "--install-py-reqs" ]; then
         echo "Installing python requirements..."
-        $python_path -m pip install -r $root_dir/tools/requirements.txt
+        $python_path -m pip install -r $root_dir/tools/requirements.txt --no-warn-script-location
     elif [ "$1" == "--pre-commit" ]; then
         echo "black outputs:" >$root_dir/pre-commit.log
         $python_path -m black --line-length 120 $root_dir/$2 >>$root_dir/pre-commit.log 2>&1
