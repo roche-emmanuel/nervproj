@@ -1,14 +1,14 @@
 """Module for AppBase class definition"""
 
 import logging
-import os
 import sys
+
+from PyQt5.QtCore import QMutex, QMutexLocker, QObject, pyqtSignal
+from PyQt5.QtWidgets import QApplication
 
 from nvp.gui.main_window import MainWindow
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
-from PyQt5.QtCore import QMutex, QMutexLocker, QObject, pyqtSignal
-from PyQt5.QtWidgets import QApplication
 
 logger = logging.getLogger(__name__)
 
@@ -41,10 +41,7 @@ class AppBase(NVPComponent):
         self.signals = None
         self.events = {}
 
-        # Get the base app directory:
-        self.app_dir = os.path.dirname(os.path.abspath(__file__))  # /nvh/gui/ folder
-        self.app_dir = os.path.abspath(os.path.join(self.app_dir, os.pardir, os.pardir))  # / folder
-        logger.debug("Application base dir: %s", self.app_dir)
+        self.app_dir = None
 
     def on_event(self, evt_name, func):
         """Connect an event handler to a given event."""
@@ -62,6 +59,7 @@ class AppBase(NVPComponent):
 
     def get_app_dir(self):
         """Retrieve the base application dir"""
+        self.check(self.app_dir is not None, "app dir not specified for %s", self.__class__.__name__)
         return self.app_dir
 
     def get_app(self):
