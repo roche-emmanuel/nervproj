@@ -76,7 +76,7 @@ class MovieHandler(NVPComponent):
         # Now we build the ffmpeg command to perform the concatenation:
         # cf. https://trac.ffmpeg.org/wiki/Concatenate
         tools: ToolsManager = self.get_component("tools")
-        ffmpeg_path = tools.get_tool_path("ffmpeg_path")
+        ffmpeg_path = tools.get_tool_path("ffmpeg")
 
         cmd = [ffmpeg_path, "-threads", "8", "-f", "concat", "-safe", "0", "-i", listfile, "-c", "copy", out_file]
 
@@ -88,10 +88,11 @@ class MovieHandler(NVPComponent):
 
         if not res:
             logger.error("Media concatenation failed with return code %d:\n%s", rcode, outs)
-            return
+            return False
 
         # Now we remove the file list file:
         logger.debug("Done concatenating %d media files.", len(files))
+        return True
 
     def compose_video(self, vfile, afile):
         """Compose a video file adding a given audio file in background."""
