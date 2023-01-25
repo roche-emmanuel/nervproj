@@ -366,6 +366,10 @@ custom_python_envs:
       # - numpy==1.19.2
       # - ftfy==6.1.1
       # - regex
+  sd_webui_env:
+    inherit: default_env
+    packages:
+      - wheel
 
 # Available dynamic components:
 components:
