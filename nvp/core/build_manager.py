@@ -192,7 +192,9 @@ class BuildManager(NVPComponent):
         ext = ".7z" if self.is_windows else ".tar.xz"
         return f"{dep_name}-{self.platform}-{self.compiler.get_type()}{ext}"
 
-    def check_libraries(self, dep_list, rebuild=False, preview=False, append=False, keep_build=False):
+    def check_libraries(
+        self, dep_list, rebuild=False, preview=False, append=False, keep_build=False, use_existing_src=False
+    ):
         """Build all the libraries for NervProj."""
 
         # Iterate on each dependency:
@@ -211,7 +213,7 @@ class BuildManager(NVPComponent):
                 continue
 
             if preview:
-                self.setup_dependency_build_context(dep)
+                self.setup_dependency_build_context(dep, use_existing_src)
                 continue
 
             dep_name = self.get_std_package_name(dep)
@@ -228,13 +230,13 @@ class BuildManager(NVPComponent):
 
             if not os.path.exists(dep_dir) or append:
                 # Here we need to deploy that dependency:
-                self.deploy_dependency(dep, rebuild, append, keep_build)
+                self.deploy_dependency(dep, rebuild, append, keep_build, use_existing_src)
             else:
                 logger.debug("- %s: OK", dep_name)
 
         logger.debug("All libraries OK.")
 
-    def deploy_dependency(self, desc, rebuild=False, append=False, keep_build=False):
+    def deploy_dependency(self, desc, rebuild=False, append=False, keep_build=False, use_existing_src=False):
         """Build a given dependency given its description dict and the target
         directory where it should be installed."""
 
@@ -273,7 +275,7 @@ class BuildManager(NVPComponent):
             # logger.info("Current environment: %s", self.pretty_print(env))
 
             # Prepare the build context:
-            build_dir, prefix, dep_name = self.setup_dependency_build_context(desc)
+            build_dir, prefix, dep_name = self.setup_dependency_build_context(desc, use_existing_src)
 
             # Execute the builder function:
             start_time = time.time()
@@ -304,7 +306,7 @@ class BuildManager(NVPComponent):
         """Return a standard package naem from base name and version"""
         return f"{desc['name']}-{self.get_package_version(desc)}"
 
-    def setup_dependency_build_context(self, desc):
+    def setup_dependency_build_context(self, desc, use_existing_src):
         """Prepare the build folder for a given dependency package
         We then return the build_dir, dep_name and target install prefix"""
 
@@ -329,18 +331,22 @@ class BuildManager(NVPComponent):
         build_dir = src_pkg if from_git else self.get_path(base_build_dir, tgt_dir)
 
         # remove the previous source content if any:
-        logger.info("Removing previous source folder %s", build_dir)
-        self.remove_folder(build_dir)
+        if not use_existing_src and self.dir_exists(build_dir):
+            logger.info("Removing previous source folder %s", build_dir)
+            self.remove_folder(build_dir)
 
-        # download file if needed:
-        if not self.path_exists(src_pkg):
-            self.tools.download_file(url, src_pkg)
+        if not self.dir_exists(build_dir):
+            # download file if needed:
+            if not self.path_exists(src_pkg):
+                self.tools.download_file(url, src_pkg)
 
-        # Now extract the source folder:
-        if not from_git:
-            # use the extracted folder name here if any:
-            extracted_dir = desc.get("extracted_dir", None)
-            self.tools.extract_package(src_pkg, base_build_dir, target_dir=tgt_dir, extracted_dir=extracted_dir)
+            # Now extract the source folder:
+            if not from_git:
+                # use the extracted folder name here if any:
+                extracted_dir = desc.get("extracted_dir", None)
+                self.tools.extract_package(src_pkg, base_build_dir, target_dir=tgt_dir, extracted_dir=extracted_dir)
+        else:
+            logger.info("Using existing source folder %s", build_dir)
 
         dep_name = self.get_std_package_name(desc)
         prefix = self.get_path(self.libs_dir, dep_name)
@@ -374,11 +380,12 @@ class BuildManager(NVPComponent):
             preview = self.get_param("preview")
             append = self.get_param("append")
             keep_build = self.get_param("keep_build", False)
+            use_existing_src = self.get_param("use_existing_src", False)
             ctype = self.get_param("compiler_type")
             if ctype is not None:
                 self.select_compiler(ctype)
 
-            self.check_libraries(dlist, rebuild, preview, append, keep_build)
+            self.check_libraries(dlist, rebuild, preview, append, keep_build, use_existing_src)
             return True
 
         if cmd == "project":
@@ -408,5 +415,6 @@ if __name__ == "__main__":
     psr.add_flag("--preview", dest="preview")("Preview sources only")
     psr.add_flag("-k", "--keep-build", dest="keep_build")("Keep the build folder after build")
     psr.add_flag("-a", "--append", dest="append")("Keep the install folder if existing")
+    psr.add_flag("-u", "--use-existing-src", dest="use_existing_src")("Use an existing source folder")
 
     bcomp.run()
