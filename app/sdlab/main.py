@@ -22,13 +22,21 @@ class SDLab(AppBase):
         self.config.setdefault("application_title", "SDLab")
 
         # Load the local config file:
-        app_dir = os.path.dirname(os.path.abspath(__file__))
-        cfg_file = self.get_path(app_dir, "config.yml")
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
+        cur_dir = self.to_absolute_path(cur_dir)
+
+        self.app_dir = self.get_parent_folder(cur_dir, level=1)
+        logger.info("SDLab root app dir: %s", self.app_dir)
+
+        cfg_file = self.get_path(cur_dir, "config.yml")
         logger.info("Loading config file: %s", cfg_file)
         cfg = self.read_yaml(cfg_file)
 
         # Use the global config to update this default local config:
-        cfg.update(self.config)
+        if cfg is None:
+            cfg = self.config
+        else:
+            cfg.update(self.config)
 
         # Then store that as config:
         self.config = cfg
