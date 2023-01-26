@@ -53,6 +53,26 @@ windows_tools:
       - http://files.nervtech.org/nvp_packages/tools/ffmpeg-2022.08.25-windows.7z
       - https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z
     version: 2022.08.25
+  - name: perl
+    sub_path: perl/bin/perl.exe
+    urls:
+      - http://files.nervtech.org/nvp_packages/tools/perl-5.32.1.1-windows.7z
+    version: 5.32.1.1
+  - name: gperf
+    sub_path: bin/gperf.exe
+    urls:
+      - http://files.nervtech.org/nvp_packages/tools/gperf-3.0.1-windows.7z
+    version: 3.0.1
+  - name: bison
+    sub_path: bin/bison.exe
+    urls:
+      - http://files.nervtech.org/nvp_packages/tools/bison-2.4.1-windows.7z
+    version: 2.4.1
+  - name: flex
+    sub_path: bin/flex.exe
+    urls:
+      - http://files.nervtech.org/nvp_packages/tools/flex-2.5.4a-windows.7z
+    version: 2.5.4a
 
 # Tools that can be used on linux:
 linux_tools:
@@ -196,6 +216,8 @@ scripts:
     python_path:
       - ${NVP_ROOT_DIR}
   build:
+    notify: false
+    log_file: ${NVP_ROOT_DIR}/last_build.log
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/build_manager.py
     custom_python_env: min_env
     help: Builder commands

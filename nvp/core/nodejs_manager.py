@@ -85,9 +85,10 @@ class NodeJsManager(NVPComponent):
         cmd = [node_path] + args
         self.execute(cmd)
 
-    def run_npm(self, env_name, args):
+    def run_npm(self, env_name, args, desc=None):
         """Execute a npm command"""
-        desc = self.get_env_desc(env_name)
+        if desc is None:
+            desc = self.get_env_desc(env_name)
         env_dir = self.get_env_dir(env_name, desc)
         root_path = self.get_path(env_dir, env_name)
         ext = ".exe" if self.is_windows else ""
@@ -101,10 +102,11 @@ class NodeJsManager(NVPComponent):
 
         self.execute(cmd, env=env)
 
-    def setup_nodejs_env(self, env_name, env_dir=None, renew_env=False, update_npm=False):
+    def setup_nodejs_env(self, env_name, env_dir=None, renew_env=False, update_npm=False, desc=None):
         """Setup a given nodejs environment"""
 
-        desc = self.get_env_desc(env_name)
+        if desc is None:
+            desc = self.get_env_desc(env_name)
 
         if env_dir is None:
             # try to use the install dir from the desc if any or use the default install dir:
@@ -144,14 +146,16 @@ class NodeJsManager(NVPComponent):
 
         if new_env or update_npm:
             # Update the npm installation:
-            self.run_npm(env_name, args=["update", "--location=global", "npm"])
+            self.run_npm(env_name, args=["update", "--location=global", "npm"], desc=desc)
 
         # self.run_node(env_name, args=["--version"])
 
         # trigger the update of pip:
         packages = desc["packages"]
-        logger.info("Installing packages: %s", packages)
-        self.run_npm(env_name, args=["install", "--location=global"] + packages)
+        if len(packages) > 0:
+            logger.info("Installing packages: %s", packages)
+            self.run_npm(env_name, args=["install", "--location=global"] + packages, desc=desc)
+
         # self.run_npm(env_name, args=["update", "--location=global"])
 
     def process_cmd_path(self, cmd):

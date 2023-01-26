@@ -344,7 +344,8 @@ class NVPObject(object):
             if not self.dir_exists(parent_dir):
                 self.make_folder(parent_dir)
 
-        shutil.move(src_path, dest_path)
+        # shutil.move(src_path, dest_path)
+        os.rename(src_path, dest_path)
 
     def rename_folder(self, src_path, dest_path, create_parent=False):
         """Rename a folder"""
@@ -644,7 +645,7 @@ class NVPObject(object):
                         if output_buffer is not None:
                             output_buffer.append(sline)
                         if outfile is not None:
-                            outfile.write(sline)
+                            outfile.write(sline.replace("\r\n", "\n"))
                             outfile.flush()
 
             logger.debug("Waiting for subprocess to finish...")
@@ -731,39 +732,45 @@ class NVPObject(object):
     def prepend_env_list(self, paths, env, key="PATH"):
         """Add a list of paths to the environment PATH variable."""
         sep = ";" if self.is_windows else ":"
-        all_paths = set()
 
         if isinstance(paths, str):
             paths = [paths]
 
-        for elem in paths:
-            all_paths = all_paths.union(set(elem.split(sep)))
-
+        dest_list = []
         if key in env:
-            plist = set(env[key].split(sep))
-            all_paths = all_paths.union(plist)
+            dest_list = env[key].split(sep)
 
-        # logger.info("All paths in prepend_env_list: %s", all_paths)
-        env[key] = sep.join(all_paths)
+        insert_idx = 0
+        for elem in paths:
+            subs = elem.split(sep)
+            for path_elem in subs:
+                if path_elem not in dest_list:
+                    dest_list.insert(insert_idx, path_elem)
+                    insert_idx += 1
+
+        # logger.info("All paths in append_env_list: %s", all_paths)
+        env[key] = sep.join(dest_list)
         return env
 
     def append_env_list(self, paths, env, key="PATH"):
         """Add a list of paths to the environment PATH variable."""
         sep = ";" if self.is_windows else ":"
-        all_paths = set()
 
         if isinstance(paths, str):
             paths = [paths]
 
-        for elem in paths:
-            all_paths = all_paths.union(set(elem.split(sep)))
-
+        dest_list = []
         if key in env:
-            plist = set(env[key].split(sep))
-            all_paths = plist.union(all_paths)
+            dest_list = env[key].split(sep)
+
+        for elem in paths:
+            subs = elem.split(sep)
+            for path_elem in subs:
+                if path_elem not in dest_list:
+                    dest_list.append(path_elem)
 
         # logger.info("All paths in append_env_list: %s", all_paths)
-        env[key] = sep.join(all_paths)
+        env[key] = sep.join(dest_list)
         return env
 
     def get_online_content(self, url, timeout=20):

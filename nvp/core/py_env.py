@@ -59,6 +59,12 @@ class PyEnvManager(NVPComponent):
         assert desc is not None, f"Cannot find python environment with name {env_name}"
         return desc
 
+    def add_py_env_desc(self, env_name, desc):
+        """Add a python environment desc to the list manually"""
+        envs = self.config.get("custom_python_envs")
+        self.check(env_name not in envs, "Python environment desc %s already exists.", env_name)
+        envs[env_name] = desc
+
     def get_py_env_dir(self, env_name, desc=None):
         """Retrieve the installation dir for a given py env."""
         if desc is None:
