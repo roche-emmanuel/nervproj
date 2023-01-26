@@ -1,4 +1,5 @@
 """Collection of admin utility functions"""
+import glob
 import logging
 import os
 import sys
@@ -441,7 +442,48 @@ class AdminManager(NVPComponent):
             self.init_project_config(proj_dir, proj_name)
             return True
 
+        if cmd == "create-par2":
+            files = self.get_param("input_files")
+            redundancy = self.get_param("redundancy")
+            nblocks = self.get_param("num_blocks")
+            solid = self.get_param("solid", False)
+            out_name = self.get_param("out_name")
+
+            self.create_par2(files, redundancy, nblocks, solid, out_name)
+            return True
+
         return False
+
+    def create_par2(self, files, redundancy, nblocks, solid, out_name):
+        """Create PAR2 archives for a given list of files"""
+
+        fnames = files.split(",")
+        flist = []
+        for fname in fnames:
+            if "*" in fname:
+                # search for all files matching this wildcards:
+                files = glob.glob(fname)
+                for f in files:
+                    flist.append(self.to_absolute_path(f))
+            else:
+                flist.append(self.to_absolute_path(fname))
+
+        logger.info("Should create par2 files for: %s", flist)
+
+        nfiles = len(flist)
+
+        tools = self.get_component("tools")
+
+        if solid:
+            if nfiles > 1:
+                self.check(out_name is not None, "Output name for PAR2 archives should be provided here.")
+            tools.create_par2_archives(flist, redundancy=redundancy, nblocks=nblocks, out_name=out_name)
+        else:
+            # Iterate on each file:
+            for fname in flist:
+                tools.create_par2_archives(fname, redundancy=redundancy, nblocks=nblocks, out_name=out_name)
+
+        logger.info("Done create PAR2 archives.")
 
 
 if __name__ == "__main__":
@@ -456,5 +498,12 @@ if __name__ == "__main__":
     psr = context.build_parser("init")
     psr.add_str("project_name", nargs="?", default=None)("Project to init")
     psr.add_flag("-p", "--with-py-env", dest="with_py_env")("Deploy python env.")
+
+    psr = context.build_parser("create-par2")
+    psr.add_str("-i", "--input", dest="input_files")("Input files or folder to consider when building the par2 files")
+    psr.add_float("-r", "--redundancy", dest="redundancy", default=10.0)("Data redundancy")
+    psr.add_int("-b", "--blocks", dest="num_blocks", default=3000)("Number of blocks")
+    psr.add_flag("-s", "--solid", dest="solid")("Create a single par2 archives")
+    psr.add_str("-o", "--output", dest="out_name")("Output name of the par2 archives")
 
     comp.run()

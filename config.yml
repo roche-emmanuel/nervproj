@@ -108,6 +108,10 @@ libraries:
     name: libxml2
     version: 2.9.13
     windows_url: https://gitlab.gnome.org/GNOME/libxml2/-/archive/v2.9.13/libxml2-v2.9.13.zip
+  - name: QT6
+    version: 6.4.2
+    windows_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.zip
+    linux_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.tar.xz
   - name: LLVM
     version: 15.0.4
     extracted_dir: llvm-project-llvmorg-15.0.4
@@ -321,6 +325,12 @@ scripts:
     notify: false
     custom_python_env: sdlab_env
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/app/sdlab/main.py run
+    python_path: ["${NVP_ROOT_DIR}"]
+
+  create-par2:
+    notify: false
+    custom_python_env: default_env
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/core/admin.py create-par2
     python_path: ["${NVP_ROOT_DIR}"]
 
 # Notify in case of script error:

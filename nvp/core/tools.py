@@ -447,11 +447,24 @@ class ToolsManager(NVPComponent):
         git = self.get_component("git")
         git.setup_global_config()
 
-    def create_par2_archives(self, src_path, redundancy=10, nblocks=3000):
+    def create_par2_archives(self, src_paths, redundancy=10, nblocks=3000, out_name=None):
         """Create a PAR2 archive from a given source path."""
 
-        pdir = self.get_parent_folder(src_path)
-        fname = self.get_filename(src_path)
+        first_file = src_paths
+        if isinstance(src_paths, list):
+            first_file = src_paths[0]
+        else:
+            # Otherwise we create the list of input files
+            src_paths = [src_paths]
+
+        # Convert the input file paths to abs paths:
+        src_paths = [self.to_absolute_path(spath) for spath in src_paths]
+
+        pdir = self.get_parent_folder(first_file)
+
+        if out_name is None:
+            # Use the first file name by default:
+            out_name = self.get_filename(first_file)
 
         # Ensure we have int values:
         redundancy = int(redundancy)
@@ -459,9 +472,9 @@ class ToolsManager(NVPComponent):
 
         par2 = self.get_par2_path()
         if self.is_windows:
-            cmd = [par2, "c", f"/sn{nblocks}", f"/rr{redundancy}", "/rd2", f"{fname}.par2", fname]
+            cmd = [par2, "c", f"/sn{nblocks}", f"/rr{redundancy}", "/rd2", f"{out_name}.par2"] + src_paths
         else:
-            cmd = [par2, "c", f"-b{nblocks}", f"-r{redundancy}", f"{fname}.par2", fname]
+            cmd = [par2, "c", f"-b{nblocks}", f"-r{redundancy}", f"{out_name}.par2"] + src_paths
 
         logger.info("Executing command %s", cmd)
         self.execute(cmd, verbose=True, cwd=pdir)
