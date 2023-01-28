@@ -133,6 +133,10 @@ libraries:
     windows_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.zip
     linux_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.tar.xz
   - name: LLVM
+    # version: 15.0.6
+    # extracted_dir: llvm-project-llvmorg-15.0.6
+    # windows_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-15.0.6.zip
+    # linux_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-15.0.6.tar.gz
     version: 15.0.4
     extracted_dir: llvm-project-llvmorg-15.0.4
     windows_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-15.0.4.zip

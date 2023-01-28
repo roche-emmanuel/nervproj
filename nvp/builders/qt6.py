@@ -14,7 +14,7 @@ def register_builder(bman: BuildManager):
     bman.register_builder("QT6", QT6Builder(bman))
 
 
-# Note: on windows we also need to patch the "file_io.py" file used to generate some bindings when compiling blink,
+# Note: on windows we really need to build from some disk "root location"
 # Because otherwise it will error trying to write too long file names, for instance:
 
 # D:/Projects/NervProj/.pyenvs/qt6_env/python.exe ../../../3rdparty/chromium/third_party/blink/renderer/bindings/scripts/generate_bindings.py --web_idl_database gen/third_party/blink/renderer/bindings/web_idl_database.pickle --root_src_dir ../../../3rdparty/chromium/ --root_gen_dir gen --output_reldir core=third_party/blink/renderer/bindings/core/v8/ --output_reldir modules=third_party/blink/renderer/bindings/modules/v8/ enumeration callback_function callback_interface dictionary interface namespace observable_array typedef union
@@ -44,73 +44,8 @@ def register_builder(bman: BuildManager):
 
 # """
 
-file_io = '''
-# Copyright 2019 The Chromium Authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
-
-import os
-import pickle
-
-
-def read_pickle_file(filepath):
-    """
-    Reads the content of the file as a pickled object.
-    """
-    with open(filepath, 'rb') as file_obj:
-        return pickle.load(file_obj)
-
-
-def write_pickle_file_if_changed(filepath, obj):
-    """
-    Writes the given object out to |filepath| if the content changed.
-
-    Returns True if the object is written to the file, and False if skipped.
-    """
-    return write_to_file_if_changed(filepath, pickle.dumps(obj))
-
-
-def write_to_file_if_changed(filepath, contents):
-    """
-    Writes the given contents out to |filepath| if the contents changed.
-
-    Returns True if the data is written to the file, and False if skipped.
-    """
-
-    # get the current cwd:
-    prev_dir = os.getcwd()
-
-    # get the folder of the filepath:
-    folder = os.path.dirname(filepath)
-    filepath = os.path.basename(filepath)
-    
-    # Build the folder if needed:
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
-    # Change location to the parent directory:
-    os.chdir(folder)
-
-    try:
-        with open(filepath, 'rb') as file_obj:
-            old_contents = file_obj.read()
-    except (OSError, EnvironmentError):
-        pass
-    else:
-        if contents == old_contents:
-            # restore previous directory:
-            os.chdir(prev_dir)
-            return False
-        os.remove(filepath)
-
-    with open(filepath, 'wb') as file_obj:
-        file_obj.write(contents)
-
-    # restore previous directory:
-    os.chdir(prev_dir)
-
-    return True
-'''
+# So below we move the build location from "D:\\Projects\\NervProj\\libraries\\build\\QT6-6.4.2" to
+# just "D:\\QT" (for instance)
 
 
 class QT6Builder(NVPBuilder):
@@ -126,9 +61,9 @@ class QT6Builder(NVPBuilder):
         build_dir = build_dir[:3] + "QT"
 
         # Remove the previous out build folder if needed:
-        # if self.dir_exists(build_dir):
-        #     logger.info("Removing base disk QT build folder %s", build_dir)
-        #     self.remove_folder(build_dir, recursive=True)
+        if self.dir_exists(build_dir):
+            logger.info("Removing base disk QT build folder %s", build_dir)
+            self.remove_folder(build_dir, recursive=True)
 
         if not self.dir_exists(build_dir):
             logger.info("QT6 using base filesystem build_dir: %s", build_dir)
@@ -136,12 +71,14 @@ class QT6Builder(NVPBuilder):
 
             # First we write the config.opt.in file:
             # cf. qtbase/qt_cmdline.cmake
-            # -platform win32-msvc -opensource -confirm-license
+            # -opensource -confirm-license ?
 
-            cmake_args = "-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS=-Wno-ignored-pragmas"
-            cmake_args = '-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -Wno-deprecated-builtins"'
-            # cmake_args = '-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -msse3"' ? => tried for qtquick3dphysics, not working.
             if self.compiler.is_clang():
+                self.throw(
+                    "QT6 compilation not supported with clang up to v15.0.6 on windows: more investigations needed here."
+                )
+                cmake_args = '-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -Wno-deprecated-builtins"'
+
                 cxx_path = self.compiler.get_cxx_path()
                 logger.info("Was using cxx path: %s", cxx_path)
                 folder = self.get_parent_folder(cxx_path)
@@ -163,7 +100,12 @@ class QT6Builder(NVPBuilder):
                 # cmake_args += f" -DZLIB_INCLUDE_DIR={zlib_dir}/include"
 
                 # Also having an hard time compiling the snappy library (dep from chromium) with clang-cl 15.0.4 :-(
+                # Also not working with llvm 15.0.6
+                # Testing with LLVM 14.0.6: also failing to build snappy (and D3D compiler ?) :-|
             else:
+                # MSVC compiler:
+                cmake_args = "-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1"
+
                 # Only optimize-size supported on MSVC (cf. qtbase/configure.cmake & qtbase/cmake/QtCompilerOptimization.cmake)
                 # but we patched that below.
                 args = "-optimize-size -optimize-full -platform win32-msvc -c++std c++20"
@@ -233,9 +175,6 @@ class QT6Builder(NVPBuilder):
             logger.info("Environment paths: %s", self.env["PATH"])
 
             # Apply the required patches:
-            # file_io_fname = f"{build_dir}/qtwebengine/src/3rdparty/chromium/third_party/blink/renderer/bindings/scripts/web_idl/file_io.py"
-            # self.write_text_file(file_io, file_io_fname)
-
             tgt_file = f"{build_dir}/qtbase/qt_cmdline.cmake"
             self.patch_file(
                 tgt_file,
@@ -243,18 +182,19 @@ class QT6Builder(NVPBuilder):
                 "qt_commandline_option(optimize-size TYPE boolean NAME optimize_size)\nqt_commandline_option(optimize-full TYPE boolean NAME optimize_full)",
             )
 
-            tgt_file = f"{build_dir}/qtbase/configure.cmake"
-            self.patch_file(tgt_file, "qt_find_package(WrapSystemZLIB", "#qt_find_package(WrapSystemZLIB")
-            self.patch_file(
-                tgt_file,
-                "set_property(TARGET ZLIB::ZLIB PROPERTY IMPORTED_GLOBAL TRUE)",
-                "#set_property(TARGET ZLIB::ZLIB PROPERTY IMPORTED_GLOBAL TRUE)",
-            )
-
-            tgt_file = f"{build_dir}/qtwebengine/cmake/Functions.cmake"
-            self.patch_file(tgt_file, "visual_studio_version=2019", "visual_studio_version=2022")
+            # The patch below doesn't seem to be really needed:
+            # tgt_file = f"{build_dir}/qtwebengine/cmake/Functions.cmake"
+            # self.patch_file(tgt_file, "visual_studio_version=2019", "visual_studio_version=2022")
 
             if self.compiler.is_clang():
+                tgt_file = f"{build_dir}/qtbase/configure.cmake"
+                self.patch_file(tgt_file, "qt_find_package(WrapSystemZLIB", "#qt_find_package(WrapSystemZLIB")
+                self.patch_file(
+                    tgt_file,
+                    "set_property(TARGET ZLIB::ZLIB PROPERTY IMPORTED_GLOBAL TRUE)",
+                    "#set_property(TARGET ZLIB::ZLIB PROPERTY IMPORTED_GLOBAL TRUE)",
+                )
+
                 # cannot compile qdoc:
                 tgt_file = f"{build_dir}/qttools/src/CMakeLists.txt"
                 self.patch_file(tgt_file, "add_subdirectory(qdoc)", "#add_subdirectory(qdoc)")
@@ -283,6 +223,10 @@ class QT6Builder(NVPBuilder):
         cmd = [self.tools.get_cmake_path(), "--build", ".", "--parallel"]
         self.check_execute(cmd, cwd=build_dir, env=self.env)
 
+        # Testing direct execution of ninja to get mode debug outputs:
+        # self.exec_ninja(build_dir, ["-v"])
+
+        logger.info("Installing QT6 libraries...")
         cmd = [self.tools.get_cmake_path(), "--install", "."]
         self.check_execute(cmd, cwd=build_dir, env=self.env)
 
@@ -296,24 +240,7 @@ class QT6Builder(NVPBuilder):
         logger.info("Moving build dir back to %s", prev_build_dir)
         self.rename_folder(build_dir, prev_build_dir)
 
-        # self.check_execute(["cmd", "/c", "configure.bat", "-prefix", prefix, "-Wno-dev"], cwd=build_dir, env=self.env)
-
-    # rem Write config.opt if we're not currently -redo'ing
-    # if "!rargs!" == "" (
-    #     echo.%*>config.opt.in
-    #     cmake -DIN_FILE=config.opt.in -DOUT_FILE=config.opt -DIGNORE_ARGS=-top-level -P "%QTSRC%\cmake\QtWriteArgsFile.cmake"
-    # )
-
-    # rem Launch CMake-based configure
-    # set TOP_LEVEL_ARG=
-    # if %TOPLEVEL% == true set TOP_LEVEL_ARG=-DTOP_LEVEL=TRUE
-    # cmake -DOPTFILE=config.opt %TOP_LEVEL_ARG% -P "%QTSRC%\cmake\QtProcessConfigureArgs.cmake"
-
-    # flags = ["-DCMAKE_CXX_FLAGS_RELEASE=/MT", "-DSDL_STATIC=ON"]
-
-    # self.run_cmake(build_dir, prefix, "..", flags)
-
-    # self.run_ninja(build_dir)
+        logger.info("Done building QT6.")
 
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for QT6 on linux"""
