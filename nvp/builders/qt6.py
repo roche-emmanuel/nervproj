@@ -120,88 +120,166 @@ class QT6Builder(NVPBuilder):
         """Build method for QT6 on windows"""
 
         # build_dir = self.get_path(build_dir, "src")
-        logger.info("Should build QT6 here: build_dir: %s", build_dir)
+        # logger.info("Should build QT6 here: build_dir: %s", build_dir)
+        # We need to move the build dir at the root of the filesystem:
+        prev_build_dir = build_dir
+        build_dir = build_dir[:3] + "QT"
 
-        # First we write the config.opt.in file:
-        self.write_text_file(
-            f"-top-level -prefix {prefix} -release -optimize-size -- -DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1",
-            build_dir,
-            "config.opt.in",
-        )
+        # Remove the previous out build folder if needed:
+        # if self.dir_exists(build_dir):
+        #     logger.info("Removing base disk QT build folder %s", build_dir)
+        #     self.remove_folder(build_dir, recursive=True)
 
-        # Next we call cmake to generate the config.opt file:
-        cmd = [
-            self.tools.get_cmake_path(),
-            "-DIN_FILE=config.opt.in",
-            "-DOUT_FILE=config.opt",
-            "-DIGNORE_ARGS=-top-level",
-            "-P",
-            f"{build_dir}/qtbase/cmake/QtWriteArgsFile.cmake",
-        ]
+        if not self.dir_exists(build_dir):
+            logger.info("QT6 using base filesystem build_dir: %s", build_dir)
+            self.rename_folder(prev_build_dir, build_dir)
 
-        # logger.info("Cmake command: %s", cmd)
-        self.check_execute(cmd, cwd=build_dir, env=self.env)
+            # First we write the config.opt.in file:
+            # cf. qtbase/qt_cmdline.cmake
+            # -platform win32-msvc -opensource -confirm-license
 
-        logger.info("Done generating config.opt file.")
+            cmake_args = "-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS=-Wno-ignored-pragmas"
+            cmake_args = '-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -Wno-deprecated-builtins"'
+            # cmake_args = '-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -msse3"' ? => tried for qtquick3dphysics, not working.
+            if self.compiler.is_clang():
+                cxx_path = self.compiler.get_cxx_path()
+                logger.info("Was using cxx path: %s", cxx_path)
+                folder = self.get_parent_folder(cxx_path)
 
-        # prepare the python env:
-        pyenv = self.ctx.get_component("pyenvs")
-        pdesc = {"inherit": "default_env", "packages": ["html5lib"]}
+                # use clang-cl instead for the compilation here:
+                self.env["CC"] = self.get_path(folder, "clang-cl.exe")
+                self.env["CXX"] = self.get_path(folder, "clang-cl.exe")
 
-        pyenv.add_py_env_desc("qt6_env", pdesc)
+                # Skipping qtdoc as we have an issue with missing zlib or something like that:
+                # Skipping qtlanguageserver because the build is crashing with our version of LLVM ?
+                args = "-optimize-size -platform win32-clang-msvc -optimize-full -c++std c++20"
+                args += " -skip qtdoc -skip qtlanguageserver -skip qtconnectivity"
+                args += " -skip qtquick3dphysics"
 
-        pyenv.setup_py_env("qt6_env")
-        py_dir = pyenv.get_py_env_dir("qt6_env")
-        py_dir = self.get_path(py_dir, "qt6_env")
+                # This below doesn't really work when buildting QT6Core:
+                # zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
+                # z_lib = "zlib.lib"
+                # cmake_args += f" -DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}"
+                # cmake_args += f" -DZLIB_INCLUDE_DIR={zlib_dir}/include"
 
-        # Prepare a nodejs env:
-        nodejs = self.ctx.get_component("nodejs")
+                # Also having an hard time compiling the snappy library (dep from chromium) with clang-cl 15.0.4 :-(
+            else:
+                # Only optimize-size supported on MSVC (cf. qtbase/configure.cmake & qtbase/cmake/QtCompilerOptimization.cmake)
+                # but we patched that below.
+                args = "-optimize-size -optimize-full -platform win32-msvc -c++std c++20"
 
-        nodejs_dir = self.get_path(build_dir, "qt6_env")
-        ndesc = {"nodejs_version": "18.13.0", "packages": [], "install_dir": build_dir}
+            self.write_text_file(
+                f"-top-level -prefix {prefix} -release {args} -- {cmake_args}",
+                build_dir,
+                "config.opt.in",
+            )
 
-        nodejs.setup_nodejs_env("qt6_env", env_dir=build_dir, desc=ndesc, update_npm=True)
+            # Next we call cmake to generate the config.opt file:
+            cmd = [
+                self.tools.get_cmake_path(),
+                "-DIN_FILE=config.opt.in",
+                "-DOUT_FILE=config.opt",
+                "-DIGNORE_ARGS=-top-level",
+                "-P",
+                f"{build_dir}/qtbase/cmake/QtWriteArgsFile.cmake",
+            ]
 
-        # let's run the configure.bat file:
-        perl_dir = self.tools.get_tool_root_dir("perl")
-        gperf_dir = self.tools.get_tool_dir("gperf")
-        bison_dir = self.tools.get_tool_dir("bison")
-        flex_dir = self.tools.get_tool_dir("flex")
+            # logger.info("Cmake command: %s", cmd)
+            self.check_execute(cmd, cwd=build_dir, env=self.env)
 
-        # py_dir = self.get_parent_folder(self.tools.get_tool_path("python"))
+            logger.info("Done generating config.opt file.")
 
-        dirs = [
-            self.get_path(build_dir, "qtbase", "bin"),
-            py_dir,
-            nodejs_dir,
-            gperf_dir,
-            bison_dir,
-            flex_dir,
-            self.get_path(perl_dir, "perl", "site", "bin"),
-            self.get_path(perl_dir, "perl", "bin"),
-            self.get_path(perl_dir, "c", "bin"),
-        ]
-        logger.info("Adding additional paths: %s", dirs)
+            # prepare the python env:
+            pyenv = self.ctx.get_component("pyenvs")
+            pdesc = {"inherit": "default_env", "packages": ["html5lib"]}
 
-        self.env = self.append_env_list(dirs, self.env)
+            pyenv.add_py_env_desc("qt6_env", pdesc)
 
-        logger.info("Environment paths: %s", self.env["PATH"])
+            pyenv.setup_py_env("qt6_env")
+            py_dir = pyenv.get_py_env_dir("qt6_env")
+            py_dir = self.get_path(py_dir, "qt6_env")
 
-        # Apply the required patches:
-        file_io_fname = f"{build_dir}/qtwebengine/src/3rdparty/chromium/third_party/blink/renderer/bindings/scripts/web_idl/file_io.py"
-        self.write_text_file(file_io, file_io_fname)
+            # Prepare a nodejs env:
+            nodejs = self.ctx.get_component("nodejs")
 
-        cmd = [
-            self.tools.get_cmake_path(),
-            "-DOPTFILE=config.opt",
-            "-DTOP_LEVEL=TRUE",
-            "-P",
-            f"{build_dir}/qtbase/cmake/QtProcessConfigureArgs.cmake",
-            "-Wno-dev",
-        ]
+            nodejs_dir = self.get_path(build_dir, "qt6_env")
+            ndesc = {"nodejs_version": "18.13.0", "packages": [], "install_dir": build_dir}
 
-        self.check_execute(cmd, cwd=build_dir, env=self.env)
+            nodejs.setup_nodejs_env("qt6_env", env_dir=build_dir, desc=ndesc, update_npm=True)
 
+            # let's run the configure.bat file:
+            perl_dir = self.tools.get_tool_root_dir("perl")
+            gperf_dir = self.tools.get_tool_dir("gperf")
+            bison_dir = self.tools.get_tool_dir("bison")
+            flex_dir = self.tools.get_tool_dir("flex")
+
+            # py_dir = self.get_parent_folder(self.tools.get_tool_path("python"))
+
+            dirs = [
+                self.get_path(build_dir, "qtbase", "bin"),
+                py_dir,
+                nodejs_dir,
+                gperf_dir,
+                bison_dir,
+                flex_dir,
+                self.get_path(perl_dir, "perl", "site", "bin"),
+                self.get_path(perl_dir, "perl", "bin"),
+                self.get_path(perl_dir, "c", "bin"),
+            ]
+            logger.info("Adding additional paths: %s", dirs)
+
+            self.env = self.append_env_list(dirs, self.env)
+
+            logger.info("Environment paths: %s", self.env["PATH"])
+
+            # Apply the required patches:
+            # file_io_fname = f"{build_dir}/qtwebengine/src/3rdparty/chromium/third_party/blink/renderer/bindings/scripts/web_idl/file_io.py"
+            # self.write_text_file(file_io, file_io_fname)
+
+            tgt_file = f"{build_dir}/qtbase/qt_cmdline.cmake"
+            self.patch_file(
+                tgt_file,
+                "qt_commandline_option(optimize-size TYPE boolean NAME optimize_size)",
+                "qt_commandline_option(optimize-size TYPE boolean NAME optimize_size)\nqt_commandline_option(optimize-full TYPE boolean NAME optimize_full)",
+            )
+
+            tgt_file = f"{build_dir}/qtbase/configure.cmake"
+            self.patch_file(tgt_file, "qt_find_package(WrapSystemZLIB", "#qt_find_package(WrapSystemZLIB")
+            self.patch_file(
+                tgt_file,
+                "set_property(TARGET ZLIB::ZLIB PROPERTY IMPORTED_GLOBAL TRUE)",
+                "#set_property(TARGET ZLIB::ZLIB PROPERTY IMPORTED_GLOBAL TRUE)",
+            )
+
+            tgt_file = f"{build_dir}/qtwebengine/cmake/Functions.cmake"
+            self.patch_file(tgt_file, "visual_studio_version=2019", "visual_studio_version=2022")
+
+            if self.compiler.is_clang():
+                # cannot compile qdoc:
+                tgt_file = f"{build_dir}/qttools/src/CMakeLists.txt"
+                self.patch_file(tgt_file, "add_subdirectory(qdoc)", "#add_subdirectory(qdoc)")
+
+                # nor lupdate:
+                tgt_file = f"{build_dir}/qttools/src/linguist/CMakeLists.txt"
+                self.patch_file(tgt_file, "add_subdirectory(lupdate)", "#add_subdirectory(lupdate)")
+
+                # Disable usage of lld-link and using link.exe instead:
+                tgt_file = f"{build_dir}/qtwebengine/src/gn/CMakeLists.txt"
+                self.patch_file(tgt_file, "set(GN_LINKER ${CMAKE_LINKER})", "set(GN_LINKER link.exe)")
+
+            cmd = [
+                self.tools.get_cmake_path(),
+                "-DOPTFILE=config.opt",
+                "-DTOP_LEVEL=TRUE",
+                "-P",
+                f"{build_dir}/qtbase/cmake/QtProcessConfigureArgs.cmake",
+                "-Wno-dev",
+            ]
+
+            self.check_execute(cmd, cwd=build_dir, env=self.env)
+
+        # Building the library now:
+        logger.info("Building QT6 libraries...")
         cmd = [self.tools.get_cmake_path(), "--build", ".", "--parallel"]
         self.check_execute(cmd, cwd=build_dir, env=self.env)
 
@@ -209,6 +287,14 @@ class QT6Builder(NVPBuilder):
         self.check_execute(cmd, cwd=build_dir, env=self.env)
 
         pyenv.remove_py_env("qt6_env")
+
+        # Remove the previous out build folder if needed:
+        if self.dir_exists(prev_build_dir):
+            logger.info("Removing previous QT build folder %s", prev_build_dir)
+            self.remove_folder(prev_build_dir, recursive=True)
+
+        logger.info("Moving build dir back to %s", prev_build_dir)
+        self.rename_folder(build_dir, prev_build_dir)
 
         # self.check_execute(["cmd", "/c", "configure.bat", "-prefix", prefix, "-Wno-dev"], cwd=build_dir, env=self.env)
 

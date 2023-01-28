@@ -245,8 +245,26 @@ class NVPCompiler(NVPObject):
                 bman = self.ctx.get_component("builder")
                 msvc_comp = bman.get_compiler("msvc")
                 msvc_env = msvc_comp.get_env()
-                # logger.info("MSVC compiler env: %s", self.pretty_print(msvc_env))
+
+                logger.debug("MSVC compiler env: %s", self.pretty_print(msvc_env))
                 env = self.prepend_env_list(msvc_env["LIB"], env, "LIB")
+                env = self.prepend_env_list(msvc_env["INCLUDE"], env, "INCLUDE")
+                env["UCRTVersion"] = msvc_env["UCRTVersion"]
+                env["WindowsSDKLibVersion"] = msvc_env["WindowsSDKLibVersion"]
+                env["WindowsSDKVersion"] = msvc_env["WindowsSDKVersion"]
+                env["WindowsSdkBinPath"] = msvc_env["WindowsSdkBinPath"]
+                env["WindowsSdkDir"] = msvc_env["WindowsSdkDir"]
+                env["WindowsSdkVerBinPath"] = msvc_env["WindowsSdkVerBinPath"]
+                env["VSINSTALLDIR"] = msvc_env["VSINSTALLDIR"]
+                env["PATH"] = f"{self.get_cxx_dir()};{msvc_env['PATH']}"
+
+                # env = self.prepend_env_list(msvc_env["WindowsLibPath"], env, "WindowsLibPath")
+                # msvc_env = self.prepend_env_list([self.get_cxx_dir()], env)
+                # msvc_env["CC"] = self.get_cc_path()
+                # msvc_env["CXX"] = self.get_cxx_path()
+
+                # env = msvc_env
+
             self.comp_env = env
 
         assert self.comp_env is not None, "Cannot init compiler environment"

@@ -136,3 +136,9 @@ class NVPBuilder(NVPObject):
 
         logger.info("configure command: %s", cmd)
         self.check_execute(cmd, cwd=build_dir, env=self.env)
+
+    def patch_file(self, filename, src, dest):
+        """Patch the content of a given file"""
+        content = self.read_text_file(filename)
+        content = content.replace(src, dest)
+        self.write_text_file(content, filename)
