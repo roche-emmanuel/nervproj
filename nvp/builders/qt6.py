@@ -90,7 +90,7 @@ class QT6Builder(NVPBuilder):
                 # Skipping qtlanguageserver because the build is crashing with our version of LLVM ?
                 # args = "-optimize-size -platform win32-clang-msvc -optimize-full -c++std c++20"
                 args = "-optimize-full -platform win32-clang-msvc -opensource -confirm-license"
-                args += " -skip qtdoc -skip qtlanguageserver -skip qtconnectivity"
+                args += " -skip qtdoc -skip qtlanguageserver -skip qtconnectivity -skip qtspeech"
                 args += " -skip qtquick3dphysics"
 
                 # This below doesn't really work when buildting QT6Core:
