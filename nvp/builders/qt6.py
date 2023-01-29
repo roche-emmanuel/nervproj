@@ -71,7 +71,6 @@ class QT6Builder(NVPBuilder):
 
             # First we write the config.opt.in file:
             # cf. qtbase/qt_cmdline.cmake
-            # -opensource -confirm-license ?
 
             if self.compiler.is_clang():
                 self.throw(
@@ -89,7 +88,8 @@ class QT6Builder(NVPBuilder):
 
                 # Skipping qtdoc as we have an issue with missing zlib or something like that:
                 # Skipping qtlanguageserver because the build is crashing with our version of LLVM ?
-                args = "-optimize-size -platform win32-clang-msvc -optimize-full -c++std c++20"
+                # args = "-optimize-size -platform win32-clang-msvc -optimize-full -c++std c++20"
+                args = "-optimize-full -platform win32-clang-msvc -opensource -confirm-license"
                 args += " -skip qtdoc -skip qtlanguageserver -skip qtconnectivity"
                 args += " -skip qtquick3dphysics"
 
@@ -108,7 +108,9 @@ class QT6Builder(NVPBuilder):
 
                 # Only optimize-size supported on MSVC (cf. qtbase/configure.cmake & qtbase/cmake/QtCompilerOptimization.cmake)
                 # but we patched that below.
-                args = "-optimize-size -optimize-full -platform win32-msvc -c++std c++20"
+                # Note: if we use c++20, then we cannot compile qtconnectivity/qtspeech
+                # args = "-optimize-size -optimize-full -platform win32-msvc -c++std c++20 -skip qtconnectivity -skip qtspeech"
+                args = "-optimize-full -platform win32-msvc -opensource -confirm-license"
 
             self.write_text_file(
                 f"-top-level -prefix {prefix} -release {args} -- {cmake_args}",
@@ -237,8 +239,12 @@ class QT6Builder(NVPBuilder):
             logger.info("Removing previous QT build folder %s", prev_build_dir)
             self.remove_folder(prev_build_dir, recursive=True)
 
-        logger.info("Moving build dir back to %s", prev_build_dir)
-        self.rename_folder(build_dir, prev_build_dir)
+        # Restoring the build folder doesn't really work as we try to delete it after with too long file names:
+        # self.rename_folder(build_dir, prev_build_dir)
+
+        # So we must directly delete the folder out of source
+        logger.info("Removing out of source build dir %s", build_dir)
+        self.remove_folder(build_dir, recursive=True)
 
         logger.info("Done building QT6.")
 
