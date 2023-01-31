@@ -89,7 +89,37 @@ class CMakeManager(NVPComponent):
 
             return True
 
+        if cmd == "add.nervbind":
+
+            mname = self.get_param("mod_name")
+
+            self.add_nervbind(mname, self.get_cwd())
+
+            return True
+
         return False
+
+    def add_nervbind(self, mname, base_folder):
+        """Add the initial files to generate lua bindings"""
+
+        # logger.info("Should add nervbind for %s in %s", mname, base_folder)
+        folder = self.get_path(base_folder, mname)
+        self.make_folder(folder)
+        self.make_folder(folder, "include")
+        content = """#ifndef BIND_CONTEXT_
+#define BIND_CONTEXT_
+
+// Should put include files here.
+
+#endif"""
+        self.write_text_file(content, folder, "include", "bind_context.h")
+
+        template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
+        tpl_file = self.get_path(template_dir, "nervbind.lua.tpl")
+        dst_file = self.get_path(folder, "nervbind.lua")
+        hlocs = {"%TARGET_NAME%": mname, "%TARGET_NAME_LOWER%": mname.lower()}
+
+        self.write_project_file(hlocs, dst_file, tpl_file)
 
     def add_header_file(self, cproj, mod_name, file_name):
         """Add a new header file in a the given module"""
@@ -664,5 +694,8 @@ if __name__ == "__main__":
     psr.add_str("file_name")("class file name")
     psr.add_str("-t", dest="class_type")("Type of the class to create.")
     psr.add_flag("-f", dest="force_write")("Force rewriting the class files")
+
+    psr = context.build_parser("add.nervbind")
+    psr.add_str("mod_name")("Module name")
 
     comp.run()
