@@ -140,8 +140,8 @@ class MovieHandler(NVPComponent):
         # filter_str = "[0:a]aformat=fltp:44100:stereo,volume=2.0,loudnorm=I=-18:TP=-1.7:LRA=10[a0];"
         # filter_str += "[a0]highpass=f=200,lowpass=f=3000[a0b];"
         filter_str = "[0:a]aformat=fltp:44100:stereo,volume=2.0[a0];"
-        filter_str += "[1:a]aformat=fltp:44100:stereo,volume=0.05[a1];"
-        filter_str += "[1:a]aformat=fltp:44100:stereo,volume=0.05[a1b];"
+        filter_str += "[1:a]aformat=fltp:44100:stereo,volume=0.10[a1];"
+        filter_str += "[1:a]aformat=fltp:44100:stereo,volume=0.12[a1b];"
         filter_str += (
             f"[a1]afade=t=in:st=0:d={fade_dur},afade=t=out:st={min(audio_dur-20, 60-fade_dur)}:d={fade_dur*2.0}[a2];"
         )
