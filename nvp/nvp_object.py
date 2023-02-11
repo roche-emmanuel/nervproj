@@ -910,6 +910,10 @@ class NVPObject(object):
         if isinstance(content, list):
             return [self.fill_placeholders(elem, hlocs) for elem in content]
 
+        # If content is a dict, then we process each element in the dict:
+        if isinstance(content, dict):
+            return {key: self.fill_placeholders(elem, hlocs) for key, elem in content.items()}
+
         # Ignore non-strings:
         if not isinstance(content, str):
             return content
