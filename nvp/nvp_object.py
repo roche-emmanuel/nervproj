@@ -347,12 +347,27 @@ class NVPObject(object):
         # shutil.move(src_path, dest_path)
         os.rename(src_path, dest_path)
 
-    def rename_folder(self, src_path, dest_path, create_parent=False):
+    def rename_folder(self, src_path, dest_path, create_parent=False, remove_existing=False):
         """Rename a folder"""
+        if src_path == dest_path:
+            return
+
+        if self.dir_exists(dest_path):
+            if remove_existing:
+                self.remove_folder(dest_path, recursive=True)
+            else:
+                self.throw("Folder %s already exists.", dest_path)
+
         self.move_path(src_path, dest_path, create_parent=create_parent)
 
     def rename_file(self, src_path, dest_path, create_parent=False):
         """Rename a file"""
+        if src_path == dest_path:
+            return
+
+        if self.file_exists(dest_path):
+            self.remove_file(dest_path)
+
         self.move_path(src_path, dest_path, create_parent=create_parent)
 
     def is_folder_empty(self, fpath):
@@ -894,6 +909,10 @@ class NVPObject(object):
         # If content is a list, then we process each element in the list:
         if isinstance(content, list):
             return [self.fill_placeholders(elem, hlocs) for elem in content]
+
+        # If content is a dict, then we process each element in the dict:
+        if isinstance(content, dict):
+            return {key: self.fill_placeholders(elem, hlocs) for key, elem in content.items()}
 
         # Ignore non-strings:
         if not isinstance(content, str):
