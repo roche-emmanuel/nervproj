@@ -51,7 +51,44 @@ class MovieHandler(NVPComponent):
             out_file = self.get_param("output_file", None)
             return self.concat_media(files, out_file)
 
+        if cmd == "norm-sound":
+            file = self.get_param("input_file")
+            out_file = self.get_param("output_file", None)
+            gain = self.get_param("gain")
+
+            return self.norm_sound(file, out_file, gain)
+
         return False
+
+    def norm_sound(self, input_file, out_file, gain):
+        """Normalize the audio stream from a given input media file using the user provided gain"""
+        if out_file is None:
+            # folder = self.get_parent_folder(input_file)
+            # fname = self.get_filename(input_file)
+            ext = self.get_path_extension(input_file)
+            out_file = self.set_path_extension(input_file, f".lnorm{ext}")
+
+        logger.info("Should norm sound in %s and write %s", input_file, out_file)
+
+        tools: ToolsManager = self.get_component("tools")
+        ffmpeg_path = tools.get_tool_path("ffmpeg")
+
+        # filter_str = f"[0:a]aformat=fltp:44100:stereo,volume={gain:.2f},loudnorm=I=-18:TP=-1.7:LRA=10"
+        filter_str = f"[0:a]aformat=fltp:44100:stereo,volume={gain:.2f},loudnorm=I=-16:LRA=11:TP=-1.5"
+
+        cmd = [ffmpeg_path, "-threads", "8", "-i", input_file]
+        cmd += ["-filter_complex", f"{filter_str}"]
+        cmd += ["-c:v", "copy", "-y", out_file]
+
+        logger.info("Executing command: %s", cmd)
+        res, rcode, outs = self.execute(cmd)
+
+        if not res:
+            logger.error("Sound normalization failed with return code %d:\n%s", rcode, outs)
+            return False
+
+        logger.info("Done writting file.")
+        return True
 
     def concat_media(self, files, out_file):
         """Concantenate a list of media files"""
@@ -318,5 +355,10 @@ if __name__ == "__main__":
     psr = context.build_parser("concat-media")
     psr.add_str("-i", "--inputs", dest="input_files")("input video files to concatenate")
     psr.add_str("-o", "--output", dest="output_file")("Output file to generate.")
+
+    psr = context.build_parser("norm-sound")
+    psr.add_str("-i", "--input", dest="input_file")("input video file to normalize")
+    psr.add_str("-o", "--output", dest="output_file")("Output file to generate.")
+    psr.add_float("-g", "--gain", dest="gain", default=1.0)("Volume gain factor")
 
     comp.run()

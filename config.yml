@@ -324,6 +324,13 @@ scripts:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/movie_handler.py concat-media
     python_path: ["${NVP_ROOT_DIR}"]
 
+  norm-sound:
+    notify: false
+    help: Normalize the sound stream in a video video file
+    custom_python_env: media_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/movie_handler.py norm-sound
+    python_path: ["${NVP_ROOT_DIR}"]
+
   sd_python:
     # Run python in stable diffusion environment:
     notify: false
