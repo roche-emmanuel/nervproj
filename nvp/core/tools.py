@@ -279,23 +279,25 @@ class ToolsManager(NVPComponent):
                             # cur speed in kbytes/secs
                             # cur_speed = nbytes / (1024 * elapsed)
                             # mean_speed += (cur_speed - mean_speed) * speed_adapt
-                            mean_speed = dlsize / (1024 * elapsed)
+                            # Mean_speed in bytes/secs:
+                            mean_speed = dlsize / elapsed
 
                         dlsize += nbytes
 
                         # Compute the estimated remaining time:
                         remaining_size = total_length - dlsize
-                        remaining_time = remaining_size / (1024.0 * mean_speed) if mean_speed > 0 else None
+                        remaining_time = remaining_size / mean_speed if mean_speed > 0 else None
                         time_str = self.get_time_string(remaining_time)
 
                         fdd.write(data)
                         frac = dlsize / total_length
                         done = int(50 * frac)
                         sys.stdout.write(
-                            f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}% @ {mean_speed:.0f}KB/s ETA: {time_str}"
+                            f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {dlsize}/{total_length} {frac*100:.3f}% @ {mean_speed/1024.0:.0f}KB/s ETA: {time_str}"
                         )
                         sys.stdout.flush()
                         if max_speed > 0:
+                            # Max_speed will be in bytes/secs:
                             # We should take a speed limit into consideration here:
 
                             # we downloaded dlsize in elapsed seconds
