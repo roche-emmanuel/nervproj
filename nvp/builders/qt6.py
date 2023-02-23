@@ -251,13 +251,77 @@ class QT6Builder(NVPBuilder):
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for QT6 on linux"""
 
-        # build_dir = self.get_path(build_dir, "src")
+        # Next we call cmake to generate the config.opt file:
+        cmd = [
+            self.tools.get_cmake_path(),
+            "-DIN_FILE=config.opt.in",
+            "-DOUT_FILE=config.opt",
+            "-DIGNORE_ARGS=-top-level",
+            "-P",
+            f"{build_dir}/qtbase/cmake/QtWriteArgsFile.cmake",
+        ]
 
-        # logger.info("Using CXXFLAGS: %s", self.env['CXXFLAGS'])
-        # logger.info("Using build env: %s", self.pretty_print(self.env))
+        self.check_execute(cmd, cwd=build_dir, env=self.env)
 
-        # flags = ["-DSDL_STATIC=ON", "-DSDL_STATIC_PIC=ON"]
+        logger.info("Done generating config.opt file.")
 
-        # self.run_cmake(build_dir, prefix, "..", flags)
+        # prepare the python env:
+        pyenv = self.ctx.get_component("pyenvs")
+        pdesc = {"inherit": "default_env", "packages": ["html5lib"]}
 
-        # self.run_ninja(build_dir)
+        pyenv.add_py_env_desc("qt6_env", pdesc)
+
+        pyenv.setup_py_env("qt6_env")
+        py_dir = pyenv.get_py_env_dir("qt6_env")
+        py_dir = self.get_path(py_dir, "qt6_env")
+
+        # Prepare a nodejs env:
+        nodejs = self.ctx.get_component("nodejs")
+
+        nodejs_dir = self.get_path(build_dir, "qt6_env")
+        ndesc = {"nodejs_version": "18.13.0", "packages": [], "install_dir": build_dir}
+
+        nodejs.setup_nodejs_env("qt6_env", env_dir=build_dir, desc=ndesc, update_npm=True)
+
+        dirs = [
+            self.get_path(build_dir, "qtbase", "bin"),
+            py_dir,
+            nodejs_dir,
+            # gperf_dir,
+            # bison_dir,
+            # flex_dir,
+            # self.get_path(perl_dir, "perl", "site", "bin"),
+            # self.get_path(perl_dir, "perl", "bin"),
+            # self.get_path(perl_dir, "c", "bin"),
+        ]
+        logger.info("Adding additional paths: %s", dirs)
+
+        self.env = self.append_env_list(dirs, self.env)
+
+        logger.info("Environment paths: %s", self.env["PATH"])
+
+        # Configuration step:
+        cmd = [
+            self.tools.get_cmake_path(),
+            "-DOPTFILE=config.opt",
+            "-DTOP_LEVEL=TRUE",
+            "-P",
+            f"{build_dir}/qtbase/cmake/QtProcessConfigureArgs.cmake",
+            "-Wno-dev",
+        ]
+
+        self.check_execute(cmd, cwd=build_dir, env=self.env)
+
+        # Building the library now:
+        logger.info("Building QT6 libraries...")
+        cmd = [self.tools.get_cmake_path(), "--build", ".", "--parallel"]
+        self.check_execute(cmd, cwd=build_dir, env=self.env)
+
+        # Testing direct execution of ninja to get mode debug outputs:
+        # self.exec_ninja(build_dir, ["-v"])
+
+        logger.info("Installing QT6 libraries...")
+        cmd = [self.tools.get_cmake_path(), "--install", "."]
+        self.check_execute(cmd, cwd=build_dir, env=self.env)
+
+        pyenv.remove_py_env("qt6_env")
