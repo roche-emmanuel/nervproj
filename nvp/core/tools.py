@@ -235,7 +235,7 @@ class ToolsManager(NVPComponent):
         count = 0
 
         mean_speed = 0
-        speed_adapt = 0.001
+        # speed_adapt = 0.001
 
         tmp_file = dest_file + ".download"
 
@@ -264,19 +264,22 @@ class ToolsManager(NVPComponent):
 
                 logger.debug("Total file length is: %s", total_length)
                 total_length = int(total_length)
-                last_time = time.time()
+                # last_time = time.time()
+                start_time = time.time()
 
                 with open(tmp_file, "wb") as fdd:
                     for data in response.iter_content(chunk_size=4096):
                         nbytes = len(data)
 
                         cur_time = time.time()
-                        elapsed = cur_time - last_time
-                        last_time = cur_time
+                        # elapsed = cur_time - last_time
+                        elapsed = cur_time - start_time
+                        # last_time = cur_time
                         if elapsed > 0.0:
                             # cur speed in kbytes/secs
-                            cur_speed = nbytes / (1024 * elapsed)
-                            mean_speed += (cur_speed - mean_speed) * speed_adapt
+                            # cur_speed = nbytes / (1024 * elapsed)
+                            # mean_speed += (cur_speed - mean_speed) * speed_adapt
+                            mean_speed = dlsize / (1024 * elapsed)
 
                         dlsize += nbytes
 
@@ -295,15 +298,15 @@ class ToolsManager(NVPComponent):
                         if max_speed > 0:
                             # We should take a speed limit into consideration here:
 
-                            # we downloaded nbytes in elapsed seconds
+                            # we downloaded dlsize in elapsed seconds
                             # and we have the limit of max_speed bytes per seconds.
-                            # Compute how long we should take to download nbytes in seconds:
-                            dl_dur = nbytes / max_speed
+                            # Compute how long we should take to download dlsize in seconds:
+                            dl_dur = dlsize / max_speed
                             if elapsed < dl_dur:
                                 # We took less time than the requirement so far, so we should speed
                                 # for the remaining time:
                                 time.sleep(dl_dur - elapsed)
-                                last_time = time.time()
+                                # last_time = time.time()
 
                     sys.stdout.write("\n")
                     sys.stdout.flush()
