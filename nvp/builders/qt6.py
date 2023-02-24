@@ -251,6 +251,15 @@ class QT6Builder(NVPBuilder):
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for QT6 on linux"""
 
+        cmake_args = '-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -Wno-deprecated-builtins"'
+        args = "-optimize-full -opensource -confirm-license"
+
+        self.write_text_file(
+            f"-top-level -prefix {prefix} -release {args} -- {cmake_args}",
+            build_dir,
+            "config.opt.in",
+        )
+
         # Next we call cmake to generate the config.opt file:
         cmd = [
             self.tools.get_cmake_path(),
@@ -273,12 +282,14 @@ class QT6Builder(NVPBuilder):
 
         pyenv.setup_py_env("qt6_env")
         py_dir = pyenv.get_py_env_dir("qt6_env")
-        py_dir = self.get_path(py_dir, "qt6_env")
+        # Need the bin folder here too:
+        py_dir = self.get_path(py_dir, "qt6_env/bin")
 
         # Prepare a nodejs env:
         nodejs = self.ctx.get_component("nodejs")
 
-        nodejs_dir = self.get_path(build_dir, "qt6_env")
+        # On linux the node app is in the bin subfolder:
+        nodejs_dir = self.get_path(build_dir, "qt6_env/bin")
         ndesc = {"nodejs_version": "18.13.0", "packages": [], "install_dir": build_dir}
 
         nodejs.setup_nodejs_env("qt6_env", env_dir=build_dir, desc=ndesc, update_npm=True)
@@ -296,9 +307,21 @@ class QT6Builder(NVPBuilder):
         ]
         logger.info("Adding additional paths: %s", dirs)
 
-        self.env = self.append_env_list(dirs, self.env)
+        # Need to prepend the folders in the linux case:
+        self.env = self.prepend_env_list(dirs, self.env)
 
         logger.info("Environment paths: %s", self.env["PATH"])
+
+        # Also add NODEJS_HOME in the env:
+        self.env['NODEJS_HOME'] = nodejs_dir
+
+        # Apply the required patches:
+        tgt_file = f"{build_dir}/qtbase/qt_cmdline.cmake"
+        self.patch_file(
+            tgt_file,
+            "qt_commandline_option(optimize-size TYPE boolean NAME optimize_size)",
+            "qt_commandline_option(optimize-size TYPE boolean NAME optimize_size)\nqt_commandline_option(optimize-full TYPE boolean NAME optimize_full)",
+        )
 
         # Configuration step:
         cmd = [

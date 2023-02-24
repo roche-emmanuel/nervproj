@@ -114,6 +114,12 @@ linux_tools:
       - http://files.nervtech.org/nvp_packages/tools/ffmpeg-2022.08.25-linux.tar.xz
       - https://johnvansickle.com/ffmpeg/builds/ffmpeg-git-amd64-static.tar.xz
     version: 2022.07.22
+  # - name: gperf
+  #   sub_path: bin/gperf
+  #   urls:
+  #     - http://ftp.gnu.org/pub/gnu/gperf/gperf-3.1.tar.gz
+  #   version: 3.1
+  #   build_mode: "configure"
 
 # List of libraries that we can build:
 libraries:

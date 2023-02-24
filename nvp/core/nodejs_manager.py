@@ -71,11 +71,12 @@ class NodeJsManager(NVPComponent):
         env_dir = self.get_env_dir(env_name)
         return self.get_path(env_dir, env_name)
 
-    def get_node_path(self, env_name):
+    def get_node_path(self, env_name, desc=None):
         """Retrieve the full path to node in a given environment."""
-        env_dir = self.get_env_dir(env_name)
+        env_dir = self.get_env_dir(env_name, desc)
         ext = ".exe" if self.is_windows else ""
-        node_path = self.get_path(env_dir, env_name, f"node{ext}")
+        prefix = "" if self.is_windows else "bin/"
+        node_path = self.get_path(env_dir, env_name, f"{prefix}node{ext}")
         self.check(self.file_exists(node_path), "Invalid node path: %s", node_path)
         return node_path
 
@@ -91,9 +92,11 @@ class NodeJsManager(NVPComponent):
             desc = self.get_env_desc(env_name)
         env_dir = self.get_env_dir(env_name, desc)
         root_path = self.get_path(env_dir, env_name)
-        ext = ".exe" if self.is_windows else ""
-        node_path = self.get_path(root_path, f"node{ext}")
-        npm_script = self.get_path(root_path, "node_modules", "npm", "bin", "npm-cli.js")
+
+        node_path = self.get_node_path(env_name, desc)
+
+        prefix = "" if self.is_windows else "lib/"
+        npm_script = self.get_path(root_path, f"{prefix}node_modules", "npm", "bin", "npm-cli.js")
         cmd = [node_path, npm_script] + args
 
         # We should add node to the env path:
