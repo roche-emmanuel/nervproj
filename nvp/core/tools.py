@@ -6,6 +6,7 @@ import time
 
 import requests
 import urllib3
+from nvp.nvp_builder import NVPBuilder
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -33,8 +34,8 @@ class ToolsManager(NVPComponent):
     def initialize(self):
         """Initialize this component as needed before usage."""
         if self.initialized is False:
-            self.setup_tools()
             self.initialized = True
+            self.setup_tools()
 
     def setup_tools(self):
         """Setup all the tools on this platform."""
@@ -58,22 +59,26 @@ class ToolsManager(NVPComponent):
                 install_path = self.get_path(self.tools_dir, full_name)
                 tpath = self.get_path(install_path, desc["sub_path"])
                 if not self.file_exists(tpath):
+                    if "build_mode" in desc:
+                        # This tool should be built from sources:
+                        self.build_tool(full_name, desc)
 
-                    # retrieve the most appropriate source package for that tool:
-                    pkg_file = self.retrieve_tool_package(desc)
+                    else:
+                        # retrieve the most appropriate source package for that tool:
+                        pkg_file = self.retrieve_tool_package(desc)
 
-                    # Extract the package:
-                    self.extract_package(pkg_file, self.tools_dir, target_dir=full_name)
+                        # Extract the package:
+                        self.extract_package(pkg_file, self.tools_dir, target_dir=full_name)
 
-                    # CHeck if we have a post install command:
-                    fname = f"_post_install_{desc['name']}_{self.platform}"
-                    postinst = self.get_method(fname.lower())
-                    if postinst is not None:
-                        logger.info("Running post install for %s...", full_name)
-                        postinst(install_path, desc)
+                        # CHeck if we have a post install command:
+                        fname = f"_post_install_{desc['name']}_{self.platform}"
+                        postinst = self.get_method(fname.lower())
+                        if postinst is not None:
+                            logger.info("Running post install for %s...", full_name)
+                            postinst(install_path, desc)
 
-                    # Remove the source package:
-                    # self.remove_file(pkg_file)
+                        # Remove the source package:
+                        # self.remove_file(pkg_file)
 
                 # The tool path should really exist now:
                 assert self.file_exists(tpath), f"No valid package provided for {full_name}"
@@ -102,6 +107,32 @@ class ToolsManager(NVPComponent):
                     }
                     self.tools[sub_name] = sdesc
                     self.add_execute_permission(sdesc["path"])
+
+    def build_tool(self, full_name, desc):
+        """Build a tool package from sources"""
+        # Get the build directory:
+        base_build_dir = self.make_folder(self.ctx.get_root_dir(), "build", "tools")
+        prefix = self.get_path(self.tools_dir, full_name)
+
+        # get the build manager:
+        bman = self.get_component("builder")
+
+        # Prepare the build folder:
+        build_dir, _, _ = bman.setup_build_context(desc, False, base_build_dir)
+
+        # Run the build system:
+        bmode = desc['build_mode']
+        if bmode == "std":
+            # Run configure/make std commands:
+            builder = NVPBuilder(bman)
+            builder.init_env()
+            builder.run_configure(build_dir, prefix)
+            builder.run_make(build_dir)
+        else:
+            self.throw("Unsupported build mode: %s", bmode)
+
+        pkgname = bman.get_library_package_name(full_name)
+        self.create_package(prefix, self.tools_dir, pkgname)
 
     def retrieve_tool_package(self, desc):
         """Retrieve the most appropriate package for a given tool and

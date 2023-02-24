@@ -28,7 +28,7 @@ class BuildManager(NVPComponent):
         self.tools = None
         self.libs_dir = None
         self.libs_package_dir = None
-        self.libs_build_dir = self.make_folder(ctx.get_root_dir(), "libraries", "build")
+        self.libs_build_dir = self.make_folder(ctx.get_root_dir(), "build", "libraries")
 
         # Setup the paths:
         self.compiler = None
@@ -213,7 +213,7 @@ class BuildManager(NVPComponent):
                 continue
 
             if preview:
-                self.setup_dependency_build_context(dep, use_existing_src)
+                self.setup_build_context(dep, use_existing_src)
                 continue
 
             dep_name = self.get_std_package_name(dep)
@@ -275,7 +275,7 @@ class BuildManager(NVPComponent):
             # logger.info("Current environment: %s", self.pretty_print(env))
 
             # Prepare the build context:
-            build_dir, prefix, dep_name = self.setup_dependency_build_context(desc, use_existing_src)
+            build_dir, prefix, dep_name = self.setup_build_context(desc, use_existing_src)
 
             # Execute the builder function:
             start_time = time.time()
@@ -306,12 +306,13 @@ class BuildManager(NVPComponent):
         """Return a standard package naem from base name and version"""
         return f"{desc['name']}-{self.get_package_version(desc)}"
 
-    def setup_dependency_build_context(self, desc, use_existing_src):
+    def setup_build_context(self, desc, use_existing_src, base_build_dir=None):
         """Prepare the build folder for a given dependency package
         We then return the build_dir, dep_name and target install prefix"""
 
         # First we need to download the source package if missing:
-        base_build_dir = self.libs_build_dir
+        if base_build_dir is None:
+            base_build_dir = self.libs_build_dir
 
         # get the filename from the url:
         url = desc.get(f"{self.platform}_url", desc.get("url", None))

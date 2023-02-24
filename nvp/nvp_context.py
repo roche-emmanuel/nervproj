@@ -429,21 +429,13 @@ class NVPContext(NVPObject):
 
         if cname in self.components:
             comp = self.components[cname]
-            if do_init:
+            if do_init and not comp.is_initialized():
                 comp.initialize()
             return comp
 
         # If the requested component is not found, then it might be a dynamic component:
         # So we search for it in our config:
-        comp = self.create_component(cname, do_init=do_init)
-
-        if comp is None:
-            return None
-
-        # And we register that component now:
-        self.register_component(cname, comp)
-
-        return comp
+        return self.create_component(cname, do_init=do_init)
 
         # # logger.info("Component list: %s", self.components.keys())
         # # logger.info("proj_comp_name: %s", proj_comp_name)
@@ -499,6 +491,10 @@ class NVPContext(NVPObject):
 
         # Remove the construct frame:
         self.construct_frames.pop()
+
+        # The component must be registered before it is initialized to avoid any circular
+        # init loop:
+        self.register_component(cname, comp)
 
         if do_init:
             comp.initialize()
