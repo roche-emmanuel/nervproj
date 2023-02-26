@@ -184,6 +184,33 @@ class NVPCompiler(NVPObject):
         """Retrieve the full name of this compiler"""
         return f"{self.type}-{self.version}"
 
+    def append_cxxflag(self, val, env=None):
+        """Append a value to the cxxflags environment var"""
+        env = env or self.comp_env
+        flags = env.get("CXXFLAGS", "")
+        env["CXXFLAGS"] = f"{flags} {val}"
+
+    def append_cflag(self, val, env=None):
+        """Append a value to the cflags environment var"""
+        env = env or self.comp_env
+        flags = env.get("CFLAGS", "")
+        env["CFLAGS"] = f"{flags} {val}"
+
+    def append_ldflag(self, val, env=None):
+        """Append a value to the ldflags environment var"""
+        env = env or self.comp_env
+        flags = env.get("LDFLAGS", "")
+        env["LDFLAGS"] = f"{flags} {val}"
+
+    def append_compileflag(self, val, env=None):
+        """Append a value to both the cxxflags and cflags"""
+        self.append_cxxflag(val, env)
+        self.append_cflag(val, env)
+
+    def append_linkflag(self, val, env=None):
+        """Append a value to both the ldflags"""
+        self.append_ldflag(val, env)
+
     def init_compiler_env(self):
         """Initialize the compiler specific environment."""
         assert self.comp_env is None, "Compiler environment already initialized."
@@ -228,7 +255,8 @@ class NVPCompiler(NVPObject):
             else:
                 env["PATH"] = self.get_cxx_dir()
 
-            # inc_dir = f"{self.root_dir}/include/c++/v1"
+                # self.append_compileflag(f"-I{self.root_dir}/include/c++/v1", env)
+                # self.append_compileflag(f"-L{self.root_dir}/lib/clang/15.0.4/include", env)
 
             env["CC"] = self.get_cc_path()
             env["CXX"] = self.get_cxx_path()
