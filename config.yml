@@ -122,6 +122,22 @@ linux_tools:
     # For building:
     # url: http://ftp.gnu.org/pub/gnu/gperf/gperf-3.1.tar.gz
     # build_mode: "std"
+  - name: bison
+    sub_path: bin/bison
+    version: 3.8.2
+    urls:
+      - http://files.nervtech.org/nvp_packages/tools/bison-3.8.2-linux-clang.tar.xz
+    # For building:
+    # url: http://ftp.gnu.org/gnu/bison/bison-3.8.2.tar.xz
+    # build_mode: "std"
+  - name: flex
+    sub_path: bin/flex
+    version: 2.6.4
+    urls:
+      - http://files.nervtech.org/nvp_packages/tools/flex-2.6.4-linux-clang.tar.xz
+    # For building:
+    # url: https://github.com/westes/flex/files/981163/flex-2.6.4.tar.gz
+    # build_mode: "std"
 
 # List of libraries that we can build:
 libraries:
@@ -136,11 +152,6 @@ libraries:
     name: libxml2
     version: 2.9.13
     windows_url: https://gitlab.gnome.org/GNOME/libxml2/-/archive/v2.9.13/libxml2-v2.9.13.zip
-  - name: QT6
-    version: 6.4.2
-    windows_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.zip
-    linux_url: http://files.nervtech.org/nvp_packages/sources/qt-everywhere-src-6.4.2.tar.xz
-    # linux_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.tar.xz
   - name: LLVM
     # version: 15.0.6
     # extracted_dir: llvm-project-llvmorg-15.0.6
@@ -176,6 +187,17 @@ libraries:
     version: 1.3.224.1
   - name: glslang
     version: 11.11.0
+  # - name: nspr
+  #   version: 2023.02
+  #   url: hg@https://hg.mozilla.org/projects/nspr
+  # - name: nss
+  #   version: 2023.02
+  #   url: hg@https://hg.mozilla.org/projects/nss
+  - name: QT6
+    version: 6.4.2
+    windows_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.zip
+    linux_url: http://files.nervtech.org/nvp_packages/sources/qt-everywhere-src-6.4.2.tar.xz
+    # linux_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.tar.xz
 
 # list of available projects:
 projects: []

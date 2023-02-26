@@ -101,7 +101,9 @@ class NodeJsManager(NVPComponent):
 
         # We should add node to the env path:
         env = os.environ.copy()
-        env = self.prepend_env_list(root_path, env)
+
+        node_dir = self.get_parent_folder(node_path)
+        env = self.prepend_env_list(node_dir, env)
 
         self.execute(cmd, env=env)
 
@@ -149,7 +151,8 @@ class NodeJsManager(NVPComponent):
 
         if new_env or update_npm:
             # Update the npm installation:
-            self.run_npm(env_name, args=["update", "--location=global", "npm"], desc=desc)
+            # self.run_npm(env_name, args=["update", "--location=global", "npm"], desc=desc)
+            self.run_npm(env_name, args=["update", "-g", "npm"], desc=desc)
 
         # self.run_node(env_name, args=["--version"])
 

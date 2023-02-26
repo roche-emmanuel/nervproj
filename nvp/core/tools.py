@@ -254,6 +254,13 @@ class ToolsManager(NVPComponent):
             self.execute(cmd)
             return True
 
+        if url.startswith("hg@"):
+            url = url[3:]
+            logger.info("Checking out mercurial repo %s...", url)
+            cmd = ["hg", "clone", url, dest_file]
+            self.execute(cmd)
+            return True
+
         # Check if this is a valid local file:
         if self.file_exists(url):
             # Just copy the file in that case:

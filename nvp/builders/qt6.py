@@ -291,16 +291,36 @@ class QT6Builder(NVPBuilder):
         # On linux the node app is in the bin subfolder:
         nodejs_dir = self.get_path(build_dir, "qt6_env/bin")
         ndesc = {"nodejs_version": "18.13.0", "packages": [], "install_dir": build_dir}
+        # Should work with nodejs 18, see fix for node path below:
+        # ndesc = {"nodejs_version": "12.22.9", "packages": [], "install_dir": build_dir}
 
         nodejs.setup_nodejs_env("qt6_env", env_dir=build_dir, desc=ndesc, update_npm=True)
+
+        gperf_dir = self.tools.get_tool_dir("gperf")
+        bison_dir = self.tools.get_tool_dir("bison")
+        flex_dir = self.tools.get_tool_dir("flex")
+
+        # Note: really need to install the following packages:
+        # libnss3-dev libdbus-1-dev libcups2-dev libxkbcommon-dev
+        # Also perl is already available on my system.
+
+        # patch the node.py file to use our nodejs binary:
+        tgt_file = f"{build_dir}/qtwebengine/src/3rdparty/chromium/third_party/node/node.py"
+        self.patch_file(tgt_file, "nodejs = which('nodejs')", f"nodejs = '{nodejs_dir}/node'")
+
+        # nss_root_dir = self.man.get_library_root_dir("nss").replace("\\", "/")
+        # nss_dir = self.get_path(nss_root_dir, "Release/bin")
+        # self.append_cflag(f"-I{nss_root_dir}/public/nss")
+        # self.append_linkflag(f"-L{nss_root_dir}/Release/lib")
 
         dirs = [
             self.get_path(build_dir, "qtbase", "bin"),
             py_dir,
             nodejs_dir,
-            # gperf_dir,
-            # bison_dir,
-            # flex_dir,
+            gperf_dir,
+            bison_dir,
+            flex_dir,
+            # nss_dir,
             # self.get_path(perl_dir, "perl", "site", "bin"),
             # self.get_path(perl_dir, "perl", "bin"),
             # self.get_path(perl_dir, "c", "bin"),

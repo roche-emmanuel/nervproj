@@ -324,7 +324,7 @@ class BuildManager(NVPComponent):
         # so filename will be "reponame.git" for instance
         src_pkg = self.get_path(base_build_dir, filename)
 
-        from_git = url.startswith("git@")
+        from_git = url.startswith("git@") or url.startswith("hg@")
         # once the source file is downloaded we should extract it:
         # build_dir = src_pkg if from_git else self.remove_file_extension(src_pkg)
         tgt_dir = self.get_std_package_name(desc)
