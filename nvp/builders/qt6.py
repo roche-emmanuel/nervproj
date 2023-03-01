@@ -256,7 +256,7 @@ class QT6Builder(NVPBuilder):
             "-optimize-full", "-opensource", "-confirm-license",
             "-qt-doubleconversion", "-qt-pcre", "-qt-zlib", "-qt-freetype",
             "-qt-harfbuzz", "-qt-libpng", "-qt-libjpeg", "-qt-sqlite",
-            "-qt-tiff", "-qt-webp", "-openssl-runtime"
+            "-qt-tiff", "-qt-webp", "-openssl-runtime", "-xcb-xlib", "-xcb"
         ]
         # "-qt-assimp", "-webengine-icu=qt", "-qt-webengine-ffmpeg", "-qt-webengine-opus", "-qt-webengine-webp",
         args = " ".join(args)
