@@ -252,7 +252,14 @@ class QT6Builder(NVPBuilder):
         """Build method for QT6 on linux"""
 
         cmake_args = '-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -Wno-deprecated-builtins"'
-        args = "-optimize-full -opensource -confirm-license"
+        args = [
+            "-optimize-full", "-opensource", "-confirm-license",
+            "-qt-doubleconversion", "-qt-pcre", "-qt-zlib", "-qt-freetype",
+            "-qt-harfbuzz", "-qt-libpng", "-qt-libjpeg", "-qt-sqlite",
+            "-qt-tiff", "-qt-webp", "-openssl-runtime"
+        ]
+        # "-qt-assimp", "-webengine-icu=qt", "-qt-webengine-ffmpeg", "-qt-webengine-opus", "-qt-webengine-webp",
+        args = " ".join(args)
 
         self.write_text_file(
             f"-top-level -prefix {prefix} -release {args} -- {cmake_args}",
