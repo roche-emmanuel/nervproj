@@ -541,6 +541,53 @@ class CMakeManager(NVPComponent):
             assert proj_name in cprojects, f"Cannot find module {proj_name}"
             self.build_project(proj_name, install_dir, rebuild)
 
+    def install_dep_modules(self, proj_name, install_dir):
+        """Install all the dependencies for a given project"""
+        desc = self.cmake_projects[proj_name]
+
+        if install_dir is None:
+            install_dir = desc["install_dir"]
+
+        bman = self.get_component("builder")
+        tool = self.get_component("tools")
+
+        key = f"{self.platform}_dep_modules"
+        mods = desc.get(key, {})
+
+        for lib_name, file_map in mods.items():
+            # logger.info("Should install modules for %s: %s", lib_name, file_map)
+            # get the root path of that dependency:
+            if bman.has_library(lib_name):
+                root_dir = bman.get_library_root_dir(lib_name)
+            else:
+                root_dir = tool.get_tool_root_dir(lib_name)
+
+            # Iterate on each file to check if it's already installed or not:
+            for src_file, dst_file in file_map.items():
+                src_path = self.get_path(root_dir, src_file)
+                dst_path = self.get_path(install_dir, dst_file)
+                copy_needed = False
+
+                if self.file_exists(dst_path):
+                    # Check if the hash will match:
+                    hash1 = self.compute_file_hash(src_path)
+                    hash2 = self.compute_file_hash(dst_path)
+                    if hash1 != hash2:
+                        logger.info("Updating dep module %s...", dst_file)
+                        self.remove_file(dst_file)
+                        copy_needed = True
+                else:
+                    # The destination file doesn't exist yet, we simply install it:
+                    logger.info("Installing dep module %s...", dst_file)
+                    copy_needed = True
+
+                if copy_needed:
+                    # Check that the source file exists:
+                    self.check(self.file_exists(src_path), "Invalid source file: %s", src_path)
+                    folder = self.get_parent_folder(dst_path)
+                    self.make_folder(folder)
+                    self.copy_file(src_path, dst_path)
+
     def build_project(self, proj_name, install_dir, rebuild=False, gen_commands=False):
         """Build/install a specific project"""
 
@@ -631,6 +678,10 @@ class CMakeManager(NVPComponent):
         start_tick = time.time()
         builder.run_ninja(build_dir, outfile=outfile, flags=flags)
         outfile.close()
+
+        # Install the dependency modules:
+        self.install_dep_modules(proj_name, install_dir)
+
         elapsed = time.time() - start_tick
         mins = math.floor(elapsed / 60)
         elapsed = elapsed - mins * 60.0
