@@ -251,6 +251,37 @@ class QT6Builder(NVPBuilder):
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for QT6 on linux"""
 
+        # Note: really need to install the following packages:
+        # pkg-config
+        # libnss3-dev libdbus-1-dev libcups2-dev libxkbcommon-dev libx11-xcb-dev
+        # libx11-dev
+        # libx11-xcb-dev
+        # libxext-dev
+        # libxfixes-dev
+        # libxi-dev
+        # libxrender-dev
+        # libxcb1-dev
+        # libxcb-glx0-dev
+        # libxcb-keysyms1-dev
+        # libxcb-image0-dev
+        # libxcb-shm0-dev
+        # libxcb-icccm4-dev
+        # libxcb-sync-dev
+        # libxcb-xfixes0-dev
+        # libxcb-shape0-dev
+        # libxcb-randr0-dev
+        # libxcb-render-util0-dev
+        # libxcb-util-dev
+        # libxcb-xinerama0-dev
+        # libxcb-xkb-dev
+        # libxkbcommon-dev
+        # libxkbcommon-x11-dev
+        # Additional libs for WebEngine:
+        # libx11-dev libdrm-dev libxcomposite-dev libxcursor-dev libxrandr-dev libxi-dev x11proto-core-dev libxshmfence-dev libxtst-dev libxkbfile-dev libsecret-1-dev
+        # X11:YES LIBDRM:YES XCOMPOSITE:NO XCURSOR:NO XRANDR:NO XI:YES XPROTO:YES XSHMFENCE:NO XTST:NO
+        # Also perl is already available on my system.
+        # => cf. https://doc.qt.io/qt-6/linux-requirements.html
+
         cmake_args = '-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -Wno-deprecated-builtins"'
         args = [
             "-optimize-full", "-opensource", "-confirm-license",
@@ -306,10 +337,6 @@ class QT6Builder(NVPBuilder):
         gperf_dir = self.tools.get_tool_dir("gperf")
         bison_dir = self.tools.get_tool_dir("bison")
         flex_dir = self.tools.get_tool_dir("flex")
-
-        # Note: really need to install the following packages:
-        # libnss3-dev libdbus-1-dev libcups2-dev libxkbcommon-dev
-        # Also perl is already available on my system.
 
         # patch the node.py file to use our nodejs binary:
         tgt_file = f"{build_dir}/qtwebengine/src/3rdparty/chromium/third_party/node/node.py"
