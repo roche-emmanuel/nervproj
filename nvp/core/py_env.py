@@ -29,6 +29,12 @@ class PyEnvManager(NVPComponent):
             self.setup_py_env(env_name)
             return True
 
+        if cmd == "update":
+            env_name = self.get_param("env_name")
+            pkg_name = self.get_param("pkg_name")
+            self.update_package(env_name, pkg_name)
+            return True
+
         if cmd == "remove":
             env_name = self.get_param("env_name")
             self.remove_py_env(env_name)
@@ -127,6 +133,25 @@ class PyEnvManager(NVPComponent):
         # Return all the modules:
         return mods
 
+    def update_package(self, env_name, pkg_name):
+        """Update a given python package in a given environment"""
+        desc = self.get_py_env_desc(env_name)
+        env_dir = self.get_param("env_dir")
+
+        if env_dir is None:
+            # try to use the install dir from the desc if any or use the default install dir:
+            env_dir = self.get_py_env_dir(env_name, desc)
+
+        dest_folder = self.get_path(env_dir, env_name)
+
+        tools = self.get_component("tools")
+        pdesc = tools.get_tool_desc("python")
+
+        py_path = self.get_path(dest_folder, pdesc["sub_path"])
+
+        logger.info("Updating %s...", pkg_name)
+        self.execute([py_path, "-m", "pip", "install", "--upgrade", pkg_name, "--no-warn-script-location"])
+
     def setup_py_env(self, env_name):
         """Setup a given python environment"""
 
@@ -214,5 +239,10 @@ if __name__ == "__main__":
     psr = context.build_parser("remove")
     psr.add_str("env_name")("Name of the environment to remove")
     psr.add_str("--dir", dest="env_dir")("Environments root dir")
+
+    psr = context.build_parser("update")
+    psr.add_str("env_name")("Name of the environment to remove")
+    psr.add_str("--dir", dest="env_dir")("Environments root dir")
+    psr.add_str("pkg_name")("package to update")
 
     comp.run()
