@@ -57,3 +57,4 @@ class Builder(NVPBuilder):
         self.check_execute(cmd, cwd=build_dir, env=self.env)
 
         self.run_make(build_dir)
+        # self.check_execute(["make", "test"], cwd=build_dir, env=self.env)

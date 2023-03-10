@@ -19,12 +19,36 @@ class Builder(NVPBuilder):
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build on windows method"""
-        self.run_cmake(build_dir, prefix, ".")
+        zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
+        ssl_dir = self.man.get_library_root_dir("openssl").replace("\\", "/")
+
+        flags = [
+            "-DCURL_USE_OPENSSL=ON",
+            f"-DOPENSSL_ROOT_DIR={ssl_dir}",
+            # f"-DOPENSSL_LIBRARIES={ssl_dir}/lib",
+            f"-DOPENSSL_INCLUDE_DIR={ssl_dir}/include",
+            f"-DZLIB_LIBRARY={zlib_dir}/lib/zlib.lib",
+            f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
+        ]
+        self.run_cmake(build_dir, prefix, ".", flags)
 
         self.run_ninja(build_dir)
 
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
-        self.run_cmake(build_dir, prefix, ".")
+
+        zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
+        ssl_dir = self.man.get_library_root_dir("openssl").replace("\\", "/")
+
+        flags = [
+            "-DCURL_USE_OPENSSL=ON",
+            f"-DOPENSSL_ROOT_DIR={ssl_dir}",
+            # f"-DOPENSSL_LIBRARIES={ssl_dir}/lib",
+            f"-DOPENSSL_INCLUDE_DIR={ssl_dir}/include",
+            f"-DZLIB_LIBRARY={zlib_dir}/lib/libz.a",
+            f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
+        ]
+
+        self.run_cmake(build_dir, prefix, ".", flags)
 
         self.run_ninja(build_dir)
