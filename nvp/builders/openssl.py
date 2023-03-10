@@ -51,6 +51,9 @@ class Builder(NVPBuilder):
 
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
-        self.run_cmake(build_dir, prefix, ".")
+        cmd = ["./Configure", f"--prefix={prefix}", f"--openssldir={prefix}/ssl"]
 
-        self.run_ninja(build_dir)
+        logger.info("Executing command: %s", cmd)
+        self.check_execute(cmd, cwd=build_dir, env=self.env)
+
+        self.run_make(build_dir)
