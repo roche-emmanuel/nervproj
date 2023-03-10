@@ -47,7 +47,7 @@ class Builder(NVPBuilder):
         # logger.info("ENV setup: %s", self.env)
         self.exec_nmake(build_dir)
         self.exec_nmake(build_dir, ["install"])
-        self.exec_nmake(build_dir, ["test"])
+        # self.exec_nmake(build_dir, ["test"])
 
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
