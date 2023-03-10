@@ -95,6 +95,15 @@ class NVPBuilder(NVPObject):
         flags = flags or []
         self.check_execute([ninja_path] + flags, cwd=build_dir, env=self.env, **kwargs)
 
+    def exec_nmake(self, build_dir, flags=None, **kwargs):
+        """Run a custom ninja command line"""
+        self.check(self.compiler.is_msvc(), "Would only use nmake with MSVC compiler ?")
+
+        folder = self.get_parent_folder(self.compiler.get_cxx_path())
+        nmake_path = self.get_path(folder, "nmake.exe")
+        flags = flags or []
+        self.check_execute([nmake_path] + flags, cwd=build_dir, env=self.env, **kwargs)
+
     def run_ninja(self, build_dir, flags=None, **kwargs):
         """Execute the standard ninja build/install commands"""
         self.exec_ninja(build_dir, flags=flags, **kwargs)

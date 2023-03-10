@@ -95,6 +95,11 @@ class NVPCompiler(NVPObject):
             self.root_dir = self.get_parent_folder(self.root_dir)  # root dir
             logger.info("MSVC root dir is: %s", self.root_dir)
 
+            # example: D:\Softs\VisualStudio\VS2022\VC\Tools\MSVC\14.34.31933\bin\Hostx64\x64
+            self.cxx_path = self.get_path(
+                self.root_dir, "VC", "Tools", "MSVC", self.version, "bin", "Hostx64", "x64", "cl.exe"
+            )
+            self.cc_path = self.cxx_path
         else:
             assert self.type == "clang", f"No support for compiler type {self.type}"
             self.root_dir = desc["root_dir"]
