@@ -61,6 +61,7 @@ class ToolsManager(NVPComponent):
                 ldesc = bman.get_library_desc(tname)
                 if ldesc is not None and ldesc["version"] == desc["version"]:
                     # We want to use this library to provide the tool:
+                    bman.select_compiler()
                     bman.check_libraries([tname])
 
                     install_path = bman.get_library_root_dir(tname)
