@@ -6,8 +6,8 @@ import time
 
 import requests
 import urllib3
-from nvp.nvp_builder import NVPBuilder
 
+from nvp.nvp_builder import NVPBuilder
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
 
@@ -55,30 +55,41 @@ class ToolsManager(NVPComponent):
 
                 assert "sub_tools" not in desc, f"Cannot add sub tools from system tool desc {tname}"
             else:
-                full_name = f"{tname}-{desc['version']}"
-                install_path = self.get_path(self.tools_dir, full_name)
-                tpath = self.get_path(install_path, desc["sub_path"])
-                if not self.file_exists(tpath):
-                    if "build_mode" in desc:
-                        # This tool should be built from sources:
-                        self.build_tool(full_name, desc)
+                # First we check if this could maybe match an installable library:
+                bman = self.get_component("builder")
 
-                    else:
-                        # retrieve the most appropriate source package for that tool:
-                        pkg_file = self.retrieve_tool_package(desc)
+                ldesc = bman.get_library_desc(tname)
+                if ldesc is not None and ldesc["version"] == desc["version"]:
+                    # We want to use this library to provide the tool:
+                    bman.check_libraries([tname])
 
-                        # Extract the package:
-                        self.extract_package(pkg_file, self.tools_dir, target_dir=full_name)
+                    install_path = bman.get_library_root_dir(tname)
+                    tpath = self.get_path(install_path, desc["sub_path"])
+                else:
+                    full_name = f"{tname}-{desc['version']}"
+                    install_path = self.get_path(self.tools_dir, full_name)
+                    tpath = self.get_path(install_path, desc["sub_path"])
+                    if not self.file_exists(tpath):
+                        if "build_mode" in desc:
+                            # This tool should be built from sources:
+                            self.build_tool(full_name, desc)
 
-                        # CHeck if we have a post install command:
-                        fname = f"_post_install_{desc['name']}_{self.platform}"
-                        postinst = self.get_method(fname.lower())
-                        if postinst is not None:
-                            logger.info("Running post install for %s...", full_name)
-                            postinst(install_path, desc)
+                        else:
+                            # retrieve the most appropriate source package for that tool:
+                            pkg_file = self.retrieve_tool_package(desc)
 
-                        # Remove the source package:
-                        # self.remove_file(pkg_file)
+                            # Extract the package:
+                            self.extract_package(pkg_file, self.tools_dir, target_dir=full_name)
+
+                            # CHeck if we have a post install command:
+                            fname = f"_post_install_{desc['name']}_{self.platform}"
+                            postinst = self.get_method(fname.lower())
+                            if postinst is not None:
+                                logger.info("Running post install for %s...", full_name)
+                                postinst(install_path, desc)
+
+                            # Remove the source package:
+                            # self.remove_file(pkg_file)
 
                 # The tool path should really exist now:
                 assert self.file_exists(tpath), f"No valid package provided for {full_name}"
@@ -121,7 +132,7 @@ class ToolsManager(NVPComponent):
         build_dir, _, _ = bman.setup_build_context(desc, False, base_build_dir)
 
         # Run the build system:
-        bmode = desc['build_mode']
+        bmode = desc["build_mode"]
         if bmode == "std":
             # Run configure/make std commands:
             builder = NVPBuilder(bman)
