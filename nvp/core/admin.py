@@ -452,7 +452,67 @@ class AdminManager(NVPComponent):
             self.create_par2(files, redundancy, nblocks, solid, out_name)
             return True
 
+        if cmd == "gen-cert":
+            root_cert = self.get_param("root_cert")
+            out_name = self.get_param("out_name")
+            cfg_name = self.get_param("cfg_name")
+
+            self.generate_certificate(out_name, cfg_name, root_cert)
+            return True
+
         return False
+
+    def generate_certificate(self, cname, cfgfile, root_cert):
+        """Generate an SSL certificate"""
+        tools = self.get_component("tools")
+        openssl = tools.get_tool_path("openssl")
+
+        # Alternate option:
+        # cmd0 = f"genpkey -algorithm RSA -out {cname}_key.pem -aes256 -pass pass:"
+        # cmd1 = f"req -new -sha256 -key {cname}_key.pem -out {cname}_req.pem -nodes -config ./{cfgfile} -batch -passin pass:"
+
+        cmd1 = f"req -newkey rsa:2048 -sha256 -keyout {cname}_key.pem -out {cname}_req.pem -nodes -config ./{cfgfile} -batch"
+        cmd3 = f"x509 -subject -issuer -noout -in {cname}.pem"
+
+        if root_cert is None:
+            # Generate a root certificate:
+            # openssl req -newkey rsa:2048 -sha256 -keyout rootAkey.pem -out rootAreq.pem -nodes -config ./rootA.cnf -days 365 -batch
+            # openssl x509 -req -in rootAreq.pem -sha256 -extfile ./rootA.cnf -extensions v3_ca -signkey rootAkey.pem -out rootA.pem -days 365
+            # openssl x509 -subject -issuer -noout -in rootA.pem
+
+            # Alternate option with strong digest:
+            # openssl genpkey -algorithm RSA -out ca.key -aes256
+
+            # cmd2 = f"x509 -req -in {cname}_req.pem -sha256 -extfile ./{cfgfile} -extensions v3_ca -signkey {cname}_key.pem -out {cname}.pem -days 365 -passin pass:"
+            cmd2 = f"x509 -req -in {cname}_req.pem -sha256 -extfile ./{cfgfile} -extensions v3_ca -signkey {cname}_key.pem -out {cname}.pem -days 365"
+            # cmd3 = f"x509 -subject -issuer -noout -in {cname}.pem"
+
+        else:
+            # Generate a non-root certificate:
+            # openssl req -newkey rsa:1024 -sha1 -keyout clientAkey.pem -out clientAreq.pem -nodes -config ./clientA.cnf -days 365 -batch
+            # openssl x509 -req -in clientAreq.pem -sha1 -extfile ./clientA.cnf -extensions usr_cert -CA rootA.pem -CAkey rootAkey.pem -CAcreateserial -out clientAcert.pem -days 365
+            # copy clientAcert.pem + rootA.pem clientA.pem
+            # openssl x509 -subject -issuer -noout -in clientA.pem
+
+            # cmd1 = "req -newkey rsa:1024 -sha1 -keyout {cname}_key.pem -out {cname}_req.pem -nodes -config {cfgfile} -batch"
+            # cmd1 = f"req -newkey rsa:2048 -sha256 -keyout {cname}_key.pem -out {cname}_req.pem -nodes -config {cfgfile} -batch"
+            cmd2 = f"x509 -req -in {cname}_req.pem -sha256 -extfile {cfgfile} -extensions usr_cert -CA {root_cert}.pem -CAkey {root_cert}_key.pem -CAcreateserial -out {cname}_cert.pem -days 365 -passin pass:"
+            # copy {cname}_cert.pem + {root_cert}.pem {cname}.pem
+            # cmd3 = f"x509 -subject -issuer -noout -in {cname}.pem"
+
+        cwd = self.get_cwd()
+        logger.info("CWD: %s", cwd)
+        # self.execute([openssl] + cmd0.split(), cwd=cwd)
+        self.execute([openssl] + cmd1.split(), cwd=cwd)
+        self.execute([openssl] + cmd2.split(), cwd=cwd)
+
+        if root_cert is not None:
+            # Combine the certificates:
+            content1 = self.read_text_file(f"{cname}_cert.pem")
+            content2 = self.read_text_file(f"{root_cert}.pem")
+            self.write_text_file(content1 + content2, f"{cname}.pem")
+
+        self.execute([openssl] + cmd3.split(), cwd=cwd)
 
     def create_par2(self, files, redundancy, nblocks, solid, out_name):
         """Create PAR2 archives for a given list of files"""
@@ -505,5 +565,12 @@ if __name__ == "__main__":
     psr.add_int("-b", "--blocks", dest="num_blocks", default=3000)("Number of blocks")
     psr.add_flag("-s", "--solid", dest="solid")("Create a single par2 archives")
     psr.add_str("-o", "--output", dest="out_name")("Output name of the par2 archives")
+
+    psr = context.build_parser("gen-cert")
+    psr.add_str("out_name")("Output name for the certificate")
+    psr.add_str("cfg_name")("Config file for the certificate")
+    psr.add_str("-r", "--root", dest="root_cert")(
+        "Specify the root certificate to use, otherwise create a root certificate"
+    )
 
     comp.run()

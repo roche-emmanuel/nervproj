@@ -276,6 +276,15 @@ scripts:
     help: Admin commands
     python_path:
       - ${NVP_ROOT_DIR}
+
+  gen-cert:
+    notify: false
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/admin.py gen-cert
+    custom_python_env: min_env
+    help: Admin commands
+    python_path:
+      - ${NVP_ROOT_DIR}
+
   build:
     notify: false
     log_file: ${NVP_ROOT_DIR}/last_build.log
