@@ -53,6 +53,10 @@ class BuildManager(NVPComponent):
             supported_compilers = self.config.get("linux_supported_compilers", ["clang"])
             comp_type = comp_type or self.config.get("linux_default_compiler_type", "clang")
 
+        if self.compiler is not None and (comp_type is None or self.compiler.get_type() == comp_type):
+            # Compiler already selected.
+            return
+
         self.compilers = []
 
         if self.is_windows:
