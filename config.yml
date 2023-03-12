@@ -78,6 +78,9 @@ windows_tools:
     urls:
       - http://files.nervtech.org/nvp_packages/tools/nasm-2.16-windows.7z
     version: 2.16
+  - name: openssl
+    version: 3.0.8
+    sub_path: bin/openssl.exe
 
 # Tools that can be used on linux:
 linux_tools:
@@ -143,6 +146,9 @@ linux_tools:
     # For building:
     # url: https://github.com/westes/flex/files/981163/flex-2.6.4.tar.gz
     # build_mode: "std"
+  - name: openssl
+    version: 3.0.8
+    sub_path: bin/openssl
 
 # List of libraries that we can build:
 libraries:
@@ -258,6 +264,11 @@ scripts:
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/core/py_env.py
     python_path:
       - "${PROJECT_ROOT_DIR}"
+  openssl:
+    notify: false
+    cmd: $[TOOL_PATH:openssl]
+    linux_env_vars:
+      LD_LIBRARY_PATH: $[TOOL_DIR:openssl]/lib64
 
   admin:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/admin.py

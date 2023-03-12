@@ -2,6 +2,7 @@
 import copy
 import logging
 import os
+import re
 import time
 from pathlib import Path
 
@@ -121,6 +122,44 @@ class ScriptRunner(NVPComponent):
         """Run a given script given by name on a given project"""
         desc = self.get_script_desc(script_name, proj)
         self.run_script_desc(desc, script_name, proj)
+
+    def fill_placeholders(self, content, hlocs):
+        """Re-implementation of fill_placeholders to handle processing of tool paths"""
+        content = super().fill_placeholders(content, hlocs)
+
+        # Also find if we have any mention of a tool path or tool dir in there:
+        pat = re.compile(r"\$\[([^:]+):([a-z]+)\]")
+        tools = self.get_component("tools")
+        match = pat.search(content)
+        while match is not None:
+
+            # Get the source match:
+            match_str = match.group(0)
+
+            # get the request type:
+            req_type = match.group(1)
+
+            # Get the tool name:
+            tool_name = match.group(2)
+
+            # Compute the replacement:
+            match req_type:
+                case "TOOL_PATH":
+                    replacement = tools.get_tool_path(tool_name)
+                case "TOOL_DIR":
+                    replacement = tools.get_tool_dir(tool_name)
+                case "TOOL_ROOT_DIR":
+                    replacement = tools.get_tool_root_dir(tool_name)
+                case _:
+                    self.throw("Invalid replacement request type: %s", req_type)
+
+            # Replace in the string:
+            logger.info("Replacing '%s' with '%s'", match_str, replacement)
+            content = content.replace(match_str, replacement)
+
+            match = pat.search(content)
+
+        return content
 
     def run_script_desc(self, desc, script_name: str, proj: NVPProject | None):
         """Run a given script desc on a given project"""
