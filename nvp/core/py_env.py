@@ -1,5 +1,6 @@
 """Collection of admin utility functions"""
 import logging
+import os
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -209,7 +210,14 @@ class PyEnvManager(NVPComponent):
         self.write_text_file(content, req_file)
 
         logger.info("Installing python requirements...")
-        self.execute([py_path, "-m", "pip", "install", "-r", req_file, "--no-warn-script-location"])
+
+        # Should add git to the path here:
+        git_path = tools.get_tool_path("git")
+        git_dir = self.get_parent_folder(git_path)
+        env = os.environ.copy()
+        env = self.prepend_env_list([git_dir], env, "PATH")
+
+        self.execute([py_path, "-m", "pip", "install", "-r", req_file, "--no-warn-script-location"], env=env)
 
         # Also install the additional modules if any:
         mods = self.get_all_modules(desc)
