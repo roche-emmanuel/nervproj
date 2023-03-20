@@ -219,6 +219,23 @@ libraries:
     version: 7.88.1
     windows_url: https://curl.se/download/curl-7.88.1.zip
     linux_url: https://curl.se/download/curl-7.88.1.tar.xz
+  - name: hdf5
+    version: 1.15.0
+    url: git@github.com:roche-emmanuel/hdf5.git
+  - name: openjpeg
+    version: 2.5.0
+    url: git@github.com:roche-emmanuel/openjpeg.git
+  - name: libpng
+    version: 1.6.39
+    windows_url: https://download.sourceforge.net/libpng/lpng1639.zip
+    linux_url: https://download.sourceforge.net/libpng/libpng-1.6.39.tar.xz
+  - name: netcdf
+    version: 4.9.2
+    windows_url: https://downloads.unidata.ucar.edu/netcdf-c/4.9.2/netcdf-c-4.9.2.zip
+    linux_url: https://downloads.unidata.ucar.edu/netcdf-c/4.9.2/netcdf-c-4.9.2.tar.gz
+  - name: eccodes
+    version: 2.29.0
+    url: https://confluence.ecmwf.int/download/attachments/45757960/eccodes-2.29.0-Source.tar.gz
 
 # list of available projects:
 projects: []
