@@ -24,7 +24,7 @@ class Builder(NVPBuilder):
 
         # Get zlib folder:
         zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
-        z_lib = "zlibstatic.lib" if self.is_windows else "libz.a"
+        z_lib = "zlibstatic.lib"
 
         flags = [
             "-S",
@@ -46,6 +46,20 @@ class Builder(NVPBuilder):
 
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
-        self.run_cmake(build_dir, prefix, ".")
 
-        self.run_ninja(build_dir)
+        # Get zlib folder:
+        zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
+        z_lib = "libz.a"
+
+        flags = [
+            "-S",
+            ".",
+            "-B",
+            "build",
+            f"-DZLIB_LIBRARY:FILEPATH={zlib_dir}/lib/{z_lib}",
+            "-DZLIB_INCLUDE_DIR:PATH={zlib_dir}/include",
+        ]
+
+        self.run_cmake(build_dir, prefix, flags=flags)
+        sub_dir = self.get_path(build_dir, "build")
+        self.run_ninja(sub_dir)
