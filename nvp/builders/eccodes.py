@@ -17,15 +17,12 @@ def register_builder(bman: BuildManager):
 class Builder(NVPBuilder):
     """eccodes builder class."""
 
-    def build_on_windows(self, build_dir, prefix, _desc):
-        """Build on windows method"""
-
-        # Note: did not try to build with clang.
-
+    def get_flags(self):
+        """Retrieve the build flags"""
         zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
-        z_lib = "zlibstatic.lib"
+        z_lib = "zlibstatic.lib" if self.is_windows else "libz.a"
         png_dir = self.man.get_library_root_dir("libpng").replace("\\", "/")
-        png_lib = "libpng16_static.lib"
+        png_lib = "libpng16_static.lib" if self.is_windows else "libpng16.a"
         jpeg_dir = self.man.get_library_root_dir("openjpeg").replace("\\", "/")
 
         flags = [
@@ -51,6 +48,13 @@ class Builder(NVPBuilder):
             f"-DOPENJPEG_INCLUDE_DIR={jpeg_dir}/include/openjpeg-2.5",
         ]
 
+        return flags
+
+    def build_on_windows(self, build_dir, prefix, _desc):
+        """Build on windows method"""
+
+        # Note: did not try to build with clang.
+
         # Note: we also need bash on the path:
         git_path = self.tools.get_tool_path("git")
         git_dir = self.get_parent_folder(git_path)
@@ -69,6 +73,7 @@ class Builder(NVPBuilder):
         )
 
         # self.run_cmake(build_dir, prefix, flags=flags)
+        flags = self.get_flags()
         self.run_cmake(build_dir, prefix, flags=flags, generator="NMake Makefiles")
         sub_dir = self.get_path(build_dir, "build")
         # self.run_ninja(sub_dir)
@@ -77,6 +82,8 @@ class Builder(NVPBuilder):
 
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
-        self.run_cmake(build_dir, prefix, ".")
 
-        self.run_ninja(build_dir)
+        flags = self.get_flags()
+        self.run_cmake(build_dir, prefix, flags=flags)
+        sub_dir = self.get_path(build_dir, "build")
+        self.run_ninja(sub_dir)
