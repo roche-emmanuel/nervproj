@@ -236,6 +236,9 @@ libraries:
   - name: eccodes
     version: 2.29.0
     url: https://confluence.ecmwf.int/download/attachments/45757960/eccodes-2.29.0-Source.tar.gz
+  - name: libuv
+    version: 1.44.3
+    url: git@github.com:roche-emmanuel/libuv.git
 
 # list of available projects:
 projects: []
