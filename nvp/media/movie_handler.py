@@ -51,6 +51,11 @@ class MovieHandler(NVPComponent):
             out_file = self.get_param("output_file", None)
             return self.concat_media(files, out_file)
 
+        if cmd == "cut-media":
+            file = self.get_param("input_file")
+            duration = self.get_param("duration")
+            return self.cut_media(file, duration)
+
         if cmd == "norm-sound":
             file = self.get_param("input_file")
             out_file = self.get_param("output_file", None)
@@ -88,6 +93,26 @@ class MovieHandler(NVPComponent):
             return False
 
         logger.info("Done writting file.")
+        return True
+
+    def cut_media(self, file, duration):
+        """Concantenate a list of media files"""
+        logger.info("Cutting media file %s at %s", file, duration)
+
+        folder = self.get_parent_folder(file)
+        fname = self.get_filename(file)
+        out_file = self.get_path(folder, f"cut_{fname}")
+
+        tools: ToolsManager = self.get_component("tools")
+        ffmpeg_path = tools.get_tool_path("ffmpeg")
+
+        cmd = [ffmpeg_path, "-threads", "8", "-i", file, "-t", duration, "-c", "copy", out_file]
+
+        # We now execute that command:
+        logger.debug("Executing command: %s", cmd)
+        res, rcode, outs = self.execute(cmd)
+
+        logger.debug("Done cutting media file.")
         return True
 
     def concat_media(self, files, out_file):
@@ -355,6 +380,10 @@ if __name__ == "__main__":
     psr = context.build_parser("concat-media")
     psr.add_str("-i", "--inputs", dest="input_files")("input video files to concatenate")
     psr.add_str("-o", "--output", dest="output_file")("Output file to generate.")
+
+    psr = context.build_parser("cut-media")
+    psr.add_str("-i", "--input", dest="input_file")("input video file to cut")
+    psr.add_str("-d", "--duration", dest="duration")("Duration to keep")
 
     psr = context.build_parser("norm-sound")
     psr.add_str("-i", "--input", dest="input_file")("input video file to normalize")

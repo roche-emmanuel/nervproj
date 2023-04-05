@@ -410,6 +410,13 @@ scripts:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/movie_handler.py concat-media
     python_path: ["${NVP_ROOT_DIR}"]
 
+  cut-media:
+    notify: false
+    help: Concatenate multiple media files together.
+    custom_python_env: media_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/movie_handler.py cut-media
+    python_path: ["${NVP_ROOT_DIR}"]
+
   norm-sound:
     notify: false
     help: Normalize the sound stream in a video video file
