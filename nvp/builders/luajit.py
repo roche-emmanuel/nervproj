@@ -31,11 +31,19 @@ class LuaJITBuilder(NVPBuilder):
 
         # replace the /MD flag with /MT:
         self.replace_in_file(
-            build_dir + "/src/msvcbuild.bat", "%LJCOMPILE% /MD /DLUA_BUILD_AS_DLL", "%LJCOMPILE% /MT /DLUA_BUILD_AS_DLL"
+            build_dir + "/src/msvcbuild.bat",
+            "%LJCOMPILE% /MD /DLUA_BUILD_AS_DLL",
+            "%LJCOMPILE% /MT /DLUA_BUILD_AS_DLL",
         )
 
         # change the compiler to clang if needed:
         build_file = self.get_path(build_dir, "src", "msvcbuild.bat")
+
+        self.replace_in_file(
+            build_file,
+            "/O2 /W3 /D_CRT_SECURE_NO_DEPRECATE /D_CRT_STDIO_INLINE",
+            "/O2 /W3 /D_CRT_SECURE_NO_DEPRECATE /DLUAJIT_ENABLE_LUA52COMPAT /D_CRT_STDIO_INLINE",
+        )
 
         if self.compiler.is_clang():
             self.replace_in_file(build_file, "@if not defined INCLUDE goto :FAIL", "")
