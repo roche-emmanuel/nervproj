@@ -239,6 +239,9 @@ libraries:
   - name: libuv
     version: 1.44.3
     url: git@github.com:roche-emmanuel/libuv.git
+  - name: yamlcpp
+    version: 0.7.0
+    url: git@github.com:roche-emmanuel/yaml-cpp.git
 
 # list of available projects:
 projects: []
