@@ -296,6 +296,20 @@ class GitManager(NVPComponent):
             cmd.append(url)
         self.execute_git(cmd, cwd=folder)
 
+    def git_gc(self, folder, url=None):
+        """perform git gc in a given folder"""
+        cmd = ["gc"]
+        if url is not None:
+            cmd.append(url)
+        self.execute_git(cmd, cwd=folder)
+
+    def git_prune(self, folder, url=None):
+        """perform git prune in a given folder"""
+        cmd = ["prune"]
+        if url is not None:
+            cmd.append(url)
+        self.execute_git(cmd, cwd=folder)
+
     def commit_all(self, msg, folder, do_push=True):
         """Commit all changes from a given folder"""
 
