@@ -220,8 +220,11 @@ class GitManager(NVPComponent):
         cmd = [tools.get_git_path()] + args
 
         # Execute the command:
-        logger.info("git command: %s", cmd)
-        self.execute(cmd, cwd=cwd)
+        logger.debug("git command: %s", cmd)
+        res, rcode, outs = self.execute(cmd, cwd=cwd)
+
+        if not res:
+            logger.error("git command %s (in %s) failed with return code %d:\n%s", cmd, cwd, rcode, outs)
 
     def clone_repository(self, url, dest_folder, mirror=False):
         """Clone a given url into a given folder"""
