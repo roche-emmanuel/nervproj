@@ -220,7 +220,7 @@ class GitManager(NVPComponent):
         cmd = [tools.get_git_path()] + args
 
         # Execute the command:
-        logger.debug("git command: %s", cmd)
+        logger.info("git command: %s", cmd)
         self.execute(cmd, cwd=cwd)
 
     def clone_repository(self, url, dest_folder, mirror=False):
