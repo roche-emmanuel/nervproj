@@ -225,6 +225,7 @@ class GitManager(NVPComponent):
 
         if not res:
             logger.error("git command %s (in %s) failed with return code %d:\n%s", cmd, cwd, rcode, outs)
+            self.throw("Detected git command failure.")
 
     def clone_repository(self, url, dest_folder, mirror=False):
         """Clone a given url into a given folder"""
