@@ -86,7 +86,7 @@ class EmsdkManager(NVPComponent):
         folders = self.get_all_folders(self.get_path(emsdk_dir, "node"))
         node_path = None
 
-        ext = ".exe" if self.is_windows() else ""
+        ext = ".exe" if self.is_windows else ""
         for folder in folders:
             filename = self.get_path(emsdk_dir, "node", folder, "bin", f"node${ext}")
             if self.file_exists(filename):
@@ -99,7 +99,7 @@ class EmsdkManager(NVPComponent):
         folders = self.get_all_folders(self.get_path(emsdk_dir, "python"))
         python_path = None
 
-        ext = ".exe" if self.is_windows() else ""
+        ext = ".exe" if self.is_windows else ""
         for folder in folders:
             filename = self.get_path(emsdk_dir, "python", folder, f"python${ext}")
             if self.file_exists(filename):
@@ -112,7 +112,7 @@ class EmsdkManager(NVPComponent):
         folders = self.get_all_folders(self.get_path(emsdk_dir, "java"))
         jre_dir = None
 
-        ext = ".exe" if self.is_windows() else ""
+        ext = ".exe" if self.is_windows else ""
         for folder in folders:
             filename = self.get_path(emsdk_dir, "java", folder, "bin", f"java${ext}")
             if self.file_exists(filename):
