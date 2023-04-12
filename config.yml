@@ -297,6 +297,14 @@ scripts:
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/core/py_env.py
     python_path:
       - "${PROJECT_ROOT_DIR}"
+
+  emsdk:
+    notify: false
+    custom_python_env: default_env
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/core/emsdk_manager.py
+    python_path:
+      - "${PROJECT_ROOT_DIR}"
+
   openssl:
     notify: false
     cmd: $[TOOL_PATH:openssl]
@@ -548,6 +556,7 @@ components:
   email: nvp.communication.email_handler
   encrypter: nvp.core.encrypter
   git: nvp.core.git_manager
+  emsdk: nvp.core.emsdk_manager
   gitlab: nvp.core.gitlab_manager
   nodejs: nvp.core.nodejs_manager
   psutils: nvp.core.process_utils
