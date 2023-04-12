@@ -30,6 +30,7 @@ class Builder(NVPBuilder):
             #     # f"-DCMAKE_TOOLCHAIN_FILE={em_dir}/cmake/Modules/Platform/Emscripten.cmake",
             #     # "-DBUILD_SHARED_LIBS=ON",
             # ]
+            # flags = ['CMAKE_NINJA_FORCE_RESPONSE_FILE="-- -w dupbuild=warn"']
             self.patch_file(
                 self.get_path(build_dir, "CMakeLists.txt"),
                 "set_target_properties(zlib zlibstatic PROPERTIES OUTPUT_NAME z)",
@@ -38,6 +39,7 @@ class Builder(NVPBuilder):
             self.run_emcmake(build_dir, prefix, ".")
             self.run_ninja(build_dir)
             # self.run_ninja(build_dir, ["-w", "dupbuild=err"])
+            # self.run_ninja(build_dir, ["-w", "dupbuild=warn"])
 
         else:
             self.run_cmake(build_dir, prefix, ".")
@@ -47,9 +49,12 @@ class Builder(NVPBuilder):
         """Build on linux method"""
 
         if self.compiler.is_emcc():
-            self.exec_emconfigure(build_dir, ["./configure", f"--prefix={prefix}"])
-            self.exec_emmake(build_dir, ["make"])
-            self.exec_emmake(build_dir, ["make", "install"])
+            # self.exec_emconfigure(build_dir, ["./configure", f"--prefix={prefix}"])
+            # self.exec_emmake(build_dir, ["make"])
+            # self.exec_emmake(build_dir, ["make", "install"])
+
+            self.run_emcmake(build_dir, prefix, ".")
+            self.run_ninja(build_dir)
         else:
             self.run_cmake(build_dir, prefix, ".")
             self.run_ninja(build_dir)
