@@ -297,6 +297,7 @@ class NVPCompiler(NVPObject):
             env["CXX"] = self.get_cxx_path()
 
             # env["LD_LIBRARY_PATH"] = f"{self.libs_path}"
+            self.comp_env = env
 
         if self.is_clang():
             env = {}
