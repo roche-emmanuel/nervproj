@@ -83,6 +83,7 @@ windows_tools:
     sub_path: bin/openssl.exe
   - name: emsdk
     version: git
+    sub_path: emsdk.bat
     urls:
       - http://files.nervtech.org/nvp_packages/tools/emsdk-git-windows.7z
 
@@ -155,6 +156,7 @@ linux_tools:
     sub_path: bin/openssl
   - name: emsdk
     version: git
+    sub_path: emsdk
     urls:
       - http://files.nervtech.org/nvp_packages/tools/emsdk-git-linux.tar.xz
 
