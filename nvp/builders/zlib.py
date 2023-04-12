@@ -19,12 +19,24 @@ class Builder(NVPBuilder):
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build on windows method"""
-        self.run_cmake(build_dir, prefix, ".")
 
-        self.run_ninja(build_dir)
+        if self.compiler.is_emcc():
+            # self.exec_emconfigure(build_dir, ["./configure", f"--prefix={prefix}"])
+            self.exec_emconfigure(build_dir, ["./configure"])
+            self.exec_emmake(build_dir, ["make"])
+            self.exec_emmake(build_dir, ["make", "install"])
+        else:
+            self.run_cmake(build_dir, prefix, ".")
+            self.run_ninja(build_dir)
 
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
-        self.run_cmake(build_dir, prefix, ".")
 
-        self.run_ninja(build_dir)
+        if self.compiler.is_emcc():
+            self.exec_emconfigure(build_dir, ["./configure", f"--prefix={prefix}"])
+            # self.exec_emconfigure(build_dir, ["./configure"])
+            self.exec_emmake(build_dir, ["make"])
+            self.exec_emmake(build_dir, ["make", "install"])
+        else:
+            self.run_cmake(build_dir, prefix, ".")
+            self.run_ninja(build_dir)

@@ -146,6 +146,26 @@ class NVPBuilder(NVPObject):
         logger.info("configure command: %s", cmd)
         self.check_execute(cmd, cwd=build_dir, env=self.env)
 
+    def exec_emconfigure(self, build_dir, flags=None, **kwargs):
+        """Run emconfigure command line"""
+        self.check(self.compiler.is_emcc(), "emconfigure only supported with emcc")
+
+        ext = ".bat" if self.is_windows else ""
+        folder = self.compiler.get_cxx_dir()
+        emconfigure_path = self.get_path(folder, f"emconfigure{ext}")
+        flags = flags or ["./configure"]
+        self.check_execute([emconfigure_path] + flags, cwd=build_dir, env=self.env, **kwargs)
+
+    def exec_emmake(self, build_dir, flags=None, **kwargs):
+        """Run emmake command line"""
+        self.check(self.compiler.is_emcc(), "emmake only supported with emcc.")
+
+        ext = ".bat" if self.is_windows else ""
+        folder = self.compiler.get_cxx_dir()
+        emmake_path = self.get_path(folder, f"emmake{ext}")
+        flags = flags or ["make"]
+        self.check_execute([emmake_path] + flags, cwd=build_dir, env=self.env, **kwargs)
+
     def patch_file(self, filename, src, dest):
         """Patch the content of a given file"""
         content = self.read_text_file(filename)
