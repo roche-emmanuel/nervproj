@@ -221,7 +221,11 @@ class GitManager(NVPComponent):
 
         # Execute the command:
         logger.debug("git command: %s", cmd)
-        self.execute(cmd, cwd=cwd)
+        res, rcode, outs = self.execute(cmd, cwd=cwd)
+
+        if not res:
+            logger.error("git command %s (in %s) failed with return code %d:\n%s", cmd, cwd, rcode, outs)
+            self.throw("Detected git command failure.")
 
     def clone_repository(self, url, dest_folder, mirror=False):
         """Clone a given url into a given folder"""
@@ -292,6 +296,20 @@ class GitManager(NVPComponent):
     def git_fetch(self, folder, url=None):
         """perform git fetch in a given folder"""
         cmd = ["fetch"]
+        if url is not None:
+            cmd.append(url)
+        self.execute_git(cmd, cwd=folder)
+
+    def git_gc(self, folder, url=None):
+        """perform git gc in a given folder"""
+        cmd = ["gc"]
+        if url is not None:
+            cmd.append(url)
+        self.execute_git(cmd, cwd=folder)
+
+    def git_prune(self, folder, url=None):
+        """perform git prune in a given folder"""
+        cmd = ["prune"]
         if url is not None:
             cmd.append(url)
         self.execute_git(cmd, cwd=folder)
