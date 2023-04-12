@@ -6,6 +6,7 @@ import os
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
+from nvp.nvp_object import NVPCheckError
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +197,10 @@ class GitManager(NVPComponent):
                 # Check if this is a valid git repo:
                 if ppath is not None and self.path_exists(ppath, ".git"):
                     logger.info("Pulling %s...", proj.get_name())
-                    self.git_pull(ppath)
+                    try:
+                        self.git_pull(ppath)
+                    except NVPCheckError:
+                        logger.error("Could not pull repository %s", proj.get_name())
             return True
 
         if cmd == "pushall":
@@ -208,9 +212,12 @@ class GitManager(NVPComponent):
             # Next we iterate on all the projects:
             for proj in self.ctx.get_projects():
                 ppath = proj.get_root_dir()
-                if ppath is not None:
+                if ppath is not None and self.path_exists(ppath, ".git"):
                     logger.info("Pushing %s...", proj.get_name())
-                    self.git_push(ppath)
+                    try:
+                        self.git_push(ppath)
+                    except NVPCheckError:
+                        logger.error("Could not push repository %s", proj.get_name())                        
             return True
 
         return False
