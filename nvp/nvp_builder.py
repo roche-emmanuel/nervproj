@@ -134,6 +134,34 @@ class NVPBuilder(NVPObject):
         logger.info("Cmake command: %s", cmd)
         self.check_execute(cmd, cwd=build_dir, env=self.env, **kwargs)
 
+    def run_emcmake(self, build_dir, prefix, src_dir=None, flags=None, generator="Ninja", **kwargs):
+        """Execute Standard cmake configuration command"""
+
+        self.check(self.compiler.is_emcc(), "emcmake only supported with emcc.")
+
+        ext = ".bat" if self.is_windows else ""
+        folder = self.compiler.get_cxx_dir()
+        emcmake_path = self.get_path(folder, f"emcmake{ext}")
+
+        build_type = kwargs.get("build_type", "Release")
+        cmd = [
+            self.tools.get_cmake_path(),
+            "-G",
+            generator,
+            f"-DCMAKE_BUILD_TYPE={build_type}",
+            f"-DCMAKE_INSTALL_PREFIX={prefix}",
+        ]
+        if flags is not None:
+            cmd += flags
+
+        # Add the source directory:
+        if src_dir is not None:
+            cmd.append(src_dir)
+
+        cmd = [emcmake_path] + cmd
+        logger.info("emcmake command: %s", cmd)
+        self.check_execute(cmd, cwd=build_dir, env=self.env, **kwargs)
+
     def run_configure(self, build_dir, prefix, flags=None, src_dir=None):
         """Execute Standard configure command"""
         if src_dir is None:
