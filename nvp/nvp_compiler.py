@@ -276,14 +276,15 @@ class NVPCompiler(NVPObject):
             node_path = self.desc["node_path"]
             python_path = self.desc["python_path"]
             emsdk_dir = self.desc["emsdk_dir"]
-            jre_dir = self.desc["jre_dir"]
+            python_dir = self.get_parent_folder(python_path)
 
             node_dir = self.get_parent_folder(node_path)
-            self.prepend_env_list([node_dir, emsdk_dir], env, "PATH")
+            self.prepend_env_list([node_dir, emsdk_dir, python_dir], env, "PATH")
             env["EMSDK"] = emsdk_dir
             env["EMSDK_NODE"] = node_path
             env["EMSDK_PYTHON"] = python_path
-            env["JAVA_HOME"] = jre_dir
+            if self.is_windows:
+                env["JAVA_HOME"] = self.desc["jre_dir"]
             env["EMSDK_PY"] = ""
 
             # SET PATH=D:\Projects\NervProj\tools\windows\emsdk-git;D:\Projects\NervProj\tools\windows\emsdk-git\upstream\emscripten;D:\Projects\NervProj\tools\windows\emsdk-git\node\15.14.0_64bit\bin;D:\Projects\NervProj;C:\Windows\system32;C:\Windows;

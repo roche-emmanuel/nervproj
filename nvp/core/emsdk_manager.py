@@ -96,30 +96,34 @@ class EmsdkManager(NVPComponent):
         self.check(node_path is not None, "Cannot find node path in %s/node", emsdk_dir)
 
         # Get the python path
-        folders = self.get_all_folders(self.get_path(emsdk_dir, "python"))
-        python_path = None
+        if self.is_windows:
+            folders = self.get_all_folders(self.get_path(emsdk_dir, "python"))
+            python_path = None
 
-        ext = ".exe" if self.is_windows else ""
-        for folder in folders:
-            filename = self.get_path(emsdk_dir, "python", folder, f"python{ext}")
-            if self.file_exists(filename):
-                python_path = filename
-                break
+            ext = ".exe" if self.is_windows else ""
+            for folder in folders:
+                filename = self.get_path(emsdk_dir, "python", folder, f"python{ext}")
+                if self.file_exists(filename):
+                    python_path = filename
+                    break
+        else:
+            python_path = tools.get_tool_path("python")
 
         self.check(python_path is not None, "Cannot find python path in %s/python", emsdk_dir)
 
         # Get the JRE path
-        folders = self.get_all_folders(self.get_path(emsdk_dir, "java"))
         jre_dir = None
+        if self.is_windows:
+            folders = self.get_all_folders(self.get_path(emsdk_dir, "java"))
 
-        ext = ".exe" if self.is_windows else ""
-        for folder in folders:
-            filename = self.get_path(emsdk_dir, "java", folder, "bin", f"java{ext}")
-            if self.file_exists(filename):
-                jre_dir = self.get_path(emsdk_dir, "java", folder)
-                break
+            ext = ".exe" if self.is_windows else ""
+            for folder in folders:
+                filename = self.get_path(emsdk_dir, "java", folder, "bin", f"java{ext}")
+                if self.file_exists(filename):
+                    jre_dir = self.get_path(emsdk_dir, "java", folder)
+                    break
 
-        self.check(jre_dir is not None, "Cannot find java dir in %s/java", emsdk_dir)
+            self.check(jre_dir is not None, "Cannot find java dir in %s/java", emsdk_dir)
 
         # Now we can create a compiler:
         self.compiler = NVPCompiler(
