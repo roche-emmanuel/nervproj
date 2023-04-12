@@ -193,7 +193,8 @@ class GitManager(NVPComponent):
             # Next we iterate on all the projects:
             for proj in self.ctx.get_projects():
                 ppath = proj.get_root_dir()
-                if ppath is not None:
+                # Check if this is a valid git repo:
+                if ppath is not None and self.path_exists(ppath, ".git"):
                     logger.info("Pulling %s...", proj.get_name())
                     self.git_pull(ppath)
             return True
