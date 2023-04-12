@@ -53,8 +53,9 @@ class Builder(NVPBuilder):
             # self.exec_emmake(build_dir, ["make"])
             # self.exec_emmake(build_dir, ["make", "install"])
 
-            self.run_emcmake(build_dir, prefix, ".")
-            self.run_ninja(build_dir)
+            self.run_emcmake(build_dir, prefix, ".", generator="Unix Makefiles")
+            # self.run_ninja(build_dir)
+            self.run_make(build_dir)
         else:
             self.run_cmake(build_dir, prefix, ".")
             self.run_ninja(build_dir)
