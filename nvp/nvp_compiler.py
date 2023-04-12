@@ -100,6 +100,15 @@ class NVPCompiler(NVPObject):
                 self.root_dir, "VC", "Tools", "MSVC", self.version, "bin", "Hostx64", "x64", "cl.exe"
             )
             self.cc_path = self.cxx_path
+        elif self.type == "emcc":
+            ext2 = ".bat" if self.is_windows else ""
+            self.root_dir = desc["root_dir"]
+            self.cxx_path = self.get_path(self.root_dir, "em++" + ext2)
+            self.cc_path = self.get_path(self.root_dir, "emcc" + ext2)
+            self.libs_path = self.get_path(self.root_dir, "lib")
+            self.cxxflags = ""
+            self.linkflags = ""
+            self.version = "3.1.35"
         else:
             assert self.type == "clang", f"No support for compiler type {self.type}"
             self.root_dir = desc["root_dir"]
@@ -138,6 +147,10 @@ class NVPCompiler(NVPObject):
         """Check if this is a clang compiler"""
         return self.get_type() == "clang"
 
+    def is_emcc(self):
+        """Check if this is a emscripten compiler"""
+        return self.get_type() == "emcc"
+
     def is_available(self):
         """Check if this compiler is currently available."""
         if self.type == "msvc":
@@ -175,7 +188,7 @@ class NVPCompiler(NVPObject):
 
     def get_cxx_dir(self):
         """Retrieve root dir"""
-        return self.get_path(self.root_dir, "bin")
+        return self.get_parent_folder(self.cxx_path)
 
     def get_cxx_path(self):
         """Retrieve full path to the c++ compiler"""
@@ -249,6 +262,41 @@ class NVPCompiler(NVPObject):
             # Add Windows\System32 and Windows to the path
 
             # logger.info("MSVC compiler environemt: %s", self.pretty_print(self.comp_env))
+
+        if self.is_emcc():
+            env = {}
+
+            if self.is_windows:
+                drive = os.getenv("HOMEDRIVE")
+                assert drive is not None, "Invalid HOMEDRIVE variable."
+                env["PATH"] = f"{self.get_cxx_dir()};{drive}\\Windows\\System32;{drive}\\Windows"
+            else:
+                env["PATH"] = self.get_cxx_dir()
+
+            node_path = self.desc["node_path"]
+            python_path = self.desc["python_path"]
+            emsdk_dir = self.desc["emsdk_dir"]
+            jre_dir = self.desc["jre_dir"]
+
+            node_dir = self.get_parent_folder(node_path)
+            self.prepend_env_list([node_dir, emsdk_dir], env, "PATH")
+            env["EMSDK"] = emsdk_dir
+            env["EMSDK_NODE"] = node_path
+            env["EMSDK_PYTHON"] = python_path
+            env["JAVA_HOME"] = jre_dir
+            env["EMSDK_PY"] = ""
+
+            # SET PATH=D:\Projects\NervProj\tools\windows\emsdk-git;D:\Projects\NervProj\tools\windows\emsdk-git\upstream\emscripten;D:\Projects\NervProj\tools\windows\emsdk-git\node\15.14.0_64bit\bin;D:\Projects\NervProj;C:\Windows\system32;C:\Windows;
+            # SET EMSDK=D:/Projects/NervProj/tools/windows/emsdk-git
+            # SET EMSDK_NODE=D:\Projects\NervProj\tools\windows\emsdk-git\node\15.14.0_64bit\bin\node.exe
+            # SET EMSDK_PYTHON=D:\Projects\NervProj\tools\windows\emsdk-git\python\3.9.2-nuget_64bit\python.exe
+            # SET JAVA_HOME=D:\Projects\NervProj\tools\windows\emsdk-git\java\8.152_64bit
+            # set EMSDK_PY=
+
+            env["CC"] = self.get_cc_path()
+            env["CXX"] = self.get_cxx_path()
+
+            # env["LD_LIBRARY_PATH"] = f"{self.libs_path}"
 
         if self.is_clang():
             env = {}

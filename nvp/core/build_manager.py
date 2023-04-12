@@ -75,6 +75,13 @@ class BuildManager(NVPComponent):
                 compiler = NVPCompiler(self.ctx, {"type": "msvc", "setup_path": msvc_setup_path})
                 self.compilers.append(compiler)
 
+        if comp_type == "emcc":
+            # get the emsdk manager:
+            emsdk = self.get_component("emsdk")
+            compiler = emsdk.get_compiler()
+            if compiler is not None:
+                self.compilers.append(compiler)
+
         if comp_type == "clang":
             # check if we have a library providing clang:
             flavors = [f"{self.platform}_{ctype}" for ctype in supported_compilers]
