@@ -81,6 +81,10 @@ windows_tools:
   - name: openssl
     version: 3.0.8
     sub_path: bin/openssl.exe
+  - name: emsdk
+    version: git
+    urls:
+      - http://files.nervtech.org/nvp_packages/tools/emsdk-git-windows.7z
 
 # Tools that can be used on linux:
 linux_tools:
@@ -149,6 +153,10 @@ linux_tools:
   - name: openssl
     version: 3.0.8
     sub_path: bin/openssl
+  - name: emsdk
+    version: git
+    urls:
+      - http://files.nervtech.org/nvp_packages/tools/emsdk-git-linux.tar.xz
 
 # List of libraries that we can build:
 libraries:
