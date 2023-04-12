@@ -195,7 +195,7 @@ class GitManager(NVPComponent):
             for proj in self.ctx.get_projects():
                 ppath = proj.get_root_dir()
                 # Check if this is a valid git repo:
-                if ppath is not None and self.path_exists(ppath, ".git"):
+                if ppath is not None and self.path_exists(ppath, ".git") and proj.auto_git_sync():
                     logger.info("Pulling %s...", proj.get_name())
                     try:
                         self.git_pull(ppath)
@@ -212,12 +212,12 @@ class GitManager(NVPComponent):
             # Next we iterate on all the projects:
             for proj in self.ctx.get_projects():
                 ppath = proj.get_root_dir()
-                if ppath is not None and self.path_exists(ppath, ".git"):
+                if ppath is not None and self.path_exists(ppath, ".git") and proj.auto_git_sync():
                     logger.info("Pushing %s...", proj.get_name())
                     try:
                         self.git_push(ppath)
                     except NVPCheckError:
-                        logger.error("Could not push repository %s", proj.get_name())                        
+                        logger.error("Could not push repository %s", proj.get_name())
             return True
 
         return False

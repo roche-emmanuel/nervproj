@@ -36,6 +36,7 @@ class NVPProject(NVPObject):
             # Load the additional project config elements:
             cfg_file = self.get_path(proj_path, "nvp_config.json")
             if self.file_exists(cfg_file) and not is_local_sub_proj:
+                # logger.warning("Ignoring project config file %s", cfg_file)
                 self.config.update(self.read_json(cfg_file))
 
             # Prefer the yaml config if available:
@@ -157,6 +158,10 @@ class NVPProject(NVPObject):
 
         # Return that project path:
         return proj_path
+
+    def auto_git_sync(self):
+        """check if auto pull/push is supported"""
+        return self.config.get("auto_git_sync", True)
 
     def get_repository_url(self):
         """Retrieve the repository URL for that project"""

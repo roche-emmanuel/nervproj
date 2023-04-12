@@ -290,12 +290,12 @@ class NVPContext(NVPObject):
 
         # Check if we have a config.yml file:
         cfg_file = self.get_path(self.root_dir, "config.yml")
-        if self.file_exists(cfg_file):
-            self.config = self.read_yaml(cfg_file)
-        else:
-            # fallback to the config.json file:
-            cfgfile = self.get_path(self.root_dir, "config.json")
-            self.config = self.read_json(cfgfile)
+        self.check(self.file_exists(cfg_file), "Invalid config file %s", cfg_file)
+        self.config = self.read_yaml(cfg_file)
+        # else:
+        #     # fallback to the config.json file:
+        #     cfgfile = self.get_path(self.root_dir, "config.json")
+        #     self.config = self.read_json(cfgfile)
 
         logger.log(0, "Loaded config: %s", self.config)
 

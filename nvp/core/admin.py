@@ -369,11 +369,11 @@ class AdminManager(NVPComponent):
             self.write_text_file(content, dest_file)
 
         # write a nvp_config.json file:
-        dest_file = self.get_path(proj_dir, "nvp_config.json")
-        if not self.file_exists(dest_file):
-            logger.info("Writting nvp_config.json file %s", dest_file)
-            content = self.read_text_file(template_dir, "nvp_config.json.tpl")
-            self.write_text_file(content, dest_file)
+        # dest_file = self.get_path(proj_dir, "nvp_config.json")
+        # if not self.file_exists(dest_file):
+        #     logger.info("Writting nvp_config.json file %s", dest_file)
+        #     content = self.read_text_file(template_dir, "nvp_config.json.tpl")
+        #     self.write_text_file(content, dest_file)
 
         # write a nvp_plug.py file:
         # dest_file = self.get_path(proj_dir, "nvp_plug.py")
