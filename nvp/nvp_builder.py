@@ -117,9 +117,12 @@ class NVPBuilder(NVPObject):
         self.exec_ninja(build_dir, flags=flags, **kwargs)
         self.exec_ninja(build_dir, ["install"], **kwargs)
 
-    def run_make(self, build_dir, **kwargs):
-        """Execute the standard make build/install commands"""
+    def exec_make(self, build_dir, flags=None, **kwargs):
+        """Single execution of make"""
         cmd = ["make"]
+        if flags is not None:
+            cmd += flags
+
         if self.compiler.is_emcc():
             ext = ".bat" if self.is_windows else ""
             folder = self.compiler.get_cxx_dir()
@@ -127,7 +130,11 @@ class NVPBuilder(NVPObject):
             cmd = [emmake_path] + cmd
 
         self.check_execute(cmd, cwd=build_dir, env=self.env, **kwargs)
-        self.check_execute(cmd + ["install"], cwd=build_dir, env=self.env, **kwargs)
+
+    def run_make(self, build_dir, **kwargs):
+        """Execute the standard make build/install commands"""
+        self.exec_make(build_dir)
+        self.exec_make(build_dir, ["install"])
 
     def run_cmake(self, build_dir, prefix, src_dir=None, flags=None, generator="Ninja", **kwargs):
         """Execute Standard cmake configuration command"""

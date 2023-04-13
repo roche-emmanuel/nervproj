@@ -294,8 +294,9 @@ class NVPCompiler(NVPObject):
             # SET JAVA_HOME=D:\Projects\NervProj\tools\windows\emsdk-git\java\8.152_64bit
             # set EMSDK_PY=
 
-            env["CC"] = self.get_cc_path()
-            env["CXX"] = self.get_cxx_path()
+            logger.info("C++ path: %s", self.get_cxx_path())
+            # env["CC"] = self.get_cc_path()
+            # env["CXX"] = self.get_cxx_path()
 
             # env["LD_LIBRARY_PATH"] = f"{self.libs_path}"
             self.comp_env = env

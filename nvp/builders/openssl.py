@@ -51,10 +51,23 @@ class Builder(NVPBuilder):
 
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
-        cmd = ["./Configure", f"--prefix={prefix}", f"--openssldir={prefix}/ssl"]
 
-        logger.info("Executing command: %s", cmd)
-        self.check_execute(cmd, cwd=build_dir, env=self.env)
+        if self.compiler.is_emcc():
+            flags = ["no-asm", "no-shared", "no-hw", "no-engine"]
+            self.run_configure(build_dir, prefix, flags=flags, configure_name="config")
 
-        self.run_make(build_dir)
+            # Fixing this line in makefile:
+            # CROSS_COMPILE=/mnt/data1/dev/projects/NervProj/tools/linux/emsdk-git/upstream/emscripten/em
+            em_path = self.get_path(self.compiler.get_cxx_dir(), "em")
+            self.patch_file(self.get_path(build_dir, "Makefile"),
+                            f"CROSS_COMPILE={em_path}", "CROSS_COMPILE=")
+            self.exec_make(build_dir)
+            self.exec_make(build_dir, ["install_sw"])
+        else:
+            cmd = ["./Configure", f"--prefix={prefix}", f"--openssldir={prefix}/ssl"]
+
+            logger.info("Executing command: %s", cmd)
+            self.check_execute(cmd, cwd=build_dir, env=self.env)
+
+            self.run_make(build_dir)
         # self.check_execute(["make", "test"], cwd=build_dir, env=self.env)
