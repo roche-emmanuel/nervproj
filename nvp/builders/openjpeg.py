@@ -19,12 +19,18 @@ class Builder(NVPBuilder):
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build on windows method"""
-        self.run_cmake(build_dir, prefix, ".")
+        flags = []
+        if self.compiler.is_emcc():
+            flags = ["-DBUILD_SHARED_LIBS=OFF"]
 
+        self.run_cmake(build_dir, prefix, ".", flags=flags)
         self.run_ninja(build_dir)
 
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
-        self.run_cmake(build_dir, prefix, ".")
+        flags = []
+        if self.compiler.is_emcc():
+            flags = ["-DBUILD_SHARED_LIBS=OFF"]
 
+        self.run_cmake(build_dir, prefix, ".", flags=flags)
         self.run_ninja(build_dir)
