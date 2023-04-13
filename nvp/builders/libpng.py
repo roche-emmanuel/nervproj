@@ -21,32 +21,30 @@ class Builder(NVPBuilder):
         """Build on windows method"""
 
         # Note: will not compile with clang on windows.
-
         # Get zlib folder:
         zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
-        z_lib = "zlibstatic.lib"
 
-        flags = [
-            f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
-            f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
-        ]
+        flags = [f"-DZLIB_INCLUDE_DIR={zlib_dir}/include"]
+
+        if self.compiler.is_emcc():
+            flags += ["-DPNG_SHARED=OFF", f"-DZLIB_LIBRARY={zlib_dir}/lib/libz.a"]
+        else:
+            flags += [f"-DZLIB_LIBRARY={zlib_dir}/lib/zlibstatic.lib"]
+
         # self.append_compileflag(f"-I{zlib_dir}/include")
 
-        self.run_cmake(build_dir, prefix, flags=flags)
-
+        self.run_cmake(build_dir, prefix, ".", flags=flags)
         self.run_ninja(build_dir)
 
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
         # Get zlib folder:
         zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
-        z_lib = "libz.a"
+        flags = [f"-DZLIB_INCLUDE_DIR={zlib_dir}/include", f"-DZLIB_LIBRARY={zlib_dir}/lib/libz.a"]
 
-        flags = [
-            f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
-            f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
-        ]
+        if self.compiler.is_emcc():
+            flags += ["-DPNG_SHARED=OFF"]
 
-        self.run_cmake(build_dir, prefix, flags=flags)
+        self.run_cmake(build_dir, prefix, ".", flags=flags)
 
         self.run_ninja(build_dir)
