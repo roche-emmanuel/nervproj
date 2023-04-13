@@ -78,6 +78,11 @@ windows_tools:
     urls:
       - http://files.nervtech.org/nvp_packages/tools/nasm-2.16-windows.7z
     version: 2.16
+  - name: make
+    sub_path: bin/make.exe
+    urls:
+      - http://files.nervtech.org/nvp_packages/tools/make-3.81-windows.7z
+    version: 3.81
   - name: openssl
     version: 3.0.8
     sub_path: bin/openssl.exe

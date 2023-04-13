@@ -21,26 +21,8 @@ class Builder(NVPBuilder):
         """Build on windows method"""
 
         if self.compiler.is_emcc():
-            # self.exec_emconfigure(build_dir, ["./configure", f"--prefix={prefix}"])
-            # self.exec_emconfigure(build_dir, ["./configure"])
-            # self.exec_emmake(build_dir, ["make"])
-            # self.exec_emmake(build_dir, ["make", "install"])
-            # em_dir = self.compiler.get_cxx_dir()
-            # flags = [
-            #     # f"-DCMAKE_TOOLCHAIN_FILE={em_dir}/cmake/Modules/Platform/Emscripten.cmake",
-            #     # "-DBUILD_SHARED_LIBS=ON",
-            # ]
-            # flags = ['CMAKE_NINJA_FORCE_RESPONSE_FILE="-- -w dupbuild=warn"']
-            self.patch_file(
-                self.get_path(build_dir, "CMakeLists.txt"),
-                "set_target_properties(zlib zlibstatic PROPERTIES OUTPUT_NAME z)",
-                "set_target_properties(zlibstatic PROPERTIES OUTPUT_NAME z)\nset_target_properties(zlib PROPERTIES OUTPUT_NAME zdyn)",
-            )
-            self.run_emcmake(build_dir, prefix, ".")
-            self.run_ninja(build_dir)
-            # self.run_ninja(build_dir, ["-w", "dupbuild=err"])
-            # self.run_ninja(build_dir, ["-w", "dupbuild=warn"])
-
+            self.run_cmake(build_dir, prefix, ".", generator="MinGW Makefiles")
+            self.run_make(build_dir)
         else:
             self.run_cmake(build_dir, prefix, ".")
             self.run_ninja(build_dir)
@@ -49,12 +31,7 @@ class Builder(NVPBuilder):
         """Build on linux method"""
 
         if self.compiler.is_emcc():
-            # self.exec_emconfigure(build_dir, ["./configure", f"--prefix={prefix}"])
-            # self.exec_emmake(build_dir, ["make"])
-            # self.exec_emmake(build_dir, ["make", "install"])
-
-            self.run_emcmake(build_dir, prefix, ".", generator="Unix Makefiles")
-            # self.run_ninja(build_dir)
+            self.run_cmake(build_dir, prefix, ".", generator="Unix Makefiles")
             self.run_make(build_dir)
         else:
             self.run_cmake(build_dir, prefix, ".")

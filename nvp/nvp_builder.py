@@ -19,7 +19,8 @@ class NVPBuilder(NVPObject):
         self.env = None
         self.tools = self.ctx.get_component("tools")
         desc = desc or {}
-        self.tool_envs = desc.get("tool_envs", ["ninja"])
+        deftools = ["ninja", "make"] if self.is_windows else ["ninja"]
+        self.tool_envs = desc.get("tool_envs", deftools)
 
     def init_env(self):
         """Init the compiler environment"""
@@ -93,7 +94,14 @@ class NVPBuilder(NVPObject):
         """Run a custom ninja command line"""
         ninja_path = self.tools.get_ninja_path()
         flags = flags or []
-        self.check_execute([ninja_path] + flags, cwd=build_dir, env=self.env, **kwargs)
+        cmd = [ninja_path]
+        if self.compiler.is_emcc():
+            ext = ".bat" if self.is_windows else ""
+            folder = self.compiler.get_cxx_dir()
+            emmake_path = self.get_path(folder, f"emmake{ext}")
+            cmd = [emmake_path] + cmd
+
+        self.check_execute(cmd + flags, cwd=build_dir, env=self.env, **kwargs)
 
     def exec_nmake(self, build_dir, flags=None, **kwargs):
         """Run a custom ninja command line"""
@@ -111,8 +119,15 @@ class NVPBuilder(NVPObject):
 
     def run_make(self, build_dir, **kwargs):
         """Execute the standard make build/install commands"""
-        self.check_execute(["make"], cwd=build_dir, env=self.env, **kwargs)
-        self.check_execute(["make", "install"], cwd=build_dir, env=self.env, **kwargs)
+        cmd = ["make"]
+        if self.compiler.is_emcc():
+            ext = ".bat" if self.is_windows else ""
+            folder = self.compiler.get_cxx_dir()
+            emmake_path = self.get_path(folder, f"emmake{ext}")
+            cmd = [emmake_path] + cmd
+
+        self.check_execute(cmd, cwd=build_dir, env=self.env, **kwargs)
+        self.check_execute(cmd + ["install"], cwd=build_dir, env=self.env, **kwargs)
 
     def run_cmake(self, build_dir, prefix, src_dir=None, flags=None, generator="Ninja", **kwargs):
         """Execute Standard cmake configuration command"""
@@ -124,42 +139,23 @@ class NVPBuilder(NVPObject):
             f"-DCMAKE_BUILD_TYPE={build_type}",
             f"-DCMAKE_INSTALL_PREFIX={prefix}",
         ]
+        if generator == "MinGW Makefiles":
+            cmd.append("-DCMAKE_MAKE_PROGRAM=make")
+
         if flags is not None:
             cmd += flags
 
         # Add the source directory:
         if src_dir is not None:
             cmd.append(src_dir)
+
+        if self.compiler.is_emcc():
+            ext = ".bat" if self.is_windows else ""
+            folder = self.compiler.get_cxx_dir()
+            emcmake_path = self.get_path(folder, f"emcmake{ext}")
+            cmd = [emcmake_path] + cmd
 
         logger.info("Cmake command: %s", cmd)
-        self.check_execute(cmd, cwd=build_dir, env=self.env, **kwargs)
-
-    def run_emcmake(self, build_dir, prefix, src_dir=None, flags=None, generator="Ninja", **kwargs):
-        """Execute Standard cmake configuration command"""
-
-        self.check(self.compiler.is_emcc(), "emcmake only supported with emcc.")
-
-        ext = ".bat" if self.is_windows else ""
-        folder = self.compiler.get_cxx_dir()
-        emcmake_path = self.get_path(folder, f"emcmake{ext}")
-
-        build_type = kwargs.get("build_type", "Release")
-        cmd = [
-            self.tools.get_cmake_path(),
-            "-G",
-            generator,
-            f"-DCMAKE_BUILD_TYPE={build_type}",
-            f"-DCMAKE_INSTALL_PREFIX={prefix}",
-        ]
-        if flags is not None:
-            cmd += flags
-
-        # Add the source directory:
-        if src_dir is not None:
-            cmd.append(src_dir)
-
-        cmd = [emcmake_path] + cmd
-        logger.info("emcmake command: %s", cmd)
         self.check_execute(cmd, cwd=build_dir, env=self.env, **kwargs)
 
     def run_configure(self, build_dir, prefix, flags=None, src_dir=None):
@@ -171,28 +167,16 @@ class NVPBuilder(NVPObject):
         if flags is not None:
             cmd += flags
 
+        # Check if this is the emcc compiler:
+        if self.compiler.is_emcc:
+            # Use emconfigure in this case:
+            ext = ".bat" if self.is_windows else ""
+            folder = self.compiler.get_cxx_dir()
+            emconfigure_path = self.get_path(folder, f"emconfigure{ext}")
+            cmd = [emconfigure_path] + cmd
+
         logger.info("configure command: %s", cmd)
         self.check_execute(cmd, cwd=build_dir, env=self.env)
-
-    def exec_emconfigure(self, build_dir, flags=None, **kwargs):
-        """Run emconfigure command line"""
-        self.check(self.compiler.is_emcc(), "emconfigure only supported with emcc")
-
-        ext = ".bat" if self.is_windows else ""
-        folder = self.compiler.get_cxx_dir()
-        emconfigure_path = self.get_path(folder, f"emconfigure{ext}")
-        flags = flags or ["./configure"]
-        self.check_execute([emconfigure_path] + flags, cwd=build_dir, env=self.env, **kwargs)
-
-    def exec_emmake(self, build_dir, flags=None, **kwargs):
-        """Run emmake command line"""
-        self.check(self.compiler.is_emcc(), "emmake only supported with emcc.")
-
-        ext = ".bat" if self.is_windows else ""
-        folder = self.compiler.get_cxx_dir()
-        emmake_path = self.get_path(folder, f"emmake{ext}")
-        flags = flags or ["make"]
-        self.check_execute([emmake_path] + flags, cwd=build_dir, env=self.env, **kwargs)
 
     def patch_file(self, filename, src, dest):
         """Patch the content of a given file"""
