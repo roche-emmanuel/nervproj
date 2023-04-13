@@ -158,12 +158,12 @@ class NVPBuilder(NVPObject):
         logger.info("Cmake command: %s", cmd)
         self.check_execute(cmd, cwd=build_dir, env=self.env, **kwargs)
 
-    def run_configure(self, build_dir, prefix, flags=None, src_dir=None):
+    def run_configure(self, build_dir, prefix, flags=None, src_dir=None, configure_name="configure"):
         """Execute Standard configure command"""
         if src_dir is None:
             src_dir = build_dir
 
-        cmd = ["sh", self.get_path(src_dir, "configure"), f"--prefix={prefix}"]
+        cmd = ["sh", self.get_path(src_dir, configure_name), f"--prefix={prefix}"]
         if flags is not None:
             cmd += flags
 
