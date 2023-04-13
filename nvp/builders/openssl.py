@@ -59,8 +59,7 @@ class Builder(NVPBuilder):
             # Fixing this line in makefile:
             # CROSS_COMPILE=/mnt/data1/dev/projects/NervProj/tools/linux/emsdk-git/upstream/emscripten/em
             em_path = self.get_path(self.compiler.get_cxx_dir(), "em")
-            self.patch_file(self.get_path(build_dir, "Makefile"),
-                            f"CROSS_COMPILE={em_path}", "CROSS_COMPILE=")
+            self.patch_file(self.get_path(build_dir, "Makefile"), f"CROSS_COMPILE={em_path}", "CROSS_COMPILE=")
             self.exec_make(build_dir)
             self.exec_make(build_dir, ["install_sw"])
         else:
