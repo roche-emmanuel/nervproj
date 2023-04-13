@@ -51,8 +51,100 @@ def register_builder(bman: BuildManager):
 class QT6Builder(NVPBuilder):
     """QT6 builder class."""
 
+    def generate_qt_config(self, build_dir, prefix, args, cmake_args):
+        """Helper function used to generate the QT config.opt file"""
+        self.write_text_file(
+            f"-top-level -prefix {prefix} -release {args} -- {cmake_args}",
+            build_dir,
+            "config.opt.in",
+        )
+
+        # Next we call cmake to generate the config.opt file:
+        cmd = [
+            self.tools.get_cmake_path(),
+            "-DIN_FILE=config.opt.in",
+            "-DOUT_FILE=config.opt",
+            "-DIGNORE_ARGS=-top-level",
+            "-P",
+            f"{build_dir}/qtbase/cmake/QtWriteArgsFile.cmake",
+        ]
+
+        logger.info("Gen config command: %s", cmd)
+        self.check_execute(cmd, cwd=build_dir, env=self.env)
+        logger.info("Done generating config.opt file.")
+
+    def build_with_emcc_win(self, build_dir, prefix, _desc):
+        """Build with emcc on windows"""
+        # Building with emcc:
+
+        # get the host path for QT:
+        host_path = prefix.replace("windows_emcc", "windows_clang")
+        logger.info("QT host path is: %s", host_path)
+        self.check(self.dir_exists(host_path), "QT host path must exists.")
+
+        # self.env["QT_HOST_PATH"]=host_path
+        args = f"-qt-host-path {host_path} -platform wasm-emscripten -opensource"
+        args += " -confirm-license -no-warnings-are-errors -feature-thread -static"
+        args += " -skip qtwebengine -skip qtquick3d -skip qtquick3dphysics"
+
+        em_dir = self.compiler.get_cxx_dir()
+        cmake_args = f"-DCMAKE_TOOLCHAIN_FILE={em_dir}/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1"
+        self.generate_qt_config(build_dir, prefix, args, cmake_args)
+
+        cmd = [
+            self.tools.get_cmake_path(),
+            "-DOPTFILE=config.opt",
+            "-DTOP_LEVEL=TRUE",
+            "-P",
+            f"{build_dir}/qtbase/cmake/QtProcessConfigureArgs.cmake",
+            "-Wno-dev",
+        ]
+
+        # let's run the configure.bat file:
+        perl_dir = self.tools.get_tool_root_dir("perl")
+        gperf_dir = self.tools.get_tool_dir("gperf")
+        bison_dir = self.tools.get_tool_dir("bison")
+        flex_dir = self.tools.get_tool_dir("flex")
+
+        # py_dir = self.get_parent_folder(self.tools.get_tool_path("python"))
+
+        dirs = [
+            self.get_path(build_dir, "qtbase", "bin"),
+            # py_dir,
+            # nodejs_dir,
+            gperf_dir,
+            bison_dir,
+            flex_dir,
+            self.get_path(perl_dir, "perl", "site", "bin"),
+            self.get_path(perl_dir, "perl", "bin"),
+            self.get_path(perl_dir, "c", "bin"),
+        ]
+        logger.info("Adding additional paths: %s", dirs)
+
+        self.env = self.append_env_list(dirs, self.env)
+
+        logger.info("Post config command: %s", cmd)
+        self.check_execute(cmd, cwd=build_dir, env=self.env)
+
+        # Building the library now:
+        logger.info("Building QT6 libraries...")
+        # cmd = [self.tools.get_cmake_path(), "--build", ".", "-t", "qtbase", "-t", "qtdeclarative"]
+        cmd = [self.tools.get_cmake_path(), "--build", ".", "--parallel"]
+        logger.info("cmake command: %s", cmd)
+        self.check_execute(cmd, cwd=build_dir, env=self.env)
+
+        logger.info("Installing QT6 libraries...")
+        cmd = [self.tools.get_cmake_path(), "--install", "."]
+        self.check_execute(cmd, cwd=build_dir, env=self.env)
+
+        logger.info("Done building QT6 with emcc.")
+        return
+
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build method for QT6 on windows"""
+
+        if self.compiler.is_emcc():
+            return self.build_with_emcc_win(build_dir, prefix, _desc)
 
         # build_dir = self.get_path(build_dir, "src")
         # logger.info("Should build QT6 here: build_dir: %s", build_dir)
@@ -112,26 +204,7 @@ class QT6Builder(NVPBuilder):
                 # args = "-optimize-size -optimize-full -platform win32-msvc -c++std c++20 -skip qtconnectivity -skip qtspeech"
                 args = "-optimize-full -platform win32-msvc -opensource -confirm-license"
 
-            self.write_text_file(
-                f"-top-level -prefix {prefix} -release {args} -- {cmake_args}",
-                build_dir,
-                "config.opt.in",
-            )
-
-            # Next we call cmake to generate the config.opt file:
-            cmd = [
-                self.tools.get_cmake_path(),
-                "-DIN_FILE=config.opt.in",
-                "-DOUT_FILE=config.opt",
-                "-DIGNORE_ARGS=-top-level",
-                "-P",
-                f"{build_dir}/qtbase/cmake/QtWriteArgsFile.cmake",
-            ]
-
-            # logger.info("Cmake command: %s", cmd)
-            self.check_execute(cmd, cwd=build_dir, env=self.env)
-
-            logger.info("Done generating config.opt file.")
+            self.generate_qt_config(build_dir, prefix, args, cmake_args)
 
             # prepare the python env:
             pyenv = self.ctx.get_component("pyenvs")
@@ -282,35 +355,31 @@ class QT6Builder(NVPBuilder):
         # Also perl is already available on my system.
         # => cf. https://doc.qt.io/qt-6/linux-requirements.html
 
-        cmake_args = '-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -Wno-deprecated-builtins"'
+        cmake_args = (
+            '-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -Wno-deprecated-builtins"'
+        )
         args = [
-            "-optimize-full", "-opensource", "-confirm-license",
-            "-qt-doubleconversion", "-qt-pcre", "-qt-zlib", "-qt-freetype",
-            "-qt-harfbuzz", "-qt-libpng", "-qt-libjpeg", "-qt-sqlite",
-            "-qt-tiff", "-qt-webp", "-openssl-runtime", "-xcb-xlib", "-xcb"
+            "-optimize-full",
+            "-opensource",
+            "-confirm-license",
+            "-qt-doubleconversion",
+            "-qt-pcre",
+            "-qt-zlib",
+            "-qt-freetype",
+            "-qt-harfbuzz",
+            "-qt-libpng",
+            "-qt-libjpeg",
+            "-qt-sqlite",
+            "-qt-tiff",
+            "-qt-webp",
+            "-openssl-runtime",
+            "-xcb-xlib",
+            "-xcb",
         ]
         # "-qt-assimp", "-webengine-icu=qt", "-qt-webengine-ffmpeg", "-qt-webengine-opus", "-qt-webengine-webp",
         args = " ".join(args)
 
-        self.write_text_file(
-            f"-top-level -prefix {prefix} -release {args} -- {cmake_args}",
-            build_dir,
-            "config.opt.in",
-        )
-
-        # Next we call cmake to generate the config.opt file:
-        cmd = [
-            self.tools.get_cmake_path(),
-            "-DIN_FILE=config.opt.in",
-            "-DOUT_FILE=config.opt",
-            "-DIGNORE_ARGS=-top-level",
-            "-P",
-            f"{build_dir}/qtbase/cmake/QtWriteArgsFile.cmake",
-        ]
-
-        self.check_execute(cmd, cwd=build_dir, env=self.env)
-
-        logger.info("Done generating config.opt file.")
+        self.generate_qt_config(build_dir, prefix, args, cmake_args)
 
         # prepare the python env:
         pyenv = self.ctx.get_component("pyenvs")
@@ -367,7 +436,7 @@ class QT6Builder(NVPBuilder):
         logger.info("Environment paths: %s", self.env["PATH"])
 
         # Also add NODEJS_HOME in the env:
-        self.env['NODEJS_HOME'] = nodejs_dir
+        self.env["NODEJS_HOME"] = nodejs_dir
 
         # Apply the required patches:
         tgt_file = f"{build_dir}/qtbase/qt_cmdline.cmake"
