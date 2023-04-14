@@ -77,9 +77,16 @@ class LuaJITBuilder(NVPBuilder):
     def build_on_linux(self, build_dir, prefix, desc):
         """Build method for LuaJIT on linux"""
 
-        assert self.compiler.is_clang(), "Only clang compiler is support on linux for LuaJIT compilation."
+        # Compilation not working with emcc:
+        # if self.compiler.is_emcc():
+        #     # Compile for emscripten:
+        #     # Should run the command:
+        #     # make HOST_CC="emcc" BUILDMODE=static
+        #     self.execute(
+        #         ["make", "install", f"PREFIX={prefix}", "HOST_CC=emcc", "BUILDMODE=static"],
+        #         cwd=build_dir, env=self.env)
 
-        # End finally make install:
+        assert self.compiler.is_clang(), "Only clang compiler is support on linux for LuaJIT compilation."
         self.execute(["make", "install", f"PREFIX={prefix}", "HOST_CC=clang"], cwd=build_dir, env=self.env)
 
         # We should rename the include sub folder: "luajit-2.1" -> "luajit"
