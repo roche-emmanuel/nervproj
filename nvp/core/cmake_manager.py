@@ -574,7 +574,7 @@ class CMakeManager(NVPComponent):
                     hash2 = self.compute_file_hash(dst_path)
                     if hash1 != hash2:
                         logger.info("Updating dep module %s...", dst_file)
-                        self.remove_file(dst_file)
+                        self.remove_file(dst_path)
                         copy_needed = True
                 else:
                     # The destination file doesn't exist yet, we simply install it:
