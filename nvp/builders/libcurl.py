@@ -34,6 +34,9 @@ class Builder(NVPBuilder):
 
         self.run_ninja(build_dir)
 
+        # If building with msvc we need to rename the lib file from "libcurl_imp.lib"
+        self.rename_file(self.get_path(prefix, "lib", "libcurl_imp.lib"), self.get_path(prefix, "lib", "libcurl.lib"))
+
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
 
