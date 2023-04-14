@@ -340,7 +340,7 @@ class NVPCompiler(NVPObject):
                 # msvc_env = self.prepend_env_list([self.get_cxx_dir()], env)
                 # msvc_env["CC"] = self.get_cc_path()
                 # msvc_env["CXX"] = self.get_cxx_path()
-            else:
+
                 # Add the include paths:
                 # self.append_compileflag(f"-I{self.root_dir}/include/c++/v1", env)
                 # self.append_compileflag(f"-I{self.root_dir}/lib/clang/{self.version}/include", env)
