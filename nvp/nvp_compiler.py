@@ -341,10 +341,10 @@ class NVPCompiler(NVPObject):
                 # msvc_env["CC"] = self.get_cc_path()
                 # msvc_env["CXX"] = self.get_cxx_path()
 
-            else:
+            # else:
                 # Add the include paths:
-                self.append_compileflag(f"-I{self.root_dir}/include/c++/v1", env)
-                self.append_compileflag(f"-I{self.root_dir}/lib/clang/{self.version}/include", env)
+                # self.append_compileflag(f"-I{self.root_dir}/include/c++/v1", env)
+                # self.append_compileflag(f"-I{self.root_dir}/lib/clang/{self.version}/include", env)
                 # self.append_compileflag(f"-I{self.root_dir}/lib/clang/{self.version}/include/openmp_wrappers", env)
 
                 # logger.info("clang compiler env: %s", env)
