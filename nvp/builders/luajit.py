@@ -39,7 +39,7 @@ class LuaJITBuilder(NVPBuilder):
         # change the compiler to clang if needed:
         build_file = self.get_path(build_dir, "src", "msvcbuild.bat")
 
-        self.replace_in_file(
+        self.patch_file(
             build_file,
             "/O2 /W3 /D_CRT_SECURE_NO_DEPRECATE /D_CRT_STDIO_INLINE",
             "/O2 /W3 /D_CRT_SECURE_NO_DEPRECATE /DLUAJIT_ENABLE_LUA52COMPAT /D_CRT_STDIO_INLINE",
@@ -87,6 +87,13 @@ class LuaJITBuilder(NVPBuilder):
         #         cwd=build_dir, env=self.env)
 
         assert self.compiler.is_clang(), "Only clang compiler is support on linux for LuaJIT compilation."
+
+        # Apply lua 5.2 compat:
+
+        build_file = self.get_path(build_dir, "src", "Makefile")
+
+        self.patch_file(build_file, "#XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT", "XCFLAGS+= -DLUAJIT_ENABLE_LUA52COMPAT")
+
         self.execute(["make", "install", f"PREFIX={prefix}", "HOST_CC=clang"], cwd=build_dir, env=self.env)
 
         # We should rename the include sub folder: "luajit-2.1" -> "luajit"
