@@ -195,8 +195,10 @@ libraries:
     url: https://boostorg.jfrog.io/artifactory/main/release/1.79.0/source/boost_1_79_0.7z
     version: 1.79.0
   - name: SDL2
-    url: https://www.libsdl.org/release/SDL2-2.0.20.zip
-    version: 2.0.20
+    # url: https://www.libsdl.org/release/SDL2-2.0.20.zip
+    # version: 2.0.20
+    url: https://www.libsdl.org/release/SDL2-2.26.5.zip
+    version: 2.26.5
   - name: LuaJIT
     url: git@github.com:roche-emmanuel/LuaJIT.git
     version: "2.1"
