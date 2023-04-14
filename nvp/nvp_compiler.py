@@ -67,7 +67,6 @@ class NVPCompiler(NVPObject):
         self.ctx = ctx
         self.desc = desc
         self.type = desc["type"]
-        self.cxxflags = None
         self.linkflags = None
         self.libs_path = None
         self.version = None
@@ -106,7 +105,6 @@ class NVPCompiler(NVPObject):
             self.cxx_path = self.get_path(self.root_dir, "em++" + ext2)
             self.cc_path = self.get_path(self.root_dir, "emcc" + ext2)
             self.libs_path = self.get_path(self.root_dir, "lib")
-            self.cxxflags = ""
             self.linkflags = ""
             self.version = "3.1.35"
         else:
@@ -118,7 +116,6 @@ class NVPCompiler(NVPObject):
             self.libs_path = self.get_path(self.root_dir, "lib")
 
             # self.cxxflags = "-stdlib=libc++ -nodefaultlibs -lc++ -lc++abi -lm -lc -lgcc_s -lpthread"
-            self.cxxflags = ""
             self.linkflags = ""
             # self.cxxflags = "-stdlib=libc++ -w"
             # self.linkflags = "-stdlib=libc++ -nodefaultlibs -lc++ -lc++abi -lm -lc -lgcc_s -lpthread"
@@ -168,11 +165,11 @@ class NVPCompiler(NVPObject):
 
     def get_cxxflags(self):
         """Retrieve the cxxflags"""
-        return self.cxxflags
+        return self.comp_env.get("CXXFLAGS", "")
 
     def get_linkflags(self):
         """Retrieve the linkflags"""
-        return self.linkflags
+        return self.comp_env.get("LDFLAGS", "")
 
     def get_major_version(self):
         """Retrive major version as int"""
@@ -311,9 +308,6 @@ class NVPCompiler(NVPObject):
             else:
                 env["PATH"] = self.get_cxx_dir()
 
-                # self.append_compileflag(f"-I{self.root_dir}/include/c++/v1", env)
-                # self.append_compileflag(f"-L{self.root_dir}/lib/clang/15.0.4/include", env)
-
             env["CC"] = self.get_cc_path()
             env["CXX"] = self.get_cxx_path()
 
@@ -346,9 +340,13 @@ class NVPCompiler(NVPObject):
                 # msvc_env = self.prepend_env_list([self.get_cxx_dir()], env)
                 # msvc_env["CC"] = self.get_cc_path()
                 # msvc_env["CXX"] = self.get_cxx_path()
+            else:
+                # Add the include paths:
+                # self.append_compileflag(f"-I{self.root_dir}/include/c++/v1", env)
+                # self.append_compileflag(f"-I{self.root_dir}/lib/clang/{self.version}/include", env)
+                # self.append_compileflag(f"-I{self.root_dir}/lib/clang/{self.version}/include/openmp_wrappers", env)
 
-                # env = msvc_env
-
+                # logger.info("clang compiler env: %s", env)
             self.comp_env = env
 
         assert self.comp_env is not None, "Cannot init compiler environment"

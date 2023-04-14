@@ -149,6 +149,10 @@ class NVPBuilder(NVPObject):
         if generator == "MinGW Makefiles":
             cmd.append("-DCMAKE_MAKE_PROGRAM=make")
 
+        # Force specifying the compiler:
+        # cmd += [f"-DCMAKE_C_COMPILER={self.compiler.get_cc_path()}",
+        #         f"-DCMAKE_CXX_COMPILER={self.compiler.get_cxx_path()}"]
+
         if flags is not None:
             cmd += flags
 
