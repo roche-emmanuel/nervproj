@@ -59,11 +59,6 @@ class Builder(NVPBuilder):
         self.append_linkflag("-lssl")
         self.append_linkflag("-lcrypto")
 
-        if self.compiler.is_emcc():
-            self.append_linkflag(f"-L{ssl_dir}/libx32")
-        else:
-            self.append_linkflag(f"-L{ssl_dir}/lib64")
-
         flags = [
             "-DCURL_USE_OPENSSL=ON",
             f"-DOPENSSL_ROOT_DIR={ssl_dir}",
@@ -72,6 +67,15 @@ class Builder(NVPBuilder):
             f"-DZLIB_LIBRARY={zlib_dir}/lib/libz.a",
             f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
         ]
+
+        if self.compiler.is_emcc():
+            flags += [
+                f"-DOPENSSL_CRYPTO_LIBRARY={ssl_dir}/libx32/libcrypto.a",
+                f"-DOPENSSL_SSL_LIBRARY={ssl_dir}/libx32/libssl.a",
+            ]
+            self.append_linkflag(f"-L{ssl_dir}/libx32")
+        else:
+            self.append_linkflag(f"-L{ssl_dir}/lib64")
 
         self.run_cmake(build_dir, prefix, ".", flags)
 
