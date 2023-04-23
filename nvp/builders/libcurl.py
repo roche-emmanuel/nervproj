@@ -63,7 +63,7 @@ class Builder(NVPBuilder):
             "-DCURL_USE_OPENSSL=ON",
             f"-DOPENSSL_ROOT_DIR={ssl_dir}",
             # f"-DOPENSSL_LIBRARIES={ssl_dir}/lib64",
-            # f"-DOPENSSL_INCLUDE_DIR={ssl_dir}/include",
+            f"-DOPENSSL_INCLUDE_DIR={ssl_dir}/include",
             f"-DZLIB_LIBRARY={zlib_dir}/lib/libz.a",
             f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
         ]
