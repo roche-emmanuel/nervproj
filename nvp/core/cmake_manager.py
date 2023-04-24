@@ -541,7 +541,7 @@ class CMakeManager(NVPComponent):
             assert proj_name in cprojects, f"Cannot find module {proj_name}"
             self.build_project(proj_name, install_dir, rebuild)
 
-    def install_dep_modules(self, proj_name, install_dir):
+    def install_dep_modules(self, proj_name, install_dir, platform):
         """Install all the dependencies for a given project"""
         desc = self.cmake_projects[proj_name]
 
@@ -551,7 +551,7 @@ class CMakeManager(NVPComponent):
         bman = self.get_component("builder")
         tool = self.get_component("tools")
 
-        key = f"{self.platform}_dep_modules"
+        key = f"{platform}_dep_modules"
         mods = desc.get(key, {})
 
         for lib_name, file_map in mods.items():
@@ -680,7 +680,10 @@ class CMakeManager(NVPComponent):
         outfile.close()
 
         # Install the dependency modules:
-        self.install_dep_modules(proj_name, install_dir)
+        platform = self.platform
+        if bman.get_compiler().is_emcc():
+            platform = "emscripten"
+        self.install_dep_modules(proj_name, install_dir, platform)
 
         elapsed = time.time() - start_tick
         mins = math.floor(elapsed / 60)
