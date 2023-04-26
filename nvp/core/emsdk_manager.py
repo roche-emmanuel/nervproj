@@ -76,8 +76,10 @@ class EmsdkManager(NVPComponent):
 
         em_dir = self.get_path(emsdk_dir, "upstream", "emscripten")
         if not self.dir_exists(em_dir):
-            logger.info("Installing emsdk packages...")
+            logger.info("Installing emsdk latest packages...")
             self.execute_emsdk(["install", "latest"])
+            logger.info("Activating emsdk latest packages...")
+            self.execute_emsdk(["activate", "latest"])
 
         # The emscripten folder must exist:
         self.check(self.dir_exists(em_dir), "Invalid emscripten dir: %s", em_dir)
