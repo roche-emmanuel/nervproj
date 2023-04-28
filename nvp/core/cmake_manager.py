@@ -563,30 +563,43 @@ class CMakeManager(NVPComponent):
                 root_dir = tool.get_tool_root_dir(lib_name)
 
             # Iterate on each file to check if it's already installed or not:
-            for src_file, dst_file in file_map.items():
-                src_path = self.get_path(root_dir, src_file)
-                dst_path = self.get_path(install_dir, dst_file)
-                copy_needed = False
+            for src_file, dst_locs in file_map.items():
+                # dst_locs could be a simple string or a list, we convert this to a list anyway:
+                if isinstance(dst_locs, str):
+                    dst_locs = [dst_locs]
 
-                if self.file_exists(dst_path):
-                    # Check if the hash will match:
-                    hash1 = self.compute_file_hash(src_path)
-                    hash2 = self.compute_file_hash(dst_path)
-                    if hash1 != hash2:
-                        logger.info("Updating dep module %s...", dst_file)
-                        self.remove_file(dst_path)
+                # We should iterate on each target location:
+                for dst_loc in dst_locs:
+                    # if the dst_loc ends with a "/" character, it means we want to use the source file name:
+                    if dst_loc[-1] == "/":
+                        fname = self.get_filename(src_file)
+                        dst_file = self.get_path(dst_loc[:-1], fname)
+                    else:
+                        dst_file = dst_loc
+
+                    src_path = self.get_path(root_dir, src_file)
+                    dst_path = self.get_path(install_dir, dst_file)
+                    copy_needed = False
+
+                    if self.file_exists(dst_path):
+                        # Check if the hash will match:
+                        hash1 = self.compute_file_hash(src_path)
+                        hash2 = self.compute_file_hash(dst_path)
+                        if hash1 != hash2:
+                            logger.info("Updating dep module %s...", dst_file)
+                            self.remove_file(dst_path)
+                            copy_needed = True
+                    else:
+                        # The destination file doesn't exist yet, we simply install it:
+                        logger.info("Installing dep module %s...", dst_file)
                         copy_needed = True
-                else:
-                    # The destination file doesn't exist yet, we simply install it:
-                    logger.info("Installing dep module %s...", dst_file)
-                    copy_needed = True
 
-                if copy_needed:
-                    # Check that the source file exists:
-                    self.check(self.file_exists(src_path), "Invalid source file: %s", src_path)
-                    folder = self.get_parent_folder(dst_path)
-                    self.make_folder(folder)
-                    self.copy_file(src_path, dst_path)
+                    if copy_needed:
+                        # Check that the source file exists:
+                        self.check(self.file_exists(src_path), "Invalid source file: %s", src_path)
+                        folder = self.get_parent_folder(dst_path)
+                        self.make_folder(folder)
+                        self.copy_file(src_path, dst_path)
 
     def build_project(self, proj_name, install_dir, rebuild=False, gen_commands=False):
         """Build/install a specific project"""
