@@ -167,6 +167,7 @@ class NVPBuilder(NVPObject):
             cmd = [emcmake_path] + cmd
             # add -pthread for CXX compilation:
             cmd += ['-DCMAKE_CXX_FLAGS="-pthread"']
+            cmd += ['-DCMAKE_C_FLAGS="-pthread"']
 
         logger.info("Cmake command: %s", cmd)
         self.check_execute(cmd, cwd=build_dir, env=self.env, **kwargs)
