@@ -3,6 +3,7 @@ import http.server
 import logging
 import os
 import ssl
+import threading
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -94,11 +95,42 @@ class HttpsServer(NVPComponent):
 
         # logger.info("Serving at https://localhost:%d/%s", port, index_file)
         if port == 443:
-            logger.info("Serving at https://nervtech.local/%s", index_file)
+            url = f"https://nervtech.local/{index_file}"
         else:
-            logger.info("Serving at https://nervtech.local:%d/%s", port, index_file)
+            url = f"https://nervtech.local:{port}/{index_file}"
 
-        httpd.serve_forever()
+        logger.info("Serving at %s", url)
+
+        # Open the webbrowser and wait for it:
+        # webbrowser.open(url)
+        # browser_path = webbrowser.get()
+        # logger.info("Default webbrowser path: %s", browser_path.name)
+        firefox_path = os.getenv("FIREFOX_PATH")
+        if firefox_path is not None:
+            cmd = [firefox_path, url]
+
+            def run_server():
+                """Run the server"""
+                logger.info("Running server...")
+                try:
+                    httpd.serve_forever()
+                except KeyboardInterrupt:
+                    logger.info("HTTPS server interrupted.")
+                logger.info("Done with HTTPS server thread.")
+
+            thread = threading.Thread(target=run_server)
+            thread.start()
+
+            self.execute(cmd, shell=True)
+
+            logger.info("Stopping HTTPS server...")
+            httpd.shutdown()
+
+            thread.join()
+
+        else:
+            # Just run the server with no thread:
+            httpd.serve_forever()
 
         logger.info("Done serving directory.")
 
