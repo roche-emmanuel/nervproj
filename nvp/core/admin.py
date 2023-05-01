@@ -455,50 +455,42 @@ class AdminManager(NVPComponent):
         if cmd == "gen-cert":
             root_cert = self.get_param("root_cert")
             out_name = self.get_param("out_name")
-            cfg_name = self.get_param("cfg_name")
-
-            self.generate_certificate(out_name, cfg_name, root_cert)
+            common_name = self.get_param("name")
+            self.generate_certificate(out_name, common_name, root_cert)
             return True
 
         return False
 
-    def generate_certificate(self, cname, cfgfile, root_cert):
+    def generate_certificate(self, cname, common_name, root_cert=None):
         """Generate an SSL certificate"""
         tools = self.get_component("tools")
         openssl = tools.get_tool_path("openssl")
 
-        # Alternate option:
-        # cmd0 = f"genpkey -algorithm RSA -out {cname}_key.pem -aes256 -pass pass:"
-        # cmd1 = f"req -new -sha256 -key {cname}_key.pem -out {cname}_req.pem -nodes -config ./{cfgfile} -batch -passin pass:"
+        if common_name is None:
+            common_name = cname
 
-        cmd1 = f"req -newkey rsa:2048 -sha256 -keyout {cname}_key.pem -out {cname}_req.pem -nodes -config ./{cfgfile} -batch"
-        cmd3 = f"x509 -subject -issuer -noout -in {cname}.pem"
+        # Write the config file:
+        tpl_file = "ssl_root.cnf" if root_cert is None else "ssl_client.cnf"
+        tpl_file = self.get_path(self.ctx.get_root_dir(), "assets", "templates", tpl_file)
+        content = self.read_text_file(tpl_file)
+
+        content = self.fill_placeholders(content, {"${COMMON_NAME}": common_name})
+        if self.file_exists("config.cnf"):
+            self.remove_file("config.cnf")
+
+        self.write_text_file(content, "config.cnf")
 
         if root_cert is None:
             # Generate a root certificate:
-            # openssl req -newkey rsa:2048 -sha256 -keyout rootAkey.pem -out rootAreq.pem -nodes -config ./rootA.cnf -days 365 -batch
-            # openssl x509 -req -in rootAreq.pem -sha256 -extfile ./rootA.cnf -extensions v3_ca -signkey rootAkey.pem -out rootA.pem -days 365
-            # openssl x509 -subject -issuer -noout -in rootA.pem
-
-            # Alternate option with strong digest:
-            # openssl genpkey -algorithm RSA -out ca.key -aes256
-
-            # cmd2 = f"x509 -req -in {cname}_req.pem -sha256 -extfile ./{cfgfile} -extensions v3_ca -signkey {cname}_key.pem -out {cname}.pem -days 365 -passin pass:"
-            cmd2 = f"x509 -req -in {cname}_req.pem -sha256 -extfile ./{cfgfile} -extensions v3_ca -signkey {cname}_key.pem -out {cname}.pem -days 365"
-            # cmd3 = f"x509 -subject -issuer -noout -in {cname}.pem"
+            cmd1 = f"req -newkey rsa:2048 -sha256 -keyout {cname}_key.crt -out {cname}_req.crt -nodes -config ./config.cnf -batch"
+            cmd2 = f"x509 -req -in {cname}_req.crt -sha256 -extfile ./config.cnf -extensions v3_ca -signkey {cname}_key.crt -out {cname}.crt -days 3650"
+            cmd3 = f"x509 -subject -issuer -noout -in {cname}.crt"
 
         else:
             # Generate a non-root certificate:
-            # openssl req -newkey rsa:1024 -sha1 -keyout clientAkey.pem -out clientAreq.pem -nodes -config ./clientA.cnf -days 365 -batch
-            # openssl x509 -req -in clientAreq.pem -sha1 -extfile ./clientA.cnf -extensions usr_cert -CA rootA.pem -CAkey rootAkey.pem -CAcreateserial -out clientAcert.pem -days 365
-            # copy clientAcert.pem + rootA.pem clientA.pem
-            # openssl x509 -subject -issuer -noout -in clientA.pem
-
-            # cmd1 = "req -newkey rsa:1024 -sha1 -keyout {cname}_key.pem -out {cname}_req.pem -nodes -config {cfgfile} -batch"
-            # cmd1 = f"req -newkey rsa:2048 -sha256 -keyout {cname}_key.pem -out {cname}_req.pem -nodes -config {cfgfile} -batch"
-            cmd2 = f"x509 -req -in {cname}_req.pem -sha256 -extfile {cfgfile} -extensions usr_cert -CA {root_cert}.pem -CAkey {root_cert}_key.pem -CAcreateserial -out {cname}_cert.pem -days 365 -passin pass:"
-            # copy {cname}_cert.pem + {root_cert}.pem {cname}.pem
-            # cmd3 = f"x509 -subject -issuer -noout -in {cname}.pem"
+            cmd1 = f"req -newkey rsa:2048 -sha256 -keyout {cname}_key.crt -out {cname}_req.crt -nodes -config ./config.cnf -batch"
+            cmd2 = f"x509 -req -in {cname}_req.crt -sha256 -extfile ./config.cnf -extensions usr_cert -CA {root_cert}.crt -CAkey {root_cert}_key.crt -CAcreateserial -out {cname}_cert.crt -days 3650 -passin pass:"
+            cmd3 = f"x509 -subject -issuer -noout -in {cname}.crt"
 
         cwd = self.get_cwd()
         logger.info("CWD: %s", cwd)
@@ -508,9 +500,9 @@ class AdminManager(NVPComponent):
 
         if root_cert is not None:
             # Combine the certificates:
-            content1 = self.read_text_file(f"{cname}_cert.pem")
-            content2 = self.read_text_file(f"{root_cert}.pem")
-            self.write_text_file(content1 + content2, f"{cname}.pem")
+            content1 = self.read_text_file(f"{cname}_cert.crt")
+            content2 = self.read_text_file(f"{root_cert}.crt")
+            self.write_text_file(content1 + content2, f"{cname}.crt")
 
         self.execute([openssl] + cmd3.split(), cwd=cwd)
 
@@ -568,7 +560,7 @@ if __name__ == "__main__":
 
     psr = context.build_parser("gen-cert")
     psr.add_str("out_name")("Output name for the certificate")
-    psr.add_str("cfg_name")("Config file for the certificate")
+    psr.add_str("--name")("Common server name")
     psr.add_str("-r", "--root", dest="root_cert")(
         "Specify the root certificate to use, otherwise create a root certificate"
     )
