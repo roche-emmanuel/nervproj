@@ -99,6 +99,9 @@ class HttpsServer(NVPComponent):
         else:
             url = f"https://nervtech.local:{port}/{index_file}"
 
+        # **Note**: will also work without SSL if we serve on localhost:
+        # url = f"http://localhost:{port}/{index_file}"
+
         logger.info("Serving at %s", url)
 
         # Open the webbrowser and wait for it:
