@@ -153,7 +153,7 @@ class NVPContext(NVPObject):
             else:
                 self.platform = "linux"
 
-        assert self.platform in ["windows", "linux"], f"Unsupported platform {pname}"
+        assert self.platform in ["windows", "linux", "raspberry", "raspberry64"], f"Unsupported platform {pname}"
 
         # Check if we are in a cygwin env:
         self.cyg_home_dir = None
