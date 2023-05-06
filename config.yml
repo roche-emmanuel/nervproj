@@ -177,6 +177,9 @@ raspberry_tools:
     version: 3.10.2
   - name: git
     path: git
+  - name: clang
+    path: clang
+    version: 10.0.0
 
 # Tools that can be used on raspberry64:
 raspberry64_tools:
@@ -190,6 +193,9 @@ raspberry64_tools:
     version: 3.10.2
   - name: git
     path: git
+  - name: clang
+    path: clang
+    version: 10.0.0
 
 # List of libraries that we can build:
 libraries:
