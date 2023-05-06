@@ -106,7 +106,9 @@ class PyEnvManager(NVPComponent):
             pkgs = self.get_all_packages(pdesc)
 
         # Add the packages from this desc:
-        added = desc["packages"]
+        # Check first if we have platform specific packages:
+        key_name = f"{self.platform}_packages"
+        added = desc[key_name] if key_name in desc else desc["packages"]
         for pkg in added:
             if pkg not in pkgs:
                 pkgs.append(pkg)
