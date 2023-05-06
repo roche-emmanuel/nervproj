@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+import platform
 import sys
 from importlib import import_module
 
@@ -144,7 +145,13 @@ class NVPContext(NVPObject):
         if pname.startswith("win32"):
             self.platform = "windows"
         elif pname.startswith("linux"):
-            self.platform = "linux"
+            arch = platform.machine()
+            if arch == "aarch64":
+                self.platform = "raspberry64"
+            elif arch == "armv7l":
+                self.platform = "raspberry"
+            else:
+                self.platform = "linux"
 
         assert self.platform in ["windows", "linux"], f"Unsupported platform {pname}"
 
@@ -169,6 +176,16 @@ class NVPContext(NVPObject):
             self.load_default_components()
 
         self.load_projects()
+
+    @property
+    def is_raspberry(self):
+        """check if we are on raspberry"""
+        return self.platform == "raspberry"
+
+    @property
+    def is_raspberry64(self):
+        """check if we are on raspberry64"""
+        return self.platform == "raspberry64"
 
     @staticmethod
     def get():
