@@ -189,6 +189,10 @@ class ToolsManager(NVPComponent):
 
         return pkg_file
 
+    def has_tool(self, tname):
+        """Check if a given tool is available"""
+        return tname in self.tools
+
     def get_tool_desc(self, tname):
         """Retrieve the description dic for a given tool by name"""
 
