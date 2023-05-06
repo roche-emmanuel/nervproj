@@ -114,8 +114,13 @@ _nvp_run_cli_linux() {
         $python_path -m pip install --upgrade pip --no-warn-script-location
 
         # Finally we install the python requirements:
-        echo "Installing python requirements..."
-        $python_path -m pip install -r $root_dir/tools/requirements.txt --no-warn-script-location
+        if [ -f /sys/firmware/devicetree/base/model ] && grep -q "Raspberry" /sys/firmware/devicetree/base/model; then
+            echo "Installing raspberry python requirements..."
+            $python_path -m pip install -r $root_dir/tools/rasp_requirements.txt --no-warn-script-location
+        else
+            echo "Installing python requirements..."
+            $python_path -m pip install -r $root_dir/tools/requirements.txt --no-warn-script-location
+        fi
     fi
 
     if [ "$1" == "--install-py-reqs" ]; then
