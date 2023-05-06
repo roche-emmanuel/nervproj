@@ -24,10 +24,24 @@ _nvp_run_cli_linux() {
     local root_dir=$(readlink -f $ROOT_DIR/)
     # echo "NervLand root dir is: $root_dir"
 
+    local req_file="requirements.txt"
+    local platform="linux"
+
+    if [ -f /sys/firmware/devicetree/base/model ] && grep -q "Raspberry" /sys/firmware/devicetree/base/model; then
+        req_file="rasp_requirements.txt"
+        # Should also check here if we are on aarch64 or armv7l
+        local ARCH=$(uname -m)
+        if [ "${ARCH}" == "aarch64" ]; then
+            platform="raspberry64"
+        else
+            platform="raspberry"
+        fi
+    fi
+
     # Check if we already have python:
-    local tools_dir=$root_dir/tools/linux
+    local tools_dir=$root_dir/tools/${platform}
     if [[ ! -d $tools_dir ]]; then
-        echo "Creating tools/linux folder..."
+        echo "Creating tools/${platform} folder..."
         mkdir $tools_dir
     fi
 
@@ -36,7 +50,7 @@ _nvp_run_cli_linux() {
 
     if [[ ! -d $python_dir ]]; then
         # Check if we already have the python.7z
-        local python_pkg=$root_dir/tools/packages/python-$python_version-linux.tar.xz
+        local python_pkg=$root_dir/tools/packages/python-$python_version-${platform}.tar.xz
 
         if [[ -e "$python_pkg" ]]; then
             echo "Extracting $python_pkg..."
@@ -97,8 +111,8 @@ _nvp_run_cli_linux() {
             # And we create the 7z package:
             echo "Generating python tool package..."
             pushd $tools_dir >/dev/null
-            tar cJf python-$python_version-linux.tar.xz python-$python_version
-            mv python-$python_version-linux.tar.xz ../packages
+            tar cJf python-$python_version-${platform}.tar.xz python-$python_version
+            mv python-$python_version-${platform}.tar.xz ../packages
             popd >/dev/null
             # $unzip_path a -t7z $python_pkg $python_dir -m0=lzma2 -mx=9 -aoa -mfb=64 -md=32m -ms=on -r
 
@@ -114,18 +128,13 @@ _nvp_run_cli_linux() {
         $python_path -m pip install --upgrade pip --no-warn-script-location
 
         # Finally we install the python requirements:
-        if [ -f /sys/firmware/devicetree/base/model ] && grep -q "Raspberry" /sys/firmware/devicetree/base/model; then
-            echo "Installing raspberry python requirements..."
-            $python_path -m pip install -r $root_dir/tools/rasp_requirements.txt --no-warn-script-location
-        else
-            echo "Installing python requirements..."
-            $python_path -m pip install -r $root_dir/tools/requirements.txt --no-warn-script-location
-        fi
+        echo "Installing python requirements..."
+        $python_path -m pip install -r $root_dir/tools/${req_file} --no-warn-script-location
     fi
 
     if [ "$1" == "--install-py-reqs" ]; then
         echo "Installing python requirements..."
-        $python_path -m pip install -r $root_dir/tools/requirements.txt --no-warn-script-location
+        $python_path -m pip install -r $root_dir/tools/${req_file} --no-warn-script-location
     elif [ "$1" == "--pre-commit" ]; then
         echo "black outputs:" >$root_dir/pre-commit.log
         $python_path -m black --line-length 120 $root_dir/$2 >>$root_dir/pre-commit.log 2>&1
