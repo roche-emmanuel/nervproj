@@ -398,7 +398,7 @@ class ScriptRunner(NVPComponent):
 
             restart_requested = auto_restart
 
-            restart_file = self.get_path(cwd, "NVP_RESTART_PROCESS")
+            restart_file = self.get_path(cwd, "nvp_restart_requested")
             if self.file_exists(restart_file):
                 self.remove_file(restart_file)
                 restart_requested = True

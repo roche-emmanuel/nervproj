@@ -4,6 +4,7 @@ import argparse
 import logging
 import os
 import platform
+import signal
 import sys
 from importlib import import_module
 
@@ -352,7 +353,17 @@ class NVPContext(NVPObject):
 
     def enable_process_restart(self):
         """Notify that we will want to restart the current process"""
-        self.write_text_file("", "NVP_RESTART_PROCESS")
+        if not self.file_exists("nvp_no_restart"):
+            self.write_text_file("", "nvp_restart_requested")
+
+    def kill_process(self):
+        """Kill the current process"""
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    def restart_process(self):
+        """restart the current process"""
+        self.enable_process_restart()
+        self.kill_process()
 
     def has_project(self, pname):
         """Check if a given project should be considered available"""
