@@ -302,6 +302,7 @@ project_paths:
 
 # Paths where to search for the user config file:
 user_config_urls:
+  - ${HOME}/.nvp_config.yml
   - D:\Seafile\Perso\Admin\nervproj.config.json
   - D:\Documents\Perso\Admin\nervproj.config.json
   - /home/kenshin/seafile/Perso/Admin/nervproj.config.json

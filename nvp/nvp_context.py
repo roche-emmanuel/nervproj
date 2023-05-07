@@ -327,13 +327,28 @@ class NVPContext(NVPObject):
 
         # First we should retrieve the list of potential paths for that file:
         cfg_paths = self.config.get("user_config_urls", ["${NVP_DIR}/config.user.json"])
-        cfg_file = self.select_first_valid_path(cfg_paths)
+        # Use all the available user configs instead of just one:
+        hlocs = {
+            "${NVP_DIR}": self.root_dir,
+            "${HOME}": self.home_dir,
+        }
 
-        if cfg_file is not None:
-            user_cfg = self.read_json(cfg_file)
-            self.extend_config(user_cfg)
+        for cfg_path in cfg_paths:
+            cpath = self.fill_placeholders(cfg_path, hlocs)
+            if self.file_exists(cpath):
+                if self.get_path_extension(cpath) == ".json":
+                    user_cfg = self.read_json(cpath)
+                else:
+                    user_cfg = self.read_yaml(cpath)
+                self.extend_config(user_cfg)
 
-            # self.config.update(user_cfg)
+        # cfg_file = self.select_first_valid_path(cfg_paths)
+
+        # if cfg_file is not None:
+        #     user_cfg = self.read_json(cfg_file)
+        #     self.extend_config(user_cfg)
+
+        # self.config.update(user_cfg)
 
     def has_project(self, pname):
         """Check if a given project should be considered available"""
