@@ -396,13 +396,23 @@ class ScriptRunner(NVPComponent):
                 email = self.get_component("email")
                 email.send_message("[NervProj] Exception notification", msg)
 
-            if success or not auto_restart:
-                break
+            if success:
+                restart_requested = auto_restart
+                restart_file = self.get_path(cwd, "NVP_RESTART_PROCESS")
+                if self.file_exists(restart_file):
+                    self.remove_file(restart_file)
+                    restart_requested = True
+                    logger.info("Process restart requested for %s.", script_name)
+
+                if not restart_requested:
+                    break
 
             # Check if we have a restart delay:
             delay = desc.get("restart_delay", None)
             if delay is not None:
                 time.sleep(delay)
+
+            logger.info("Restarting %s...", script_name)
 
         if logfile is not None:
             logfile.close()
