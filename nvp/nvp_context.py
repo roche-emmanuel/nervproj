@@ -350,6 +350,10 @@ class NVPContext(NVPObject):
 
         # self.config.update(user_cfg)
 
+    def enable_process_restart(self):
+        """Notify that we will want to restart the current process"""
+        self.write_text_file("", "NVP_RESTART_PROCESS")
+
     def has_project(self, pname):
         """Check if a given project should be considered available"""
         for proj in self.projects:

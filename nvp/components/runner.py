@@ -408,7 +408,7 @@ class ScriptRunner(NVPComponent):
                     break
 
             # Check if we have a restart delay:
-            delay = desc.get("restart_delay", None)
+            delay = desc.get("restart_delay", 60)
             if delay is not None:
                 time.sleep(delay)
 
