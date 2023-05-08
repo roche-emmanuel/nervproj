@@ -34,13 +34,11 @@ windows_tools:
     version: 1.10.2
   - name: cmake
     sub_path: bin/cmake.exe
-    urls:
-      - https://github.com/Kitware/CMake/releases/download/v3.22.3/cmake-3.22.3-windows-x86_64.zip
+    urls: https://github.com/Kitware/CMake/releases/download/v3.22.3/cmake-3.22.3-windows-x86_64.zip
     version: 3.22.3
   - name: git
     sub_path: bin/git.exe
-    urls:
-      - https://github.com/git-for-windows/git/releases/download/v2.35.1.windows.2/PortableGit-2.35.1.2-64-bit.7z.exe
+    urls: https://github.com/git-for-windows/git/releases/download/v2.35.1.windows.2/PortableGit-2.35.1.2-64-bit.7z.exe
     version: 2.35.1
   - name: par2
     sub_path: par2j64.exe
@@ -55,33 +53,27 @@ windows_tools:
     version: 2022.08.25
   - name: perl
     sub_path: perl/bin/perl.exe
-    urls:
-      - http://files.nervtech.org/nvp_packages/tools/perl-5.32.1.1-windows.7z
+    urls: http://files.nervtech.org/nvp_packages/tools/perl-5.32.1.1-windows.7z
     version: 5.32.1.1
   - name: gperf
     sub_path: bin/gperf.exe
-    urls:
-      - http://files.nervtech.org/nvp_packages/tools/gperf-3.0.1-windows.7z
+    urls: http://files.nervtech.org/nvp_packages/tools/gperf-3.0.1-windows.7z
     version: 3.0.1
   - name: bison
     sub_path: bin/bison.exe
-    urls:
-      - http://files.nervtech.org/nvp_packages/tools/bison-2.4.1-windows.7z
+    urls: http://files.nervtech.org/nvp_packages/tools/bison-2.4.1-windows.7z
     version: 2.4.1
   - name: flex
     sub_path: bin/flex.exe
-    urls:
-      - http://files.nervtech.org/nvp_packages/tools/flex-2.5.4a-windows.7z
+    urls: http://files.nervtech.org/nvp_packages/tools/flex-2.5.4a-windows.7z
     version: 2.5.4a
   - name: nasm
     sub_path: nasm.exe
-    urls:
-      - http://files.nervtech.org/nvp_packages/tools/nasm-2.16-windows.7z
+    urls: http://files.nervtech.org/nvp_packages/tools/nasm-2.16-windows.7z
     version: 2.16
   - name: make
     sub_path: bin/make.exe
-    urls:
-      - http://files.nervtech.org/nvp_packages/tools/make-3.81-windows.7z
+    urls: http://files.nervtech.org/nvp_packages/tools/make-3.81-windows.7z
     version: 3.81
   - name: openssl
     version: 3.0.8
@@ -89,8 +81,13 @@ windows_tools:
   - name: emsdk
     version: git
     sub_path: emsdk.bat
-    urls:
-      - http://files.nervtech.org/nvp_packages/tools/emsdk-git-windows.7z
+    urls: http://files.nervtech.org/nvp_packages/tools/emsdk-git-windows.7z
+  # depot_tools git package below:
+  - name: depot_tools
+    version: git
+    sub_path: gclient.bat
+    urls: http://files.nervtech.org/nvp_packages/tools/depot_tools-git-20230508-windows.7z
+    # git: https://chromium.googlesource.com/chromium/tools/depot_tools.git
 
 # Tools that can be used on linux:
 linux_tools:
@@ -110,8 +107,7 @@ linux_tools:
     version: 1.10.2
   - name: cmake
     sub_path: bin/cmake
-    urls:
-      - https://github.com/Kitware/CMake/releases/download/v3.22.3/cmake-3.22.3-linux-x86_64.tar.gz
+    urls: https://github.com/Kitware/CMake/releases/download/v3.22.3/cmake-3.22.3-linux-x86_64.tar.gz
     version: 3.22.3
   - name: git
     path: git
@@ -135,24 +131,21 @@ linux_tools:
   - name: gperf
     sub_path: bin/gperf
     version: 3.1
-    urls:
-      - http://files.nervtech.org/nvp_packages/tools/gperf-3.1-linux-clang.tar.xz
+    urls: http://files.nervtech.org/nvp_packages/tools/gperf-3.1-linux-clang.tar.xz
     # For building:
     # url: http://ftp.gnu.org/pub/gnu/gperf/gperf-3.1.tar.gz
     # build_mode: "std"
   - name: bison
     sub_path: bin/bison
     version: 3.8.2
-    urls:
-      - http://files.nervtech.org/nvp_packages/tools/bison-3.8.2-linux-clang.tar.xz
+    urls: http://files.nervtech.org/nvp_packages/tools/bison-3.8.2-linux-clang.tar.xz
     # For building:
     # url: http://ftp.gnu.org/gnu/bison/bison-3.8.2.tar.xz
     # build_mode: "std"
   - name: flex
     sub_path: bin/flex
     version: 2.6.4
-    urls:
-      - http://files.nervtech.org/nvp_packages/tools/flex-2.6.4-linux-clang.tar.xz
+    urls: http://files.nervtech.org/nvp_packages/tools/flex-2.6.4-linux-clang.tar.xz
     # For building:
     # url: https://github.com/westes/flex/files/981163/flex-2.6.4.tar.gz
     # build_mode: "std"
@@ -162,8 +155,7 @@ linux_tools:
   - name: emsdk
     version: git
     sub_path: emsdk
-    urls:
-      - http://files.nervtech.org/nvp_packages/tools/emsdk-git-linux.tar.xz
+    urls: http://files.nervtech.org/nvp_packages/tools/emsdk-git-linux.tar.xz
 
 # Tools that can be used on raspberry:
 raspberry_tools:
@@ -291,6 +283,9 @@ libraries:
   - name: yamlcpp
     version: 0.7.0
     url: git@github.com:roche-emmanuel/yaml-cpp.git
+  - name: dawn
+    version: git
+    git: https://dawn.googlesource.com/dawn
 
 # list of available projects:
 projects: []

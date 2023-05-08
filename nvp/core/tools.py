@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 import time
+from datetime import datetime
 
 import requests
 import urllib3
@@ -75,6 +76,9 @@ class ToolsManager(NVPComponent):
                             # This tool should be built from sources:
                             self.build_tool(full_name, desc)
 
+                        elif "git" in desc:
+                            # Retrieve a git tool:
+                            self.build_git_tool_package(full_name, desc)
                         else:
                             # retrieve the most appropriate source package for that tool:
                             pkg_file = self.retrieve_tool_package(desc)
@@ -155,6 +159,9 @@ class ToolsManager(NVPComponent):
 
         urls = desc.get("urls", [])
 
+        if isinstance(urls, str):
+            urls = [urls]
+
         # Next we should extend with the package urls:
         full_name = f"{desc['name']}-{desc['version']}"
 
@@ -188,6 +195,34 @@ class ToolsManager(NVPComponent):
         logger.debug("Using source package %s for %s", pkg_file, full_name)
 
         return pkg_file
+
+    def build_git_tool_package(self, full_name, desc):
+        """Retrieve a tool package from git"""
+        # Prepare installation dir:
+        dest_dir = self.get_path(self.tools_dir, full_name)
+
+        # Get the git component:
+        git = self.get_component("git")
+
+        self.check(not self.dir_exists(dest_dir), "Directory %s already exists", dest_dir)
+
+        # if not self.dir_exists(dest_dir):
+        # Request the cloning:
+        git_url = desc["git"]
+        git.clone_repository(git_url, dest_dir)
+
+        # Prepare the current date:
+        date_str = datetime.now().strftime("%Y%m%d")
+
+        # Build the package for this tool ?
+        ext = ".7z" if self.is_windows else ".tar.xz"
+        pkgname = f"{full_name}-{date_str}-{self.platform}{ext}"
+
+        self.create_package(dest_dir, self.tools_dir, pkgname)
+
+        # else:
+        #     # Pull the changes:
+        #     git.git_pull(dest_dir)
 
     def has_tool(self, tname):
         """Check if a given tool is available"""

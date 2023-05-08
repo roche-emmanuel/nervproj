@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import time
+from datetime import datetime
 from importlib import import_module
 
 from nvp.nvp_compiler import NVPCompiler
@@ -327,6 +328,15 @@ class BuildManager(NVPComponent):
 
         # get the filename from the url:
         url = desc.get(f"{self.platform}_url", desc.get("url", None))
+
+        if url is None:
+            # Check if we have a corresponding git repository:
+            self.check("git" in desc, "Expected git repository for package %s", desc["name"])
+            url = desc["git"]
+            from_git = True
+        else:
+            from_git = url.startswith("git@") or url.startswith("hg@")
+
         assert url is not None, f"Invalid source url for {desc['name']}"
 
         filename = os.path.basename(url)
@@ -335,7 +345,7 @@ class BuildManager(NVPComponent):
         # so filename will be "reponame.git" for instance
         src_pkg = self.get_path(base_build_dir, filename)
 
-        from_git = url.startswith("git@") or url.startswith("hg@")
+        # from_git = url.startswith("git@") or url.startswith("hg@")
         # once the source file is downloaded we should extract it:
         # build_dir = src_pkg if from_git else self.remove_file_extension(src_pkg)
         tgt_dir = self.get_std_package_name(desc)
@@ -347,7 +357,27 @@ class BuildManager(NVPComponent):
             logger.info("Removing previous source folder %s", build_dir)
             self.remove_folder(build_dir)
 
+        git = self.get_component("git")
+
         if not self.dir_exists(build_dir):
+            # First check if this is a git repository:
+            if from_git:
+                # Note that build_dir and src_pkg are the same here:
+                git.clone_repository(url, build_dir)
+
+                # Create a package for those sources:
+                # Prepare the current date:
+                date_str = datetime.now().strftime("%Y%m%d")
+
+                # Build the package for this tool ?
+                ext = ".7z" if self.is_windows else ".tar.xz"
+                pkgname = f"{desc['name']}-git-{date_str}-{self.platform}{ext}"
+
+                logger.info("Creating source package %s...", pkgname)
+                tools = self.get_component("tools")
+                tools.create_package(build_dir, base_build_dir, pkgname)
+                logger.info("Done creating source package %s.", pkgname)
+
             # download file if needed:
             if not self.path_exists(src_pkg):
                 self.tools.download_file(url, src_pkg)
@@ -358,6 +388,10 @@ class BuildManager(NVPComponent):
                 extracted_dir = desc.get("extracted_dir", None)
                 self.tools.extract_package(src_pkg, base_build_dir, target_dir=tgt_dir, extracted_dir=extracted_dir)
         else:
+            if from_git:
+                # Pull the repository:
+                git.git_pull(build_dir)
+
             logger.info("Using existing source folder %s", build_dir)
 
         dep_name = self.get_std_package_name(desc)
