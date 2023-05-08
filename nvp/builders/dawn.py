@@ -20,11 +20,26 @@ class DawnBuilder(NVPBuilder):
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build method for dawn on windows"""
 
-        flags = ["-DCMAKE_CXX_FLAGS_RELEASE=/MT", "-DSDL_STATIC=ON"]
+        # Bootstrap the gclient configuration
+        # cp scripts/standalone.gclient .gclient
+        self.copy_file(self.get_path(build_dir, "scripts", "standalone.gclient"), self.get_path(build_dir, ".gclient"))
 
-        # self.run_cmake(build_dir, prefix, "..", flags)
+        gclient_path = self.tools.get_tool_path("gclient")
 
-        # self.run_ninja(build_dir)
+        # Should also add the depot_tools folder in the PATH:
+        depot_dir = self.tools.get_tool_dir("gclient")
+        self.prepend_env_list([depot_dir], self.env)
+
+        # Fetch external dependencies and toolchains with gclient
+        # gclient sync
+        cmd = [gclient_path, "sync"]
+        self.execute(cmd, cwd=build_dir)
+
+        # Run cmake:
+        flags = ["-S", ".", "-B", "release_build"]
+        self.run_cmake(build_dir, prefix, flags=flags)
+        sub_dir = self.get_path(build_dir, "release_build")
+        self.run_ninja(sub_dir)
 
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for dawn on linux"""

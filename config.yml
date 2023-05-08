@@ -85,6 +85,9 @@ windows_tools:
   # depot_tools git package below:
   - name: depot_tools
     version: git
+    sub_tools:
+      gclient: gclient.bat
+      fetch: fetch.bat
     sub_path: gclient.bat
     urls: http://files.nervtech.org/nvp_packages/tools/depot_tools-git-20230508-windows.7z
     # git: https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -284,8 +287,10 @@ libraries:
     version: 0.7.0
     url: git@github.com:roche-emmanuel/yaml-cpp.git
   - name: dawn
-    version: git
-    git: https://dawn.googlesource.com/dawn
+    version: git-20230508
+    windows_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20230508-windows.7z
+    # version: git
+    # git: https://dawn.googlesource.com/dawn
 
 # list of available projects:
 projects: []

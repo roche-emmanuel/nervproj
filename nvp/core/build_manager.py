@@ -349,8 +349,14 @@ class BuildManager(NVPComponent):
         # once the source file is downloaded we should extract it:
         # build_dir = src_pkg if from_git else self.remove_file_extension(src_pkg)
         tgt_dir = self.get_std_package_name(desc)
-        # build_dir = src_pkg if from_git else self.remove_file_extension(src_pkg)
-        build_dir = src_pkg if from_git else self.get_path(base_build_dir, tgt_dir)
+
+        if from_git:
+            # Create a package for those sources:
+            # Prepare the current date:
+            date_str = datetime.now().strftime("%Y%m%d")
+            build_dir = self.get_path(base_build_dir, f"{desc['name']}-git-{date_str}")
+        else:
+            build_dir = self.get_path(base_build_dir, tgt_dir)
 
         # remove the previous source content if any:
         if not use_existing_src and self.dir_exists(build_dir):
@@ -365,10 +371,6 @@ class BuildManager(NVPComponent):
                 # Note that build_dir and src_pkg are the same here:
                 git.clone_repository(url, build_dir)
 
-                # Create a package for those sources:
-                # Prepare the current date:
-                date_str = datetime.now().strftime("%Y%m%d")
-
                 # Build the package for this tool ?
                 ext = ".7z" if self.is_windows else ".tar.xz"
                 pkgname = f"{desc['name']}-git-{date_str}-{self.platform}{ext}"
@@ -379,11 +381,11 @@ class BuildManager(NVPComponent):
                 logger.info("Done creating source package %s.", pkgname)
 
             # download file if needed:
-            if not self.path_exists(src_pkg):
+            elif not self.path_exists(src_pkg):
                 self.tools.download_file(url, src_pkg)
 
-            # Now extract the source folder:
-            if not from_git:
+                # # Now extract the source folder:
+                # if not from_git:
                 # use the extracted folder name here if any:
                 extracted_dir = desc.get("extracted_dir", None)
                 self.tools.extract_package(src_pkg, base_build_dir, target_dir=tgt_dir, extracted_dir=extracted_dir)
