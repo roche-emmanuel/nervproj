@@ -297,6 +297,7 @@ class BuildManager(NVPComponent):
 
             # Finally we should create the package from that installed dependency folder
             # so that we don't have to build it the next time:
+            logger.info("Creating package %s...", src_pkg_name)
             self.tools.create_package(prefix, self.libs_package_dir, src_pkg_name)
 
             if not keep_build:
