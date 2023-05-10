@@ -89,6 +89,8 @@ class DawnBuilder(NVPBuilder):
             dst_dir = self.get_path(prefix, dst_folder)
             self.make_folder(dst_dir)
 
+            res = []
+
             # copy the dawn libraries:
             for elem in all_files:
                 ignored = False
@@ -110,12 +112,21 @@ class DawnBuilder(NVPBuilder):
 
                 self.check(not self.file_exists(dst), "File %s already exists.", dst)
                 self.copy_file(src, dst)
+                res.append(elem)
+
+            return res
 
         install_files("src/dawn", r"\.lib$", "lib", "library")
         install_files("src/tint", r"\.lib$", "lib", "library")
+        absl_libs = install_files("third_party", r"absl_\.lib$", "lib", "library")
+        install_files("third_party", r"SPIRV-Tools-opt\.lib$", "lib", "library")
         install_files("gen/include/dawn", r"\.h$", "include/dawn", "header")
         install_files("include", r"\.h$", "include", "header", src_dir=build_dir, flatten=False)
         install_files(".", r"\.exe$", "bin", "app", excluded=["CMake", "unittests"])
+
+        # Write the list of absl libs to file:
+        absl_libs = [self.get_filename(elem) for elem in absl_libs]
+        self.write_text_file("\n".join(absl_libs), self.get_path(prefix, "lib", "absl_libs.txt"))
 
         logger.info("Dawn build done.")
 
@@ -167,6 +178,8 @@ class DawnBuilder(NVPBuilder):
         # self.run_ninja(sub_dir)
         self.exec_ninja(sub_dir)
 
+        res = []
+
         # logger.info("Installing dawn libraries...")
         def install_files(src_folder, exp, dst_folder, hint, **kwargs):
             # Get all the dawn libs:
@@ -201,8 +214,14 @@ class DawnBuilder(NVPBuilder):
                 self.check(not self.file_exists(dst), "File %s already exists.", dst)
                 self.copy_file(src, dst)
 
+                res.append(elem)
+
+            return res
+
         install_files("src/dawn", r"\.a$", "lib", "library")
         install_files("src/tint", r"\.a$", "lib", "library")
+        absl_libs = install_files("third_party", r"absl_\.a$", "lib", "library")
+        install_files("third_party", r"SPIRV-Tools-opt\.a$", "lib", "library")
         install_files("gen/include/dawn", r"\.h$", "include/dawn", "header")
         install_files("include", r"\.h$", "include", "header", src_dir=build_dir, flatten=False)
         install_files(".", "tint$", "bin", "app")
@@ -211,5 +230,9 @@ class DawnBuilder(NVPBuilder):
         install_files(".", "HelloTriangle$", "bin", "app")
         install_files(".", "meter$", "bin", "app")
         install_files(".", "Boids$", "bin", "app")
+
+        # Write the list of absl libs to file:
+        absl_libs = [self.get_filename(elem) for elem in absl_libs]
+        self.write_text_file("\n".join(absl_libs), self.get_path(prefix, "lib", "absl_libs.txt"))
 
         logger.info("Dawn build done.")
