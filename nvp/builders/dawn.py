@@ -122,6 +122,8 @@ class DawnBuilder(NVPBuilder):
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for dawn on linux"""
 
+        # Need to install the following packages:
+        # sudo apt-get install libxinerama-dev
         # Bootstrap the gclient configuration
         # cp scripts/standalone.gclient .gclient
         logger.info("Copying gclient config...")
@@ -199,8 +201,8 @@ class DawnBuilder(NVPBuilder):
                 self.check(not self.file_exists(dst), "File %s already exists.", dst)
                 self.copy_file(src, dst)
 
-        install_files("src/dawn", r"\.lib$", "lib", "library")
-        install_files("src/tint", r"\.lib$", "lib", "library")
+        install_files("src/dawn", r"\.a$", "lib", "library")
+        install_files("src/tint", r"\.a$", "lib", "library")
         install_files("gen/include/dawn", r"\.h$", "include/dawn", "header")
         install_files("include", r"\.h$", "include", "header", src_dir=build_dir, flatten=False)
         install_files(".", "tint$", "bin", "app")
