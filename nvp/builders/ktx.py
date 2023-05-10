@@ -40,11 +40,15 @@ class KtxBuilder(NVPBuilder):
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for glfw on linux"""
 
-        tgt_file = self.get_path(build_dir, "CMakeLists.txt")
         self.patch_file(
-            tgt_file,
-            "-Wno-unused-parameter;-Wno-deprecated-copy;-Wno-uninitialized-const-reference",
-            "-Wno-unused-parameter;-Wno-deprecated-copy;-Wno-uninitialized-const-reference;-Wno-deprecated-copy-with-user-provided-copy",
+            self.get_path(build_dir, "CMakeLists.txt"),
+            "-Wno-sign-compare;-Wno-unused-variable;-Wno-unused-parameter",
+            "-Wno-sign-compare;-Wno-unused-variable;-Wno-unused-parameter;-Wno-deprecated-copy-with-user-provided-copy",
+        )
+        self.patch_file(
+            self.get_path(build_dir, "tools", "ktx2ktx2", "ktx2ktx2.cpp"),
+            "std::vector<_tstring>::const_iterator it, s, e;",
+            "std::vector<_tstring>::const_iterator it;",
         )
 
         build_dir = self.get_path(build_dir, "release_build")

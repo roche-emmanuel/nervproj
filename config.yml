@@ -306,6 +306,7 @@ libraries:
     git: https://github.com/recp/cglm.git
   - name: ktx
     version: git-4.1.0
+    linux_url: http://files.nervtech.org/nvp_packages/sources/ktx-git-4.1.0-linux.tar.xz
     git: https://github.com/KhronosGroup/KTX-Software.git
 
 # list of available projects:
