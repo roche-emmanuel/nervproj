@@ -118,8 +118,8 @@ class DawnBuilder(NVPBuilder):
 
         install_files("src/dawn", r"\.lib$", "lib", "library")
         install_files("src/tint", r"\.lib$", "lib", "library")
-        absl_libs = install_files("third_party", r"absl_\.lib$", "lib", "library")
-        install_files("third_party", r"SPIRV-Tools-opt\.lib$", "lib", "library")
+        absl_libs = install_files("third_party", r"absl_.*\.lib$", "lib", "library")
+        install_files("third_party", r"SPIRV-Tools.*\.lib$", "lib", "library")
         install_files("gen/include/dawn", r"\.h$", "include/dawn", "header")
         install_files("include", r"\.h$", "include", "header", src_dir=build_dir, flatten=False)
         install_files(".", r"\.exe$", "bin", "app", excluded=["CMake", "unittests"])
@@ -220,8 +220,8 @@ class DawnBuilder(NVPBuilder):
 
         install_files("src/dawn", r"\.a$", "lib", "library")
         install_files("src/tint", r"\.a$", "lib", "library")
-        absl_libs = install_files("third_party", r"absl_\.a$", "lib", "library")
-        install_files("third_party", r"SPIRV-Tools-opt\.a$", "lib", "library")
+        absl_libs = install_files("third_party", r"absl_.*\.a$", "lib", "library")
+        install_files("third_party", r"SPIRV-Tools.*\.a$", "lib", "library")
         install_files("gen/include/dawn", r"\.h$", "include/dawn", "header")
         install_files("include", r"\.h$", "include", "header", src_dir=build_dir, flatten=False)
         install_files(".", "tint$", "bin", "app")

@@ -44,6 +44,7 @@ class KtxBuilder(NVPBuilder):
         self.make_folder(build_dir)
 
         flags = [
+            "-DCMAKE_CXX_FLAGS=-Wno-deprecated-copy-with-user-provided-copy",
             "-DKTX_FEATURE_STATIC_LIBRARY=ON",
             "-DKTX_FEATURE_LOADTEST_APPS=OFF",
             "-DKTX_FEATURE_TESTS=ON",
