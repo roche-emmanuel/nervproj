@@ -43,8 +43,14 @@ class KtxBuilder(NVPBuilder):
         build_dir = self.get_path(build_dir, "release_build")
         self.make_folder(build_dir)
 
+        tgt_file = self.get_path(build_dir, "CMakeLists.txt")
+        self.patch_file(
+            tgt_file,
+            "-Wno-unused-parameter;-Wno-deprecated-copy;-Wno-uninitialized-const-reference",
+            "-Wno-unused-parameter;-Wno-deprecated-copy;-Wno-uninitialized-const-reference;-Wdeprecated-copy-with-user-provided-copy",
+        )
+
         flags = [
-            "-DCMAKE_CXX_FLAGS=-Wno-deprecated-copy-with-user-provided-copy",
             "-DKTX_FEATURE_STATIC_LIBRARY=ON",
             "-DKTX_FEATURE_LOADTEST_APPS=OFF",
             "-DKTX_FEATURE_TESTS=ON",
