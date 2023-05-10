@@ -301,6 +301,16 @@ class GitManager(NVPComponent):
         """perform git pull from a given folder"""
         self.execute_git(["pull"], cwd=folder)
 
+    def git_checkout(self, folder, discard=False, branch=None):
+        """perform git pull from a given folder"""
+        cmd = ["checkout"]
+        if discard:
+            cmd += ["--", "."]
+        if branch is not None:
+            cmd += [branch]
+
+        self.execute_git(cmd, cwd=folder)
+
     def git_fetch(self, folder, url=None):
         """perform git fetch in a given folder"""
         cmd = ["fetch"]

@@ -294,9 +294,9 @@ libraries:
     version: 0.7.0
     url: git@github.com:roche-emmanuel/yaml-cpp.git
   - name: dawn
-    # version: git-20230508
+    version: git-20230509
     # windows_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20230508-windows.7z
-    version: git
+    # version: git
     git: https://dawn.googlesource.com/dawn
 
 # list of available projects:

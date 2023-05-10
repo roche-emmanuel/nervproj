@@ -351,13 +351,7 @@ class BuildManager(NVPComponent):
         # build_dir = src_pkg if from_git else self.remove_file_extension(src_pkg)
         tgt_dir = self.get_std_package_name(desc)
 
-        if from_git:
-            # Create a package for those sources:
-            # Prepare the current date:
-            date_str = datetime.now().strftime("%Y%m%d")
-            build_dir = self.get_path(base_build_dir, f"{desc['name']}-git-{date_str}")
-        else:
-            build_dir = self.get_path(base_build_dir, tgt_dir)
+        build_dir = self.get_path(base_build_dir, tgt_dir)
 
         # remove the previous source content if any:
         if not use_existing_src and self.dir_exists(build_dir):
@@ -374,7 +368,7 @@ class BuildManager(NVPComponent):
 
                 # Build the package for this tool ?
                 ext = ".7z" if self.is_windows else ".tar.xz"
-                pkgname = f"{desc['name']}-git-{date_str}-{self.platform}{ext}"
+                pkgname = f"{tgt_dir}-{self.platform}{ext}"
 
                 logger.info("Creating source package %s...", pkgname)
                 tools = self.get_component("tools")

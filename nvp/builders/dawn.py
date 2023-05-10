@@ -21,6 +21,15 @@ class DawnBuilder(NVPBuilder):
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build method for dawn on windows"""
 
+        # Discard any change to depot_tools:
+        logger.info("Updating depot_tools...")
+        depot_dir = self.tools.get_tool_dir("gclient")
+        git = self.tools.get_component("git")
+
+        git.git_checkout(depot_dir, discard=True)
+        git.git_checkout(depot_dir, branch="main")
+        git.git_pull(depot_dir)
+
         # Bootstrap the gclient configuration
         # cp scripts/standalone.gclient .gclient
         logger.info("Copying gclient config...")
@@ -30,7 +39,6 @@ class DawnBuilder(NVPBuilder):
 
         # Should also add the depot_tools folder in the PATH:
         # Also add path to powershell:
-        depot_dir = self.tools.get_tool_dir("gclient")
         paths = [depot_dir, "C:\\Windows\\System32\\WindowsPowerShell\\v1.0"]
         self.prepend_env_list(paths, self.env)
 
