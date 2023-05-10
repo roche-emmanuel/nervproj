@@ -44,7 +44,7 @@ class KtxBuilder(NVPBuilder):
         self.patch_file(
             tgt_file,
             "-Wno-unused-parameter;-Wno-deprecated-copy;-Wno-uninitialized-const-reference",
-            "-Wno-unused-parameter;-Wno-deprecated-copy;-Wno-uninitialized-const-reference;-Wdeprecated-copy-with-user-provided-copy",
+            "-Wno-unused-parameter;-Wno-deprecated-copy;-Wno-uninitialized-const-reference;-Wno-deprecated-copy-with-user-provided-copy",
         )
 
         build_dir = self.get_path(build_dir, "release_build")
