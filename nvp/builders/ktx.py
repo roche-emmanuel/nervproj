@@ -40,15 +40,15 @@ class KtxBuilder(NVPBuilder):
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for glfw on linux"""
 
-        build_dir = self.get_path(build_dir, "release_build")
-        self.make_folder(build_dir)
-
         tgt_file = self.get_path(build_dir, "CMakeLists.txt")
         self.patch_file(
             tgt_file,
             "-Wno-unused-parameter;-Wno-deprecated-copy;-Wno-uninitialized-const-reference",
             "-Wno-unused-parameter;-Wno-deprecated-copy;-Wno-uninitialized-const-reference;-Wdeprecated-copy-with-user-provided-copy",
         )
+
+        build_dir = self.get_path(build_dir, "release_build")
+        self.make_folder(build_dir)
 
         flags = [
             "-DKTX_FEATURE_STATIC_LIBRARY=ON",
