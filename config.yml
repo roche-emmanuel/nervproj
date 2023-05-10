@@ -301,6 +301,9 @@ libraries:
     # windows_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20230508-windows.7z
     # version: git
     git: https://dawn.googlesource.com/dawn
+  - name: cglm
+    version: git-0.9.0
+    git: https://github.com/recp/cglm.git
 
 # list of available projects:
 projects: []
