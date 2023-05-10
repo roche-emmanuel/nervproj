@@ -375,9 +375,10 @@ class BuildManager(NVPComponent):
                 tools.create_package(build_dir, base_build_dir, pkgname)
                 logger.info("Done creating source package %s.", pkgname)
 
-            # download file if needed:
-            elif not self.path_exists(src_pkg):
-                self.tools.download_file(url, src_pkg)
+            else:
+                # download file if needed:
+                if not self.path_exists(src_pkg):
+                    self.tools.download_file(url, src_pkg)
 
                 # # Now extract the source folder:
                 # if not from_git:
