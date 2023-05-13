@@ -40,13 +40,13 @@ class RocketChat(NVPComponent):
 
         return False
 
-    def send_message(self, message, channel=None):
+    def send_message(self, message, channel=None, max_retries=5):
         """Method used to send a message on the configured rocketchat server."""
         # logger.info("Should send the rocketchat message: '%s'", message)
 
         if self.config is None:
             logger.error("No configuration provided for rocketchat: cannot send message:\n%s", message)
-            return
+            return False
 
         # assert self.config is not None, "No configuration provided for rocketchat."
 
@@ -57,17 +57,19 @@ class RocketChat(NVPComponent):
         if channel is None:
             channel = self.config["default_channel"]
 
-        infos = self.get_channel_infos(channel)
+        infos = self.get_channel_infos(channel, max_retries=max_retries)
         if infos is None:
-            infos = self.get_group_infos(channel)
+            infos = self.get_group_infos(channel, max_retries=max_retries)
 
-        assert infos is not None, f"Cannot find channel with name {channel}"
+        if infos is None:
+            logger.error("Cannot find channel with name '%s'", channel)
+            return False
 
         msg = {"rid": infos["_id"], "msg": message}
 
-        res = self.post("/api/v1/chat.sendMessage", {"message": msg})
+        res = self.post("/api/v1/chat.sendMessage", {"message": msg}, max_retries=max_retries)
 
-        if "success" not in res or res["success"] is False:
+        if res is None or "success" not in res or res["success"] is False:
             logger.error("Cannot send rocketchat message: %s", res)
             return False
 
@@ -112,24 +114,34 @@ class RocketChat(NVPComponent):
         """Send a post request to the server"""
         return self.send_request("POST", url, data, max_retries, auth)
 
-    def get_channel_infos(self, chname):
+    def get_channel_infos(self, chname, max_retries=5):
         """Retrieve channel infos"""
-        res = self.get("/api/v1/channels.info", {"roomName": chname})
+        res = self.get("/api/v1/channels.info", {"roomName": chname}, max_retries=max_retries)
+
+        # Res might be none in case of network failure:
+        if res is None:
+            return None
+
         # logDEBUG("Result: %s" % res)
         # CHECK(res['success']==True, "Cannot retrieve channel infos: %s" % res)
         # return res['channel']
-        if res["success"]:
+        # Res might be none:
+        if "success" in res and res["success"]:
             return res["channel"]
         return None
 
-    def get_group_infos(self, chname):
+    def get_group_infos(self, chname, max_retries=5):
         """Retrieve group infos"""
-        res = self.get("/api/v1/groups.info", {"roomName": chname})
+        res = self.get("/api/v1/groups.info", {"roomName": chname}, max_retries=max_retries)
+
+        # Res might be none in case of network failure:
+        if res is None:
+            return None
 
         # logDEBUG("Result: %s" % res)
         # CHECK(res['success']==True, "Cannot retrieve group infos: %s" % res)
         # return res['group']
-        if res["success"]:
+        if "success" in res and res["success"]:
             return res["group"]
         return None
 
