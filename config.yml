@@ -273,6 +273,12 @@ libraries:
   - name: hdf5
     version: 1.15.0
     url: git@github.com:roche-emmanuel/hdf5.git
+  - name: hdf4
+    version: 4.2.16
+    url: https://support.hdfgroup.org/ftp/HDF/releases/HDF4.2.16/src/hdf-4.2.16.zip
+  - name: libjpeg
+    version: 2.1.91
+    git: https://github.com/libjpeg-turbo/libjpeg-turbo.git
   - name: openjpeg
     version: 2.5.0
     url: git@github.com:roche-emmanuel/openjpeg.git
