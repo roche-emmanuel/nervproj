@@ -181,13 +181,28 @@ class PyEnvManager(NVPComponent):
         pdesc = tools.get_tool_desc("python")
 
         if not self.dir_exists(dest_folder):
+            # Check if a custom version should be used:
+            pvers = pdesc["version"]
+            if "version" in desc:
+                pvers = desc["version"]
+
             # Should extract the python package first:
             logger.info("Extracting python package to %s", dest_folder)
             ext = "7z" if self.is_windows else "tar.xz"
-            filename = f"python-{pdesc['version']}-{self.platform}.{ext}"
+            filename = f"python-{pvers}-{self.platform}.{ext}"
             pkg_file = self.get_path(self.ctx.get_root_dir(), "tools", "packages", filename)
 
-            tools.extract_package(pkg_file, env_dir, target_dir=dest_folder, extracted_dir=f"python-{pdesc['version']}")
+            if not self.file_exists(pkg_file):
+                pkg_urls = self.config.get("package_urls", [])
+                pkg_urls = [base_url + "tools/" + filename for base_url in pkg_urls]
+
+                pkg_url = self.ctx.select_first_valid_path(pkg_urls)
+                self.check(pkg_url is not None, "Cannot find python package for %s", filename)
+                tools.download_file(pkg_url, pkg_file)
+
+            self.check(self.file_exists(pkg_file), "Could not retrieve python package %s", filename)
+
+            tools.extract_package(pkg_file, env_dir, target_dir=dest_folder, extracted_dir=f"python-{pvers}")
             new_env = True
 
         py_path = self.get_path(dest_folder, pdesc["sub_path"])

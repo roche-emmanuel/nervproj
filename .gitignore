@@ -3,6 +3,9 @@ tools/windows/*
 !tools/windows/7zip-*
 tools/linux/*
 
+# ignore no-default python versions:
+tools/packages/python-3.7.9-windows.7z
+
 # Ignore compiled python files:
 *.pyc
 

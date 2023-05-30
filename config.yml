@@ -276,6 +276,9 @@ libraries:
   - name: hdf4
     version: 4.2.16
     url: https://support.hdfgroup.org/ftp/HDF/releases/HDF4.2.16/src/hdf-4.2.16.zip
+  - name: proj4
+    version: 8.2.1
+    url: https://github.com/OSGeo/PROJ/releases/download/8.2.1/proj-8.2.1.zip
   - name: libjpeg
     version: 2.1.91
     git: https://github.com/libjpeg-turbo/libjpeg-turbo.git
@@ -314,6 +317,9 @@ libraries:
     version: git-4.1.0
     linux_url: http://files.nervtech.org/nvp_packages/sources/ktx-git-4.1.0-linux.tar.xz
     git: https://github.com/KhronosGroup/KTX-Software.git
+  - name: sqlite
+    version: 3.42.0
+    url: https://www.sqlite.org/2023/sqlite-amalgamation-3420000.zip
 
 # list of available projects:
 projects: []
