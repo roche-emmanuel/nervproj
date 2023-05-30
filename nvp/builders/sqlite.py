@@ -32,7 +32,18 @@ class Builder(NVPBuilder):
 
         cxx = self.compiler.get_cxx_path()
 
-        flags = ["-O2", "-DSQLITE_ENABLE_FTS4", "-DSQLITE_ENABLE_RTREE"]
+        flags = [
+            "-O2",
+            "-DSQLITE_ENABLE_FTS4",
+            "-DSQLITE_ENABLE_FTS5",
+            "-DSQLITE_ENABLE_RTREE",
+            "-DSQLITE_ENABLE_DBSTAT_VTAB",
+            "-DSQLITE_ENABLE_MATH_FUNCTIONS",
+            "-DSQLITE_ENABLE_EXPLAIN_COMMENTS",
+        ]
+        # flags = ["-O2", "-DSQLITE_ENABLE_FTS4", "-DSQLITE_ENABLE_RTREE"]
+        # flags = ["-O2"]
+        # flags = []
 
         inc_dirs = self.env["INCLUDE"].split(";")
         # logger.info("Should use include folders %s", self.env["INCLUDE"])
@@ -44,21 +55,30 @@ class Builder(NVPBuilder):
         # Build the library:
         # cl sqlite3.c -link -dll -out:sqlite3.dll
         cmd = (
-            [cxx, "sqlite3.c"] + includes + flags + ["-link", "-dll", "-out:sqlite3.dll", "/IMPLIB:sqlite3.lib"] + libs
+            [
+                cxx,
+                "sqlite3.c",
+                "-DSQLITE_API=__declspec(dllexport)",
+            ]
+            + includes
+            + flags
+            + ["-link", "-dll", "-out:sqlite3.dll", "/IMPLIB:sqlite3.lib"]
+            + libs
         )
         self.execute(cmd, cwd=build_dir)
 
         # Generate the lib:
         # dumpbin /exports DLL_FILE.dll > DEF_FILE.def
-        cxx_dir = self.compiler.get_cxx_dir()
+        # cxx_dir = self.compiler.get_cxx_dir()
         # cmd = [self.get_path(cxx_dir, "dumpbin.exe"), "/exports", "sqlite3.dll"]
         # deffile = open(self.get_path(build_dir, filename), "w", encoding="utf-8")
         # self.execute(cmd, cwd=build_dir, outfile=deffile)
         # deffile.close()
 
         # lib /def:DEF_FILE.def /out:LIB_FILE.lib /machine:x86
-        cmd = [self.get_path(cxx_dir, "lib.exe"), "/def:sqlite3.def", "/out:sqlite3.lib", "/machine:x64"]
-        self.execute(cmd, cwd=build_dir)
+        # cmd = [self.get_path(cxx_dir, "lib.exe"), "/def:sqlite3.def", "/out:sqlite3.lib", "/machine:x64"]
+        # cmd = [self.get_path(cxx_dir, "lib.exe"), "/def:sqlite3.def", "/out:sqlite3.lib", "/machine:x86"]
+        # self.execute(cmd, cwd=build_dir)
 
         # Build the executable:
         # cl shell.c sqlite3.c -Fesqlite3.exe
@@ -85,3 +105,20 @@ class Builder(NVPBuilder):
         # flags = []
         # self.run_cmake(build_dir, prefix, ".", flags=flags)
         # self.run_ninja(build_dir)
+
+        # cf. https://stackoverflow.com/questions/36471765/building-sqlite-dll-with-vs2015
+
+
+#         """if(BUILD_SHARED_LIBS)
+#     if(WIN32)
+#         target_compile_definitions(${PROJECT_NAME}
+#            PRIVATE
+#                "SQLITE_API=__declspec(dllexport)"
+#         )
+#     else() # haven't tested that
+#         target_compile_definitions(${PROJECT_NAME}
+#            PRIVATE
+#                "SQLITE_API=__attribute__((visibility(\"default\")))"
+#         )
+#     endif()
+# endif()"""

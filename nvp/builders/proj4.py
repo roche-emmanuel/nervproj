@@ -35,6 +35,7 @@ class Builder(NVPBuilder):
             f"-DTIFF_INCLUDE_DIR={tiff_dir}/include",
             f"-DCURL_LIBRARY={curl_dir}/lib/libcurl.lib",
             f"-DCURL_INCLUDE_DIR={curl_dir}/include",
+            "-DBUILD_SHARED_LIBS=ON",
         ]
 
         self.run_cmake(build_dir, prefix, ".", flags=flags)

@@ -227,7 +227,7 @@ class ScriptRunner(NVPComponent):
         tools = self.get_component("tools")
         env_name = desc.get("custom_python_env", None)
         pdesc = tools.get_tool_desc("python")
-
+        additional_paths = []
         if env_name is not None:
             # Get the environment dir:
             pyenv = self.get_component("pyenvs")
@@ -242,6 +242,8 @@ class ScriptRunner(NVPComponent):
                 pyenv.setup_py_env(env_name)
 
             py_path = self.get_path(pyenv_dir, pdesc["sub_path"])
+
+            additional_paths.append(self.get_parent_folder(py_path))
         else:
             # use the default python path:
             pyenv_dir = pdesc["base_path"]
@@ -303,11 +305,17 @@ class ScriptRunner(NVPComponent):
 
                 env[key] = self.fill_placeholders(val, hlocs)
 
+        sep = ";" if self.is_windows else ":"
+
+        if len(additional_paths) > 0:
+            # Add the additional paths:
+            val = sep.join(additional_paths)
+            os.environ["PATH"] = self.fill_placeholders(val, hlocs) + sep + os.environ["PATH"]
+            env["PATH"] = os.environ["PATH"]
+
         if "env_paths" in desc:
-            sep = ";" if self.is_windows else ":"
             val = desc["env_paths"].replace(";", sep)
-            prev_paths = os.environ["PATH"]
-            os.environ["PATH"] = self.fill_placeholders(val, hlocs) + sep + prev_paths
+            os.environ["PATH"] = self.fill_placeholders(val, hlocs) + sep + os.environ["PATH"]
             env["PATH"] = os.environ["PATH"]
             # logger.info("Using env paths: %s", os.environ["PATH"])
 
