@@ -320,6 +320,9 @@ libraries:
   - name: sqlite
     version: 3.42.0
     url: https://www.sqlite.org/2023/sqlite-amalgamation-3420000.zip
+  - name: tiff
+    version: 4.5.0
+    url: http://download.osgeo.org/libtiff/tiff-4.5.0.zip
 
 # list of available projects:
 projects: []

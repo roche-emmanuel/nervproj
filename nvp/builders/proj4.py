@@ -21,12 +21,21 @@ class Builder(NVPBuilder):
         """Build on windows method"""
 
         sqlite_dir = self.man.get_library_root_dir("sqlite").replace("\\", "/")
+        tiff_dir = self.man.get_library_root_dir("tiff").replace("\\", "/")
+        curl_dir = self.man.get_library_root_dir("libcurl").replace("\\", "/")
         logger.info("Using sqlite dir: %s", sqlite_dir)
 
         self.prepend_env_list([self.get_path(sqlite_dir, "bin")], self.env)
         self.append_compileflag(f"-I{sqlite_dir}/include")
+        # self.append_compileflag(f"-I{tiff_dir}/include")
         self.append_linkflag(f"-l{sqlite_dir}/lib/sqlite3.lib")
-        flags = []
+        # self.append_linkflag(f"-l{tiff_dir}/lib/tiff.lib")
+        flags = [
+            f"-DTIFF_LIBRARY={tiff_dir}/lib/tiff.lib",
+            f"-DTIFF_INCLUDE_DIR={tiff_dir}/include",
+            f"-DCURL_LIBRARY={curl_dir}/lib/libcurl.lib",
+            f"-DCURL_INCLUDE_DIR={curl_dir}/include",
+        ]
 
         self.run_cmake(build_dir, prefix, ".", flags=flags)
         self.run_ninja(build_dir)
