@@ -197,3 +197,10 @@ class NVPBuilder(NVPObject):
         content = self.read_text_file(filename)
         content = content.replace(src, dest)
         self.write_text_file(content, filename)
+
+    def multi_patch_file(self, filename, *changes):
+        """Patch the content of a given file"""
+        content = self.read_text_file(filename)
+        for change in changes:
+            content = content.replace(change[0], change[1])
+        self.write_text_file(content, filename)

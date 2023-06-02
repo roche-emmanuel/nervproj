@@ -238,7 +238,8 @@ libraries:
     version: "2.1"
   - name: FastNoise2
     url: git@github.com:roche-emmanuel/FastNoise2.git
-    version: 0.9.4
+    # version: 0.9.4
+    version: 0.10.0
   - name: spdlog
     url: git@github.com:roche-emmanuel/spdlog.git
     version: 1.10.0
