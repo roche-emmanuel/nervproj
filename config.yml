@@ -324,6 +324,9 @@ libraries:
   - name: tiff
     version: 4.5.0
     url: http://download.osgeo.org/libtiff/tiff-4.5.0.zip
+  - name: basisu
+    version: 1.16
+    url: git@github.com:roche-emmanuel/basis_universal.git
 
 # list of available projects:
 projects: []
