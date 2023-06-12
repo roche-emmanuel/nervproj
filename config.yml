@@ -327,6 +327,12 @@ libraries:
   - name: basisu
     version: 1.16
     url: git@github.com:roche-emmanuel/basis_universal.git
+  - name: bzip2
+    version: git-1.0
+    git: git://sourceware.org/git/bzip2.git
+  - name: freetype
+    version: git-2.13
+    git: https://gitlab.freedesktop.org/freetype/freetype.git
 
 # list of available projects:
 projects: []
