@@ -330,6 +330,12 @@ libraries:
   - name: bzip2
     version: git-1.0
     git: git://sourceware.org/git/bzip2.git
+  - name: harfbuzz
+    version: git-7.3
+    git: https://github.com/harfbuzz/harfbuzz.git
+  - name: brotli
+    version: git-1.0.9
+    git: git@github.com:roche-emmanuel/brotli.git
   - name: freetype
     version: git-2.13
     git: https://gitlab.freedesktop.org/freetype/freetype.git

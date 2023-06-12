@@ -1,4 +1,4 @@
-"""This module provide the builder for the freetype library."""
+"""This module provide the builder for the brotli library."""
 
 import logging
 
@@ -11,21 +11,19 @@ logger = logging.getLogger(__name__)
 def register_builder(bman: BuildManager):
     """Register the build function"""
 
-    bman.register_builder("freetype", Builder(bman))
+    bman.register_builder("brotli", Builder(bman))
 
 
 class Builder(NVPBuilder):
-    """freetype builder class."""
+    """brotli builder class."""
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build on windows method"""
 
-        zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
-        z_lib = "zlibstatic.lib" if self.is_windows else "libz.a"
-        png_dir = self.man.get_library_root_dir("libpng").replace("\\", "/")
-        png_lib = "libpng16_static.lib" if self.is_windows else "libpng16.a"
-        brotli_dir = self.man.get_library_root_dir("brotli").replace("\\", "/")
-        brotli_lib = "brotlidec.a" if self.compiler.is_emcc() else "brotlidec.lib"
+        # zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
+        # z_lib = "zlibstatic.lib" if self.is_windows else "libz.a"
+        # png_dir = self.man.get_library_root_dir("libpng").replace("\\", "/")
+        # png_lib = "libpng16_static.lib" if self.is_windows else "libpng16.a"
 
         flags = [
             "-S",
@@ -33,15 +31,10 @@ class Builder(NVPBuilder):
             "-B",
             "release_build",
             "-DBUILD_SHARED_LIBS=OFF",
-            "-DFT_REQUIRE_ZLIB=TRUE",
-            "-DFT_REQUIRE_PNG=TRUE",
-            "-DFT_REQUIRE_BROTLI=TRUE",
-            f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
-            f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
-            f"-DPNG_LIBRARY={png_dir}/lib/{png_lib}",
-            f"-DPNG_PNG_INCLUDE_DIR={png_dir}/include",
-            f"-DBROTLIDEC_LIBRARIES={brotli_dir}/lib/{brotli_lib}",
-            f"-DBROTLIDEC_INCLUDE_DIRS={brotli_dir}/include",
+            # f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
+            # f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
+            # f"-DPNG_LIBRARY={png_dir}/lib/{png_lib}",
+            # f"-DPNG_PNG_INCLUDE_DIR={png_dir}/include",
         ]
 
         # if self.compiler.is_emcc():
