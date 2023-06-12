@@ -370,6 +370,10 @@ class BuildManager(NVPComponent):
                 ext = ".7z" if self.is_windows else ".tar.xz"
                 pkgname = f"{tgt_dir}-{self.platform}{ext}"
 
+                # Remove the .git folder:
+                logger.info("Removing .git folder...")
+                self.remove_folder(self.get_path(build_dir, ".git"), recursive=True)
+
                 logger.info("Creating source package %s...", pkgname)
                 tools = self.get_component("tools")
                 tools.create_package(build_dir, base_build_dir, pkgname)
