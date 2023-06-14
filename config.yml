@@ -339,6 +339,9 @@ libraries:
   - name: freetype
     version: git-2.13
     git: https://gitlab.freedesktop.org/freetype/freetype.git
+  - name: utf8cpp
+    version: git-3.2.3
+    git: git@github.com:roche-emmanuel/utfcpp.git
 
 # list of available projects:
 projects: []
