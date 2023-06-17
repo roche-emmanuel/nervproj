@@ -92,6 +92,12 @@ _nvp_run_cli_linux() {
             # should ensure that the dependency packages are installed (?)
             # sudo apt-get install libbz2-dev liblzma-dev
 
+            # On raspberry pi for instance, could install:
+            # sudo apt install build-essential tk-dev libncurses5-dev 
+            # libncursesw5-dev libreadline-dev libdb5.3-dev libgdbm-dev libsqlite3-dev 
+            # libssl-dev libbz2-dev libexpat1-dev liblzma-dev zlib1g-dev libffi-dev
+            # => Note tk-dev could be ignored as it is very large (+500MB)
+            
             echo "Configuring python..."
             ./configure --enable-optimizations --prefix=$python_dir.tmp CFLAGS=-fPIC CXXFLAGS=-fPIC
             # --enable-loadable-sqlite-extensions --with-system-expat --with-system-ffi CPPFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib
