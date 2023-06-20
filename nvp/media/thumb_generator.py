@@ -4,7 +4,7 @@ This component is used to generate youtube thumbnails from a given description i
 
 import logging
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -70,7 +70,7 @@ class ThumbGen(NVPComponent):
         resized_image = img.resize(new_size)
 
         # Create a blank canvas of size 1280x720
-        canvas = Image.new("RGB", (target_width, target_height), "white")
+        canvas = Image.new("RGBA", (target_width, target_height), "white")
 
         # Calculate the position to center the resized image on the canvas
         x_offset = (target_width - new_size[0]) // 2
@@ -81,6 +81,63 @@ class ThumbGen(NVPComponent):
 
         return canvas
 
+    def get_input_dir(self):
+        """Retrieve the input dir"""
+        return self.get_path(self.get_cwd(), "inputs")
+
+    def draw_title(self, img, desc):
+        """Draw the title elements"""
+        overlay = Image.new("RGBA", img.size)
+
+        # Create an ImageDraw object
+        draw = ImageDraw.Draw(overlay)
+
+        # Define the text to write
+        text = desc["title"]
+        font_file = desc.get("title_font", "BebasNeue.otf")
+        font_file = self.get_path(self.get_input_dir(), "fonts", font_file)
+        self.check(self.file_exists(font_file), "Invalid font file %s", font_file)
+        font_size = desc.get("title_font_size", 160)
+        text_color = desc.get("title_font_color", (255, 255, 0, 255))
+
+        # Specify the font style, size, and color
+        # font = ImageFont.truetype("arial.ttf", 72)  # Replace "arial.ttf" with the path to your font file
+        font = ImageFont.truetype(font_file, font_size)  # Replace "arial.ttf" with the path to your font file
+
+        # Calculate the position to center the text on the image
+        # text_width, text_height = draw.textsize(text, font)
+        text_bbox = draw.textbbox((0, 0), text, font=font)
+        # text_width = text_bbox[2]
+        # - text_bbox[0]
+        text_height = text_bbox[3]
+        # - text_bbox[1]
+
+        # Draw the background rectangle:
+        x = 20
+        y = 10
+
+        rect_color = (230, 230, 230, 128)
+        draw.rectangle([(0, y), (img.width, y + text_height + 25)], fill=rect_color)
+
+        # x = (img.width - text_width) // 2
+        # y = (img.height - text_height) // 2
+
+        outline_width = desc.get("title_outline_size", 5)
+        outline_color = desc.get("title_outline_color", (255, 0, 0, 200))
+
+        # Draw the text outline
+        for xo in range(-outline_width, outline_width + 1):
+            for yo in range(-outline_width, outline_width + 1):
+                draw.text((x + xo, y + yo), text, font=font, fill=outline_color)
+
+        # Write the text on the image
+        draw.text((x, y), text, font=font, fill=text_color)
+
+        # Composite the images:
+        img.alpha_composite(overlay)
+
+        return img
+
     def generate_thumbnail(self, tagname, desc):
         """This function is used to generate a thumbnail with the given input settings"""
 
@@ -89,8 +146,8 @@ class ThumbGen(NVPComponent):
         height = 720
 
         logger.info("Input desc: %s", desc)
+
         # Get the input/output dir:
-        # in_dir = self.get_path(self.get_cwd(), "inputs")
         out_dir = self.get_path(self.get_cwd(), "outputs")
         self.make_folder(out_dir)
 
@@ -100,6 +157,10 @@ class ThumbGen(NVPComponent):
         # load the background image:
         img = self.load_background_image(desc["background"])
         img = self.fill_area(img, width, height)
+
+        # Write the title if any:
+        if "title" in desc:
+            img = self.draw_title(img, desc)
 
         # save the image:
         logger.info("Writing thumbnail: %s", out_file)
