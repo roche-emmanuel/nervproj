@@ -30,7 +30,7 @@ class ThumbGen(NVPComponent):
 
             # Get the entry from the file:
             tag_name = self.get_param("tag_name")
-            desc = cfg[tag_name]
+            desc = cfg[tag_name]["thumbnail"]
             return self.generate_thumbnail(tag_name, desc)
 
         return False
@@ -85,53 +85,179 @@ class ThumbGen(NVPComponent):
         """Retrieve the input dir"""
         return self.get_path(self.get_cwd(), "inputs")
 
+    def draw_subtitle(self, img, desc):
+        """Draw the subtitle of the thumbnail if applicable"""
+
+        fname = "subtitle"
+        if fname not in desc:
+            # Nothing to do:
+            return img
+
+        params = {
+            "text": desc[fname],
+            "font_file": desc.get(f"{fname}_font", "Doctor Glitch.otf"),
+            "font_size": desc.get(f"{fname}_font_size", 56),
+            "text_color": desc.get(f"{fname}_color", (255, 255, 255, 255)),
+            "rect_color": desc.get(f"{fname}_rect_color", (130, 130, 130, 220)),
+            "rect_hpad": desc.get(f"{fname}_rect_hpad", 20),
+            "outline_width": desc.get(f"{fname}_outline_size", 4),
+            "outline_color": desc.get(f"{fname}_outline_color", (0, 0, 0, 200)),
+            "xpos": desc.get(f"{fname}_xpos", 20),
+            "ypos": desc.get(f"{fname}_ypos", -40),
+            "line_spacing": desc.get(f"{fname}_line_spacing", 10),
+            "text_halign": desc.get(f"{fname}_halign", "left"),
+            "shadow_offset_x": 8,
+            "shadow_offset_y": 8,
+        }
+
+        return self.draw_text_overlay(img, params)
+
     def draw_title(self, img, desc):
         """Draw the title elements"""
+
+        fname = "title"
+
+        if fname not in desc:
+            # Nothing to do:
+            return img
+
+        params = {
+            "text": desc[fname],
+            "font_file": desc.get(f"{fname}_font", "BebasNeue.otf"),
+            "font_size": desc.get(f"{fname}_font_size", 160),
+            "text_color": desc.get(f"{fname}_color", (255, 255, 0, 255)),
+            "rect_color": desc.get(f"{fname}_rect_color", (230, 230, 230, 80)),
+            "rect_hpad": desc.get(f"{fname}_rect_hpad", 30),
+            "outline_width": desc.get(f"{fname}_outline_size", 5),
+            "outline_color": desc.get(f"{fname}_outline_color", (255, 0, 0, 200)),
+            "xpos": desc.get(f"{fname}_xpos", 20),
+            "ypos": desc.get(f"{fname}_ypos", 40),
+            "line_spacing": desc.get(f"{fname}_line_spacing", 10),
+            "text_halign": desc.get(f"{fname}_halign", "left"),
+            "shadow_offset_x": 0,
+            "shadow_offset_y": 0,
+        }
+
+        return self.draw_text_overlay(img, params)
+
+    def get_text_dimensions(self, text_string, font):
+        """Get the dimensions of a text"""
+        # https://stackoverflow.com/a/46220683/9263761
+        # ascent, descent = font.getmetrics()
+        # logger.info("ascent: %f, descent: %f", ascent, descent)
+
+        text_width = font.getmask(text_string).getbbox()[2]
+        # text_height = font.getmask(text_string).getbbox()[3]
+        text_height = font.getmask(text_string).getbbox()[3]
+        # logger.info("text_height: %f", text_height)
+
+        return (text_width, text_height)
+
+    def draw_text_overlay(self, img, params):
+        """Draw a text overlay on the image with an optional background band and outline effect."""
+
         overlay = Image.new("RGBA", img.size)
 
         # Create an ImageDraw object
         draw = ImageDraw.Draw(overlay)
 
-        # Define the text to write
-        text = desc["title"]
-        font_file = desc.get("title_font", "BebasNeue.otf")
-        font_file = self.get_path(self.get_input_dir(), "fonts", font_file)
+        text = params["text"]
+        font_file = self.get_path(self.get_input_dir(), "fonts", params["font_file"])
         self.check(self.file_exists(font_file), "Invalid font file %s", font_file)
-        font_size = desc.get("title_font_size", 160)
-        text_color = desc.get("title_font_color", (255, 255, 0, 255))
 
         # Specify the font style, size, and color
         # font = ImageFont.truetype("arial.ttf", 72)  # Replace "arial.ttf" with the path to your font file
-        font = ImageFont.truetype(font_file, font_size)  # Replace "arial.ttf" with the path to your font file
+        font = ImageFont.truetype(font_file, params["font_size"])  # Replace "arial.ttf" with the path to your font file
 
         # Calculate the position to center the text on the image
+
         # text_width, text_height = draw.textsize(text, font)
-        text_bbox = draw.textbbox((0, 0), text, font=font)
+        _, text_height = self.get_text_dimensions(text, font)
+        # text_bbox = draw.textbbox((0, 0), text, font=font)
         # text_width = text_bbox[2]
         # - text_bbox[0]
-        text_height = text_bbox[3]
+        # text_height = text_bbox[3]
         # - text_bbox[1]
 
         # Draw the background rectangle:
-        x = 20
-        y = 10
+        x = params["xpos"]
+        y = params["ypos"]
+        line_spacing = params["line_spacing"]
 
-        rect_color = (230, 230, 230, 128)
-        draw.rectangle([(0, y), (img.width, y + text_height + 25)], fill=rect_color)
+        lines = text.split("\n")
+        nlines = len(lines)
+        total_text_height = text_height * nlines + line_spacing * (nlines - 1)
+        hpad = params["rect_hpad"]
+        rect_color = params["rect_color"]
+        outline_width = params["outline_width"]
+        outline_color = params["outline_color"]
+        text_color = params["text_color"]
+        text_halign = params["text_halign"]
+
+        if isinstance(rect_color, list):
+            rect_color = tuple(rect_color)
+        if isinstance(text_color, list):
+            text_color = tuple(text_color)
+        if isinstance(outline_color, list):
+            outline_color = tuple(outline_color)
+
+        rect_height = 2 * hpad + total_text_height
+
+        if y < 0:
+            y = img.height + y - total_text_height
+
+        draw.rectangle([(0, y - hpad), (img.width, y - hpad + rect_height)], fill=rect_color)
+        anchor = "lt"
+
+        if text_halign == "center":
+            x = img.width // 2
+            anchor = "mt"
+        if text_halign == "right":
+            x = img.width - x
+            anchor = "rt"
 
         # x = (img.width - text_width) // 2
         # y = (img.height - text_height) // 2
 
-        outline_width = desc.get("title_outline_size", 5)
-        outline_color = desc.get("title_outline_color", (255, 0, 0, 200))
+        # Draw the text outline if applicable:
 
-        # Draw the text outline
-        for xo in range(-outline_width, outline_width + 1):
-            for yo in range(-outline_width, outline_width + 1):
-                draw.text((x + xo, y + yo), text, font=font, fill=outline_color)
+        # if outline_width > 0:
+        #     outline_color = params["outline_color"]
+
+        #     for xo in range(-outline_width, outline_width + 1):
+        #         for yo in range(-outline_width, outline_width + 1):
+        #             draw.text((x + xo, y + yo), text, font=font, fill=outline_color)
 
         # Write the text on the image
-        draw.text((x, y), text, font=font, fill=text_color)
+        # Split the text lines:
+
+        xoff = params["shadow_offset_x"]
+        yoff = params["shadow_offset_y"]
+        shadow_color = (0, 0, 0, 128)
+
+        for line in lines:
+            if xoff != 0 or xoff != 0:
+                # draw the shadow first:
+                draw.text(
+                    (x + xoff, y + yoff),
+                    line,
+                    font=font,
+                    fill=shadow_color,
+                    stroke_width=0,
+                    stroke_fill=None,
+                    anchor=anchor,
+                )
+
+            draw.text(
+                (x, y),
+                line,
+                font=font,
+                fill=text_color,
+                stroke_width=outline_width,
+                stroke_fill=outline_color,
+                anchor=anchor,
+            )
+            y += text_height + line_spacing
 
         # Composite the images:
         img.alpha_composite(overlay)
@@ -159,8 +285,10 @@ class ThumbGen(NVPComponent):
         img = self.fill_area(img, width, height)
 
         # Write the title if any:
-        if "title" in desc:
-            img = self.draw_title(img, desc)
+        img = self.draw_title(img, desc)
+
+        # Write the subtile if any:
+        img = self.draw_subtitle(img, desc)
 
         # save the image:
         logger.info("Writing thumbnail: %s", out_file)
