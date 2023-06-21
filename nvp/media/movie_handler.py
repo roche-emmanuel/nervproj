@@ -56,6 +56,10 @@ class MovieHandler(NVPComponent):
             duration = self.get_param("duration")
             return self.cut_media(file, duration)
 
+        if cmd == "extract-audio":
+            file = self.get_param("input_file")
+            return self.extract_audio(file)
+
         if cmd == "norm-sound":
             file = self.get_param("input_file")
             out_file = self.get_param("output_file", None)
@@ -64,6 +68,37 @@ class MovieHandler(NVPComponent):
             return self.norm_sound(file, out_file, gain)
 
         return False
+
+    def extract_audio(self, input_file):
+        """Extract the audio from a given video file"""
+        tools: ToolsManager = self.get_component("tools")
+        ffmpeg_path = tools.get_tool_path("ffmpeg")
+
+        # Example command: ffmpeg -i input_video.mp4 -vn -acodec libmp3lame -q:a 2 output_audio.mp3
+
+        cmd = [
+            ffmpeg_path,
+            "-threads",
+            "8",
+            "-i",
+            input_file,
+            "-vn",
+            "-acodec",
+            "libmp3lame",
+            "-q:a",
+            "2",
+            input_file + ".mp3",
+        ]
+
+        logger.info("Executing command: %s", cmd)
+        res, rcode, outs = self.execute(cmd)
+
+        if not res:
+            logger.error("Audio extraction failed with return code %d:\n%s", rcode, outs)
+            return False
+
+        logger.info("Done writting file.")
+        return True
 
     def norm_sound(self, input_file, out_file, gain):
         """Normalize the audio stream from a given input media file using the user provided gain"""
@@ -389,5 +424,8 @@ if __name__ == "__main__":
     psr.add_str("-i", "--input", dest="input_file")("input video file to normalize")
     psr.add_str("-o", "--output", dest="output_file")("Output file to generate.")
     psr.add_float("-g", "--gain", dest="gain", default=1.0)("Volume gain factor")
+
+    psr = context.build_parser("extract-audio")
+    psr.add_str("-i", "--input", dest="input_file")("input video file to normalize")
 
     comp.run()
