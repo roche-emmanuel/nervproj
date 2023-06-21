@@ -56,6 +56,11 @@ class MovieHandler(NVPComponent):
             duration = self.get_param("duration")
             return self.cut_media(file, duration)
 
+        if cmd == "split-media":
+            file = self.get_param("input_file")
+            duration = self.get_param("duration")
+            return self.split_media(file, duration)
+
         if cmd == "extract-audio":
             file = self.get_param("input_file")
             return self.extract_audio(file)
@@ -142,6 +147,41 @@ class MovieHandler(NVPComponent):
         ffmpeg_path = tools.get_tool_path("ffmpeg")
 
         cmd = [ffmpeg_path, "-threads", "8", "-i", file, "-t", duration, "-c", "copy", out_file]
+
+        # We now execute that command:
+        logger.debug("Executing command: %s", cmd)
+        res, rcode, outs = self.execute(cmd)
+
+        logger.debug("Done cutting media file.")
+        return True
+
+    def split_media(self, file, duration):
+        """Concantenate a list of media files"""
+        logger.info("Splitting media file %s with segments of %s", file, duration)
+
+        folder = self.get_parent_folder(file)
+        fname = self.get_filename(file)
+        ext = self.get_path_extension(file)
+        oname = self.set_path_extension(fname, "")
+        oname += f"_%03d{ext}"
+
+        tools: ToolsManager = self.get_component("tools")
+        ffmpeg_path = tools.get_tool_path("ffmpeg")
+
+        cmd = [
+            ffmpeg_path,
+            "-threads",
+            "8",
+            "-i",
+            file,
+            "-f",
+            "segment",
+            "-segment_time",
+            duration,
+            "-c",
+            "copy",
+            oname,
+        ]
 
         # We now execute that command:
         logger.debug("Executing command: %s", cmd)
@@ -418,6 +458,10 @@ if __name__ == "__main__":
 
     psr = context.build_parser("cut-media")
     psr.add_str("-i", "--input", dest="input_file")("input video file to cut")
+    psr.add_str("-d", "--duration", dest="duration")("Duration to keep")
+
+    psr = context.build_parser("split-media")
+    psr.add_str("-i", "--input", dest="input_file")("input video file to split")
     psr.add_str("-d", "--duration", dest="duration")("Duration to keep")
 
     psr = context.build_parser("norm-sound")
