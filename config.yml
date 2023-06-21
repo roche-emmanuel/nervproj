@@ -550,6 +550,13 @@ scripts:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/movie_handler.py norm-sound
     python_path: ["${NVP_ROOT_DIR}"]
 
+  audio2text:
+    notify: false
+    help: Translate audio file to text
+    custom_python_env: whisper_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/ai/whisper_gen.py convert
+    python_path: ["${NVP_ROOT_DIR}"]
+
   sd_python:
     # Run python in stable diffusion environment:
     notify: false
@@ -652,6 +659,7 @@ custom_python_envs:
     inherit: default_env
     packages:
       - wheel
+
   sdlab_env:
     inherit: default_env
     packages:
@@ -659,6 +667,22 @@ custom_python_envs:
       - ModernGL
       - Pillow
       - numpy
+
+  whisper_env:
+    inherit: default_env
+    packages:
+      - openai-whisper
+      - --extra-index-url https://download.pytorch.org/whl/cu117
+      - torch
+      - torchvision
+      - torchaudio
+
+      # - numba
+      # - numpy
+      # - torch
+      # - tqdm
+      # - more-itertools
+      # - tiktoken==0.3.3
 
 # Available dynamic components:
 components:
