@@ -342,6 +342,9 @@ libraries:
   - name: utf8cpp
     version: git-3.2.3
     git: git@github.com:roche-emmanuel/utfcpp.git
+  - name: gpt4all_chat
+    version: git-1.0
+    git: git@github.com:roche-emmanuel/gpt4all.git
 
 # list of available projects:
 projects: []
@@ -556,6 +559,13 @@ scripts:
     custom_python_env: whisper_env
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/ai/whisper_gen.py convert
     python_path: ["${NVP_ROOT_DIR}"]
+
+  gpt4all:
+    notify: false
+    help: Run GPT4All chat
+    cmd: ${NVP_ROOT_DIR}/libraries/windows_msvc/gpt4all_chat-git-1.0/bin/chat.exe
+    env_paths: ${NVP_ROOT_DIR}/libraries/windows_msvc/gpt4all_chat-git-1.0/lib;${NVP_ROOT_DIR}/libraries/windows_msvc/QT6-6.4.2/bin;${NVP_ROOT_DIR}/libraries/windows_msvc/openssl-3.0.8/bin
+    # env_paths: ${NVP_ROOT_DIR}/libraries/windows_msvc/gpt4all_chat-git-1.0/lib
 
   sd_python:
     # Run python in stable diffusion environment:

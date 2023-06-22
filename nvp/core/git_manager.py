@@ -235,7 +235,7 @@ class GitManager(NVPComponent):
             logger.error("git command %s (in %s) failed with return code %d:\n%s", cmd, cwd, rcode, outs)
             self.throw("Detected git command failure.")
 
-    def clone_repository(self, url, dest_folder, mirror=False):
+    def clone_repository(self, url, dest_folder, mirror=False, recurse=False):
         """Clone a given url into a given folder"""
 
         # Ensure the parent folder exists:
@@ -245,6 +245,9 @@ class GitManager(NVPComponent):
         cmd = ["clone", "--progress"]
         if mirror:
             cmd.append("--mirror")
+        if recurse:
+            cmd.append("--recurse-submodules")
+
         cmd += [url, dest_folder]
         self.execute_git(cmd)
 

@@ -364,7 +364,7 @@ class BuildManager(NVPComponent):
             # First check if this is a git repository:
             if from_git:
                 # Note that build_dir and src_pkg are the same here:
-                git.clone_repository(url, build_dir)
+                git.clone_repository(url, build_dir, recurse=True)
 
                 # Build the package for this tool ?
                 ext = ".7z" if self.is_windows else ".tar.xz"
