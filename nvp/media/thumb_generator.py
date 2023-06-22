@@ -19,8 +19,6 @@ class ThumbGen(NVPComponent):
         """Component constructor"""
         NVPComponent.__init__(self, ctx)
 
-        self.config = ctx.get_config()["movie_handler"]
-
     def process_cmd_path(self, cmd):
         """Re-implementation of process_cmd_path"""
 

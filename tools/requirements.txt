@@ -22,3 +22,5 @@ pytest
 pycryptodome
 psutil
 PyQt5
+python-docx
+odfpy

@@ -553,6 +553,22 @@ scripts:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/movie_handler.py norm-sound
     python_path: ["${NVP_ROOT_DIR}"]
 
+  build-cv:
+    notify: false
+    help: Build CV from given input file
+    custom_python_env: cv_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/admin/cv_builder.py build
+    python_path: ["${NVP_ROOT_DIR}"]
+
+  # Custom command to build my own CV:
+  build-my-cv:
+    notify: false
+    help: Build CV from given input file
+    custom_python_env: cv_env
+    cwd: D:/Projects/NervHome/data/cv
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/admin/cv_builder.py build -i manu.yml
+    python_path: ["${NVP_ROOT_DIR}"]
+
   audio2text:
     notify: false
     help: Translate audio file to text
@@ -693,6 +709,15 @@ custom_python_envs:
       # - tqdm
       # - more-itertools
       # - tiktoken==0.3.3
+
+  cv_env:
+    inherit: default_env
+    packages:
+      - Pillow
+      - odfpy
+      # - python-docx
+      # - docx2pdf
+      - fontawesome
 
 # Available dynamic components:
 components:
