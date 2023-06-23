@@ -1,13 +1,20 @@
 """CVBuilder handling component
 
 This component is used to generate a CV document from a given yaml description"""
+import io
 import logging
-from io import BytesIO
+from io import StringIO
+from xml.dom.minidom import parseString
 
 import fontawesome as fa
-from odf import draw, table, text
-from odf.opendocument import OpenDocumentText
+from odf import draw, table, teletype, text
+from odf.grammar import allowed_attributes
+from odf.manifest import FileEntry
+from odf.namespaces import nsdict
+from odf.office import AutomaticStyles, DocumentStyles, FontFaceDecls
+from odf.opendocument import _XMLPROLOGUE, OpaqueObject, OpenDocumentText
 from odf.style import (
+    FontFace,
     GraphicProperties,
     ParagraphProperties,
     Style,
@@ -16,6 +23,7 @@ from odf.style import (
     TableProperties,
     TextProperties,
 )
+from odf.svg import FontFaceFormat, FontFaceSrc, FontFaceUri
 from PIL import Image, ImageDraw, ImageFont
 
 from nvp.nvp_component import NVPComponent
@@ -33,8 +41,6 @@ class CVBuilder(NVPComponent):
         self.doc = None
         self.desc = None
         self.styles = {}
-        self.address_color = (153, 153, 153)
-        self.infos_color = (51, 51, 51)
 
     def process_cmd_path(self, cmd):
         """Re-implementation of process_cmd_path"""
@@ -49,14 +55,12 @@ class CVBuilder(NVPComponent):
 
         return False
 
-    def convert_icon_to_image(self, icon_name, size=32, color="black", fname="solid-900"):
+    def convert_icon_to_image(self, icon_name, size=32, color="black"):
         """Convert a fontawesome icon to an image"""
-        font_file = f"fonts/fa-{fname}.ttf"
+        font_file = "fonts/fa-solid-900.ttf"
 
         # Set the icon and size
-        icon = icon_name
-        if icon_name in fa.icons:
-            icon = fa.icons[icon_name]
+        icon = fa.icons[icon_name]
 
         # Create a blank image with an alpha channel
         image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -75,7 +79,7 @@ class CVBuilder(NVPComponent):
         # Draw the icon on the image
         draw.text((text_x, text_y), icon, font=font, fill=color)
 
-        # image.save("icon_image.png", "PNG")
+        image.save("icon_image.png", "PNG")
 
         return image
 
@@ -136,11 +140,12 @@ class CVBuilder(NVPComponent):
 
         return style
 
-    def add_text(self, parent, txt, **kwargs):
+    def add_text(self, txt, **kwargs):
         """Add a text element"""
-        span = text.Span(text=txt, **kwargs)
-        parent.addElement(span)
-        return span
+
+        elem = text.P(text=txt, **kwargs)
+        self.doc.text.addElement(elem)
+        return elem
 
     def rgb_to_hex(self, rgb):
         """Convert RGB tuple to hexadecimal color code."""
@@ -193,17 +198,6 @@ class CVBuilder(NVPComponent):
             )
         )
 
-        style = self.add_graphic_style("InlinePhotoStyle", parentstylename="PhotoStyle")
-        style.addElement(
-            GraphicProperties(
-                wrap="parallel",
-                wrapcontour="false",
-                verticalpos="middle",
-                verticalrel="text",
-                horizontalpos="from-left",
-            )
-        )
-
         style = self.add_paragraph_style("FirstNameStyle")
         style.addElement(ParagraphProperties(textalign="center", verticalalign="center"))
         style.addElement(
@@ -220,6 +214,17 @@ class CVBuilder(NVPComponent):
                 fontname="Roboto",
                 fontfamily="Roboto",
                 color=self.rgb_to_hex((0, 110, 184)),
+            )
+        )
+
+        style = self.add_text_style("FAStyle")
+        style.addElement(
+            TextProperties(
+                fontsize="20pt",
+                fontweight="normal",
+                fontname="Carlito",
+                fontfamily="Carlito",
+                color=self.rgb_to_hex((255, 0, 0)),
             )
         )
 
@@ -249,7 +254,7 @@ class CVBuilder(NVPComponent):
                 fontweight="normal",
                 fontname="Source Sans Pro",
                 fontfamily="Source Sans Pro",
-                color=self.rgb_to_hex(self.address_color),
+                color=self.rgb_to_hex((153, 153, 153)),
                 # texttransform="uppercase",
                 fontvariant="small-caps",
             )
@@ -263,11 +268,9 @@ class CVBuilder(NVPComponent):
             TextProperties(
                 fontsize="9pt",
                 fontweight="normal",
-                fontname="Calibri",
-                fontfamily="Calibri",
-                # fontname="Candara",
-                # fontfamily="Candara",
-                color=self.rgb_to_hex(self.infos_color),
+                fontname="Candara",
+                fontfamily="Candara",
+                color=self.rgb_to_hex((51, 51, 51)),
                 # texttransform="uppercase",
                 # fontvariant="small-caps",
             )
@@ -302,99 +305,19 @@ class CVBuilder(NVPComponent):
         txt = text.P(text=content, stylename="QualificationsStyle")
         parent.addElement(txt)
 
-        # img = self.convert_icon_to_image("map-pin", 256, self.address_color)
-        # img.save("map_pin.png", "PNG")
-
-        txt = text.P(stylename="AddressStyle")
-        parent.addElement(txt)
-        # self.add_image_file(txt, "map_pin.png", "9pt")
-        # self.add_image(txt, img, "9pt")
-        # map-location-dot = \uf5a0
-        self.add_icon(txt, "\uf5a0", "9pt", self.address_color)
-        txt.addElement(text.Span(text=" " + self.desc["address"], stylename="AddressStyle"))
-
-        # txt = text.P(text="⚐ " + self.desc["address"], stylename="AddressStyle")
-        # parent.addElement(txt)
-
-        txt = text.P(stylename="InfosStyle")
-        self.add_icon(txt, "phone", "9pt", self.infos_color)
-        txt.addElement(text.Span(text=" " + self.desc["phone"] + " "))
-        span = text.Span()
-        txt.addElement(span)
-        self.add_icon(span, "envelope", "9pt", self.infos_color)
-        txt.addElement(text.Span(text=" " + self.desc["email"]))
-
-        # content = f"☏ {self.desc['phone']} | ✉ {self.desc['email']}"
-        # txt = text.P(text=content, stylename="InfosStyle")
+        txt = text.P(text="⚐ " + self.desc["address"], stylename="AddressStyle")
         parent.addElement(txt)
 
-        txt = text.P(stylename="InfosStyle")
+        content = f"☏ {self.desc['phone']} | ✉ {self.desc['email']}"
+        txt = text.P(text=content, stylename="InfosStyle")
         parent.addElement(txt)
 
-        self.add_icon(txt, "globe", "9pt", self.infos_color)
-        self.add_text(txt, f" {self.desc['website']} | ")
-        self.add_brand_icon(txt, "github", "9pt", self.infos_color)
-        self.add_text(txt, f" {self.desc['github']} | ")
-        self.add_brand_icon(txt, "linkedin", "9pt", self.infos_color)
-        self.add_text(txt, f" {self.desc['linkedin']} | ")
-        self.add_brand_icon(txt, "twitter", "9pt", self.infos_color)
-        self.add_text(txt, f" {self.desc['twitter']}")
+        # icon = fa.icons["envelope"]
+        icon = fa.icons["phone"]
+        logger.info("Display icon: %s", repr(icon))
 
-        # icon = fa.icons["phone"]
-        # logger.info("Display icon: %s", repr(icon))
-
-        # txt = text.P(text="This is a test text", stylename="FAStyle")
-        # parent.addElement(txt)
-
-    def add_icon(self, parent, iname, width, color):
-        """Add a fontawesome icon to an element"""
-        img = self.convert_icon_to_image(iname, 256, color, "solid-900")
-        span = text.Span()
-        parent.addElement(span)
-        return self.add_image(span, img, width)
-
-    def add_brand_icon(self, parent, iname, width, color):
-        """Add a fontawesome icon to an element"""
-        img = self.convert_icon_to_image(iname, 256, color, "brands-400")
-        span = text.Span()
-        parent.addElement(span)
-        return self.add_image(span, img, width)
-
-    def add_image(self, parent, img, width):
-        """Add an image to a container"""
-        picture = draw.Frame(
-            stylename=self.get_style("InlinePhotoStyle"), width=width, height=width, anchortype="as-char", zindex=1
-        )
-        parent.addElement(picture)
-
-        # Create the image element
-        image_bytes = BytesIO()
-
-        # Save the image to the BytesIO object
-        img.save(image_bytes, format="PNG")
-
-        # Get the image data as a string
-        image_string = image_bytes.getvalue()
-
-        # img_path = self.get_path(self.get_cwd(), self.desc["photo"])
-        img_ref = self.doc.addPictureFromString(image_string, "image/png")
-        image = draw.Image(href=img_ref)
-        picture.addElement(image)
-
-        return parent
-
-    def add_image_file(self, parent, imgfile, width):
-        """Add an image to a container"""
-        picture = draw.Frame(
-            stylename=self.get_style("InlinePhotoStyle"), width=width, height=width, anchortype="as-char", zindex=1
-        )
-        parent.addElement(picture)
-
-        # Create the image element
-        # img_path = self.get_path(self.get_cwd(), self.desc["photo"])
-        img_ref = self.doc.addPictureFromFile(imgfile)
-        image = draw.Image(href=img_ref)
-        picture.addElement(image)
+        txt = text.P(text="This is a test text", stylename="FAStyle")
+        parent.addElement(txt)
 
     def write_photo_infos(self, parent):
         """Write the photo infos"""
@@ -407,50 +330,111 @@ class CVBuilder(NVPComponent):
         picture = draw.Frame(
             stylename=self.get_style("PhotoStyle"), width="3.5cm", height="3.5cm", anchortype="paragraph"
         )
+
+        # picture.setAutomaticStyleName("fr1")
+        # picture.setAttribute("draw:name", "Image")
+        # picture.setAttribute("svg:width", "5cm")  # Set the desired width
+        # picture.setAttribute("svg:height", "5cm")  # Set the desired height
+        # picture.setAttribute("draw:z-index", "0")
+        # picture.setAttribute("text:anchor-type", "paragraph")
         paragraph.addElement(picture)
 
-        # Start with the input photo:
-        image = Image.open(self.desc["photo"])
-
-        # Create a mask with a circular shape
-        mask = Image.new("L", image.size, 0)
-        idraw = ImageDraw.Draw(mask)
-        # mask_center = (image.width // 2, image.height // 2)
-        # mask_radius = min(image.width, image.height) // 2
-        # idraw.ellipse(
-        #     (
-        #         mask_center[0] - mask_radius,
-        #         mask_center[1] - mask_radius,
-        #         mask_center[0] + mask_radius,
-        #         mask_center[1] + mask_radius,
-        #     ),
-        #     fill=255,
-        # )
-
-        mask_radius = min(image.width, image.height) // 5  # Adjust the radius to control the roundness of corners
-        idraw.rounded_rectangle([(0, 0), image.size], fill=255, radius=mask_radius)
-
-        # Apply the circular mask to the original image
-        result = Image.new("RGBA", image.size)
-        result.paste(image, (0, 0), mask)
-
-        # Create the image element
-        image_bytes = BytesIO()
-
-        # Save the image to the BytesIO object
-        result.save(image_bytes, format="PNG")
-
-        # Get the image data as a string
-        image_string = image_bytes.getvalue()
-
-        # img_path = self.get_path(self.get_cwd(), self.desc["photo"])
-        img_ref = self.doc.addPictureFromString(image_string, "image/png")
-
         # Create the image element
         # img_path = self.get_path(self.get_cwd(), self.desc["photo"])
-        # img_ref = self.doc.addPictureFromFile(self.desc["photo"])
+        img_ref = self.doc.addPictureFromFile(self.desc["photo"])
         image = draw.Image(href=img_ref)
         picture.addElement(image)
+
+    def embed_fonts(self):
+        """Embed the fonts"""
+        # data = self.read_binary_file("fonts/fa-solid-900.ttf")
+        data = self.read_binary_file("fonts/Stroke.ttf")
+        self.doc._extra.append(OpaqueObject("Fonts/fa-solid.ttf", "application/x-font-ttf", data))
+        # self.doc._extra.append(OpaqueObject("Fonts/fa-solid_2.ttf", "application/x-font-ttf", data))
+        # self.doc._extra.append(OpaqueObject("Fonts/fa-solid_3.ttf", "application/x-font-ttf", data))
+        # self.doc._extra.append(OpaqueObject("Fonts/fa-solid_4.ttf", "application/x-font-ttf", data))
+
+        # Add our font faces:
+        face = FontFace(name="Carlito", fontfamily="Carlito", fontfamilygeneric="swiss", fontpitch="variable")
+        self.doc.fontfacedecls.addElement(face)
+
+        src = FontFaceSrc()
+        face.addElement(src)
+
+        # xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"
+        loextns = "urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"
+
+        uri = FontFaceUri(href="Fonts/fa-solid.ttf", type="simple")
+        uri.setAttrNS(loextns, "font-style", "normal")
+        uri.setAttrNS(loextns, "font-weight", "normal")
+        src.addElement(uri)
+        fmt = FontFaceFormat(string="truetype")
+        uri.addElement(fmt)
+
+        uri = FontFaceUri(href="Fonts/fa-solid.ttf", type="simple")
+        uri.setAttrNS(loextns, "font-style", "normal")
+        uri.setAttrNS(loextns, "font-weight", "bold")
+        src.addElement(uri)
+        fmt = FontFaceFormat(string="truetype")
+        uri.addElement(fmt)
+
+        uri = FontFaceUri(href="Fonts/fa-solid.ttf", type="simple")
+        uri.setAttrNS(loextns, "font-style", "italic")
+        uri.setAttrNS(loextns, "font-weight", "normal")
+        src.addElement(uri)
+        fmt = FontFaceFormat(string="truetype")
+        uri.addElement(fmt)
+
+        uri = FontFaceUri(href="Fonts/fa-solid.ttf", type="simple")
+        uri.setAttrNS(loextns, "font-style", "italic")
+        uri.setAttrNS(loextns, "font-weight", "bold")
+        src.addElement(uri)
+        fmt = FontFaceFormat(string="truetype")
+        uri.addElement(fmt)
+
+    def write_stylesxml(self):
+        """
+        Generates the styles.xml file
+        @return valid XML code as a unicode string
+        """
+
+        logger.info("Running hack on stylesxml")
+
+        xml = StringIO()
+        xml.write(_XMLPROLOGUE)
+        x = DocumentStyles()
+        x.write_open_tag(0, xml)
+        if self.doc.fontfacedecls.hasChildNodes():
+            decls = FontFaceDecls()
+            for child in self.doc.fontfacedecls.childNodes:
+                name = child.getAttribute("name")
+                logger.info("Found face declare for %s", name)
+                attribs = child.attributes
+
+                face = FontFace(name=name)
+                for key, val in attribs.items():
+                    face.setAttrNS(key[0], key[1], val)
+                decls.addElement(face)
+
+            # <style:font-face style:name="Algerian" svg:font-family="Algerian"
+            # style:font-family-generic="decorative" style:font-pitch="variable" />
+
+            decls.toXml(1, xml)
+            # self.doc.fontfacedecls.toXml(1, xml)
+        self.doc.styles.toXml(1, xml)
+        a = AutomaticStyles()
+        a.write_open_tag(1, xml)
+        for s in self.doc._used_auto_styles([self.doc.masterstyles]):
+            s.toXml(2, xml)
+        a.write_close_tag(1, xml)
+        if self.doc.masterstyles.hasChildNodes():
+            self.doc.masterstyles.toXml(1, xml)
+        x.write_close_tag(0, xml)
+        result = xml.getvalue()
+
+        assert type(result) == type("")
+
+        return result
 
     def build(self, desc):
         """This function is used build the CV from the given description"""
@@ -459,11 +443,35 @@ class CVBuilder(NVPComponent):
 
         # Create a new document
         doc = OpenDocumentText()
+
+        # Hack on the stylesxml() function:
+        doc.stylesxml = self.write_stylesxml
+
+        # xml = doc.xml()
+        # logger.info("Parsing document xml: %s", xml)
+        # dom = parseString(xml)
+
+        # # Find the document-content node
+        # document_content_node = dom.getElementsByTagName("office:document")[0]
+
+        # # Add the desired attribute to the document-content node
+        # document_content_node.setAttribute(
+        #     "xmlns:loext", "urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"
+        # )
+
+        # # Serialize the modified XML content back to string
+        # modified_content_xml = dom.toxml()
+
+        # # Update the ODT document with the modified XML content
+        # doc.xmlpart = modified_content_xml
+
         self.doc = doc
         self.desc = desc
 
         # Define the styles:
         self.define_styles()
+
+        self.embed_fonts()
 
         tbl = table.Table(stylename="MainTableStyle")
         self.doc.text.addElement(tbl)
@@ -486,6 +494,65 @@ class CVBuilder(NVPComponent):
 
         # Write the header:
         self.write_profile_infos(cell2)
+
+        # Prepare adding our custom font:
+        # <manifest:file-entry manifest:full-path="Fonts/Font_Liberation_Serif_2.ttf"
+        #         manifest:media-type="application/x-font-ttf" />
+        # file_entry = FileEntry(mediatype="application/x-font-ttf", fullpath="Fonts/fa-solid.ttf")
+        # file_entry.setAttr("manifest:media-type", "application/x-font-ttf")
+        # file_entry.setAttr("manifest:full-path", "Fonts/fa-solid.ttf")
+
+        # manifest_path = "META-INF/manifest.xml"
+        # self.doc.getMediaType()
+        # self.doc.manifest.addElement(file_entry)
+
+        # @ ✉ ☏🚩⚐
+        # Create a style for the CV heading
+        # props = ParagraphProperties()
+        # logger.info("Allowed paragraphProerties attribs: %s", [el[1] for el in props.allowed_attributes()])
+
+        # Define a custom font style
+        # logger.info("Allowed FontFace attribs: %s", [el[1] for el in FontFace(name="test").allowed_attributes()])
+        # font_face = FontFace(name="MyStroke", fontfamily="MyStroke", fontfile="fonts/Stroke.ttf")
+        # doc.fontfacedecls.addElement(font_face)
+
+        # font_properties = TextProperties(attributes={"style:font-name": "MyFont"})
+        # font_style.addElement(font_properties)
+        # doc.styles.addElement(font_style)
+
+        # heading_style = Style(name="Heading", family="paragraph", defaultoutlinelevel="1")
+        # props = ParagraphProperties(textalign="center")
+        # # props.setAttribute("text-align", "center")
+
+        # heading_text_properties = TextProperties(fontsize="24pt", fontweight="bold", fontname="MyStroke")
+        # heading_style.addElement(props)
+        # heading_style.addElement(heading_text_properties)
+        # doc.styles.addElement(heading_style)
+
+        # # Add CV heading
+        # cv_heading = text.P(text="Curriculum Vitae", stylename=heading_style)
+        # doc.text.addElement(cv_heading)
+
+        # # Add personal information
+        # personal_info = text.H(text="Personal Information", outlinelevel=1)
+        # doc.text.addElement(personal_info)
+
+        # name = text.P(text="Your Name")
+        # doc.text.addElement(name)
+
+        # email = text.P(text="Email: your.email@example.com")
+        # doc.text.addElement(email)
+
+        # phone = text.P(text="Phone: +1 123-456-7890")
+        # doc.text.addElement(phone)
+
+        # # Add education section
+        # education = text.H(text="Education", outlinelevel=1)
+        # doc.text.addElement(education)
+
+        # # Add your education details (e.g., degree, university, year)
+        # degree = text.P(text="Degree in XYZ, University of ABC, 20XX")
+        # doc.text.addElement(degree)
 
         # Save the CV to a file
         doc.save(odt_file)
