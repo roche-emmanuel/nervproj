@@ -18,135 +18,23 @@ from odf.style import (
 )
 from PIL import Image, ImageDraw, ImageFont
 
-from nvp.nvp_component import NVPComponent
+from nvp.admin.cv_builder_base import CVBuilderBase
 from nvp.nvp_context import NVPContext
 
 logger = logging.getLogger(__name__)
 
 
-class CVBuilder(NVPComponent):
+class CVBuilder(CVBuilderBase):
     """CVBuilder component class"""
 
     def __init__(self, ctx: NVPContext):
         """Component constructor"""
-        NVPComponent.__init__(self, ctx)
+        CVBuilderBase.__init__(self, ctx)
         self.doc = None
         self.desc = None
         self.styles = {}
-        self.address_color = (153, 153, 153)
-        self.infos_color = (51, 51, 51)
 
-    def process_cmd_path(self, cmd):
-        """Re-implementation of process_cmd_path"""
-
-        if cmd == "build":
-            file = self.get_param("input_file")
-
-            # Read the configuration:
-            cfg = self.read_yaml(file)
-
-            return self.build(cfg)
-
-        return False
-
-    def convert_icon_to_image(self, icon_name, size=32, color="black", fname="solid-900"):
-        """Convert a fontawesome icon to an image"""
-        font_file = f"fonts/fa-{fname}.ttf"
-
-        # Set the icon and size
-        icon = icon_name
-        if icon_name in fa.icons:
-            icon = fa.icons[icon_name]
-
-        # Create a blank image with an alpha channel
-        image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-
-        # Create a drawing context
-        draw = ImageDraw.Draw(image)
-
-        # Load the Font Awesome font
-        font = ImageFont.truetype(font_file, size - 6)
-
-        # Calculate the text size and position
-        text_width, text_height = draw.textsize(icon, font=font)
-        text_x = (size - text_width) // 2
-        text_y = (size - text_height) // 2
-
-        # Draw the icon on the image
-        draw.text((text_x, text_y), icon, font=font, fill=color)
-
-        # image.save("icon_image.png", "PNG")
-
-        return image
-
-    def get_style(self, name):
-        """Get a style by name"""
-        return self.styles[name]
-
-    def add_style(self, name, family, **kwargs):
-        """Add a style"""
-        style = Style(name=name, family=family, **kwargs)
-        self.doc.styles.addElement(style)
-        self.styles[name] = style
-
-        return style
-
-    def add_paragraph_style(self, name, **kwargs):
-        """Add a new style"""
-        return self.add_style(name, "paragraph", **kwargs)
-
-    def add_text_style(self, name, **kwargs):
-        """Add a new style"""
-        return self.add_style(name, "text", **kwargs)
-
-    def add_graphic_style(self, name, **kwargs):
-        """Add a new style"""
-        return self.add_style(name, "graphic", **kwargs)
-
-    def add_table_style(self, name, **kwargs):
-        """Add a new style"""
-        return self.add_style(name, "table", **kwargs)
-
-    def add_table_column_style(self, name, **kwargs):
-        """Add a new style"""
-        return self.add_style(name, "table-column", **kwargs)
-
-    def add_table_cell_style(self, name, **kwargs):
-        """Add a new style"""
-        return self.add_style(name, "table-cell", **kwargs)
-
-    def add_auto_table_style(self, name, **kwargs):
-        """Add a new style"""
-        style = Style(name=name, family="table", **kwargs)
-        self.doc.automaticstyles.addElement(style)
-
-        return style
-
-    def add_auto_table_column_style(self, name, **kwargs):
-        """Add a new style"""
-        style = Style(name=name, family="table-column", **kwargs)
-        self.doc.automaticstyles.addElement(style)
-
-        return style
-
-    def add_auto_table_cell_style(self, name, **kwargs):
-        """Add a new style"""
-        style = Style(name=name, family="table-cell", **kwargs)
-        self.doc.automaticstyles.addElement(style)
-
-        return style
-
-    def add_text(self, parent, txt, **kwargs):
-        """Add a text element"""
-        span = text.Span(text=txt, **kwargs)
-        parent.addElement(span)
-        return span
-
-    def rgb_to_hex(self, rgb):
-        """Convert RGB tuple to hexadecimal color code."""
-        r, g, b = rgb
-        hex_value = "#{:02x}{:02x}{:02x}".format(r, g, b)
-        return hex_value
+        self.colors = {"address": (153, 153, 153), "infos": (51, 51, 51), "highlight": (0, 110, 184), "text": (0, 0, 0)}
 
     def define_styles(self):
         """Define the styles we will use in the document"""
@@ -219,7 +107,7 @@ class CVBuilder(NVPComponent):
                 fontweight="normal",
                 fontname="Roboto",
                 fontfamily="Roboto",
-                color=self.rgb_to_hex((0, 110, 184)),
+                color=self.rgb_to_hex(self.colors["highlight"]),
             )
         )
 
@@ -249,7 +137,7 @@ class CVBuilder(NVPComponent):
                 fontweight="normal",
                 fontname="Source Sans Pro",
                 fontfamily="Source Sans Pro",
-                color=self.rgb_to_hex(self.address_color),
+                color=self.rgb_to_hex(self.colors["address"]),
                 # texttransform="uppercase",
                 fontvariant="small-caps",
             )
@@ -267,8 +155,42 @@ class CVBuilder(NVPComponent):
                 fontfamily="Calibri",
                 # fontname="Candara",
                 # fontfamily="Candara",
-                color=self.rgb_to_hex(self.infos_color),
+                color=self.rgb_to_hex(self.colors["infos"]),
                 # texttransform="uppercase",
+                # fontvariant="small-caps",
+            )
+        )
+
+        style = self.add_paragraph_style("LeftTitle")
+        style.addElement(
+            ParagraphProperties(
+                textalign="right", margintop="0cm", marginbottom="0.cm", marginright="0.3cm", verticalalign="center"
+            )
+        )
+        style.addElement(
+            TextProperties(
+                fontsize="12pt",
+                fontweight="normal",
+                fontname="Calibri",
+                fontfamily="Calibri",
+                color=self.rgb_to_hex(self.colors["highlight"]),
+                fontvariant="small-caps",
+            )
+        )
+
+        style = self.add_paragraph_style("MainText")
+        style.addElement(
+            ParagraphProperties(
+                textalign="left", margintop="0cm", marginbottom="0.0cm", marginleft="0cm", verticalalign="center"
+            )
+        )
+        style.addElement(
+            TextProperties(
+                fontsize="12pt",
+                fontweight="normal",
+                fontname="Calibri",
+                fontfamily="Calibri",
+                color=self.rgb_to_hex(self.colors["text"]),
                 # fontvariant="small-caps",
             )
         )
@@ -302,7 +224,7 @@ class CVBuilder(NVPComponent):
         txt = text.P(text=content, stylename="QualificationsStyle")
         parent.addElement(txt)
 
-        # img = self.convert_icon_to_image("map-pin", 256, self.address_color)
+        # img = self.convert_icon_to_image("map-pin", 256, self.colors['address'])
         # img.save("map_pin.png", "PNG")
 
         txt = text.P(stylename="AddressStyle")
@@ -310,18 +232,18 @@ class CVBuilder(NVPComponent):
         # self.add_image_file(txt, "map_pin.png", "9pt")
         # self.add_image(txt, img, "9pt")
         # map-location-dot = \uf5a0
-        self.add_icon(txt, "\uf5a0", "9pt", self.address_color)
+        self.add_icon(txt, "\uf5a0", "9pt", self.colors["address"])
         txt.addElement(text.Span(text=" " + self.desc["address"], stylename="AddressStyle"))
 
         # txt = text.P(text="⚐ " + self.desc["address"], stylename="AddressStyle")
         # parent.addElement(txt)
 
         txt = text.P(stylename="InfosStyle")
-        self.add_icon(txt, "phone", "9pt", self.infos_color)
+        self.add_icon(txt, "phone", "9pt", self.colors["infos"])
         txt.addElement(text.Span(text=" " + self.desc["phone"] + " "))
         span = text.Span()
         txt.addElement(span)
-        self.add_icon(span, "envelope", "9pt", self.infos_color)
+        self.add_icon(span, "envelope", "9pt", self.colors["infos"])
         txt.addElement(text.Span(text=" " + self.desc["email"]))
 
         # content = f"☏ {self.desc['phone']} | ✉ {self.desc['email']}"
@@ -331,70 +253,14 @@ class CVBuilder(NVPComponent):
         txt = text.P(stylename="InfosStyle")
         parent.addElement(txt)
 
-        self.add_icon(txt, "globe", "9pt", self.infos_color)
+        self.add_icon(txt, "globe", "9pt", self.colors["infos"])
         self.add_text(txt, f" {self.desc['website']} | ")
-        self.add_brand_icon(txt, "github", "9pt", self.infos_color)
+        self.add_brand_icon(txt, "github", "9pt", self.colors["infos"])
         self.add_text(txt, f" {self.desc['github']} | ")
-        self.add_brand_icon(txt, "linkedin", "9pt", self.infos_color)
+        self.add_brand_icon(txt, "linkedin", "9pt", self.colors["infos"])
         self.add_text(txt, f" {self.desc['linkedin']} | ")
-        self.add_brand_icon(txt, "twitter", "9pt", self.infos_color)
+        self.add_brand_icon(txt, "twitter", "9pt", self.colors["infos"])
         self.add_text(txt, f" {self.desc['twitter']}")
-
-        # icon = fa.icons["phone"]
-        # logger.info("Display icon: %s", repr(icon))
-
-        # txt = text.P(text="This is a test text", stylename="FAStyle")
-        # parent.addElement(txt)
-
-    def add_icon(self, parent, iname, width, color):
-        """Add a fontawesome icon to an element"""
-        img = self.convert_icon_to_image(iname, 256, color, "solid-900")
-        span = text.Span()
-        parent.addElement(span)
-        return self.add_image(span, img, width)
-
-    def add_brand_icon(self, parent, iname, width, color):
-        """Add a fontawesome icon to an element"""
-        img = self.convert_icon_to_image(iname, 256, color, "brands-400")
-        span = text.Span()
-        parent.addElement(span)
-        return self.add_image(span, img, width)
-
-    def add_image(self, parent, img, width):
-        """Add an image to a container"""
-        picture = draw.Frame(
-            stylename=self.get_style("InlinePhotoStyle"), width=width, height=width, anchortype="as-char", zindex=1
-        )
-        parent.addElement(picture)
-
-        # Create the image element
-        image_bytes = BytesIO()
-
-        # Save the image to the BytesIO object
-        img.save(image_bytes, format="PNG")
-
-        # Get the image data as a string
-        image_string = image_bytes.getvalue()
-
-        # img_path = self.get_path(self.get_cwd(), self.desc["photo"])
-        img_ref = self.doc.addPictureFromString(image_string, "image/png")
-        image = draw.Image(href=img_ref)
-        picture.addElement(image)
-
-        return parent
-
-    def add_image_file(self, parent, imgfile, width):
-        """Add an image to a container"""
-        picture = draw.Frame(
-            stylename=self.get_style("InlinePhotoStyle"), width=width, height=width, anchortype="as-char", zindex=1
-        )
-        parent.addElement(picture)
-
-        # Create the image element
-        # img_path = self.get_path(self.get_cwd(), self.desc["photo"])
-        img_ref = self.doc.addPictureFromFile(imgfile)
-        image = draw.Image(href=img_ref)
-        picture.addElement(image)
 
     def write_photo_infos(self, parent):
         """Write the photo infos"""
@@ -486,6 +352,36 @@ class CVBuilder(NVPComponent):
 
         # Write the header:
         self.write_profile_infos(cell2)
+
+        # Add another row:
+        row = table.TableRow()
+        tbl.addElement(row)
+        cell1 = table.TableCell(stylename="DefaultCellStyle", valuetype="string")
+        row.addElement(cell1)
+        cell2 = table.TableCell(stylename="VCenteredCellStyle", valuetype="string")
+        row.addElement(cell2)
+
+        txt = text.P(text="Job Applied For", stylename="LeftTitle")
+        cell1.addElement(txt)
+
+        txt = text.P(text=self.desc["job_applied_for"], stylename="MainText")
+        cell2.addElement(txt)
+
+        # Add another row - work experience
+        row = table.TableRow()
+        tbl.addElement(row)
+        cell1 = table.TableCell(stylename="DefaultCellStyle", valuetype="string")
+        row.addElement(cell1)
+        cell2 = table.TableCell(stylename="VCenteredCellStyle", valuetype="string")
+        row.addElement(cell2)
+
+        txt = text.P(text="Work Experience", stylename="LeftTitle")
+        cell1.addElement(txt)
+
+        txt = text.P(
+            text="------------------------------------------------------------------------", stylename="MainText"
+        )
+        cell2.addElement(txt)
 
         # Save the CV to a file
         doc.save(odt_file)
