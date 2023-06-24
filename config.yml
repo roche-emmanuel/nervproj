@@ -583,11 +583,20 @@ scripts:
     env_paths: ${NVP_ROOT_DIR}/libraries/windows_msvc/gpt4all_chat-git-1.0/lib;${NVP_ROOT_DIR}/libraries/windows_msvc/QT6-6.4.2/bin;${NVP_ROOT_DIR}/libraries/windows_msvc/openssl-3.0.8/bin
     # env_paths: ${NVP_ROOT_DIR}/libraries/windows_msvc/gpt4all_chat-git-1.0/lib
 
-  sd_python:
-    # Run python in stable diffusion environment:
+  update_sd_webui:
+    # Update the SD webui on window
     notify: false
-    custom_python_env: sd_env
-    cmd: ${PYTHON}
+    custom_python_env: sd_webui_env
+    cwd: D:\Projects\sd_webui
+    cmd: cmd /c update.bat
+    python_path: ["${NVP_ROOT_DIR}"]
+
+  sd_webui:
+    # Run the SD webui on window
+    notify: false
+    custom_python_env: sd_webui_env
+    cwd: D:\Projects\sd_webui
+    cmd: cmd /c run.bat
     python_path: ["${NVP_ROOT_DIR}"]
 
   txt2img:
