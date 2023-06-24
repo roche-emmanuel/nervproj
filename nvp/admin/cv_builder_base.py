@@ -86,6 +86,14 @@ class CVBuilderBase(NVPComponent):
 
         return style
 
+    def add_auto_style(self, name, family, **kwargs):
+        """Add a new style"""
+        style = Style(name=name, family=family, **kwargs)
+        self.doc.automaticstyles.addElement(style)
+
+        self.styles[name] = style
+        return style
+
     def add_paragraph_style(self, name, **kwargs):
         """Add a new style"""
         return self.add_style(name, "paragraph", **kwargs)
@@ -97,6 +105,10 @@ class CVBuilderBase(NVPComponent):
     def add_graphic_style(self, name, **kwargs):
         """Add a new style"""
         return self.add_style(name, "graphic", **kwargs)
+
+    def add_auto_graphic_style(self, name, **kwargs):
+        """Add a new style"""
+        return self.add_auto_style(name, "graphic", **kwargs)
 
     def add_table_style(self, name, **kwargs):
         """Add a new style"""
@@ -142,6 +154,26 @@ class CVBuilderBase(NVPComponent):
         r, g, b = rgb
         hex_value = "#{:02x}{:02x}{:02x}".format(r, g, b)
         return hex_value
+
+    def add_P(self, parent, **kwargs):
+        """Add a row to a table"""
+        pgraph = text.P(**kwargs)
+        parent.addElement(pgraph)
+        return pgraph
+
+    def add_row(self, tbl):
+        """Add a row to a table"""
+        row = table.TableRow()
+        tbl.addElement(row)
+        return row
+
+    def add_cell(self, parent, **kwargs):
+        """Add a cell"""
+        if "valuetype" not in kwargs:
+            kwargs["valuetype"] = "string"
+        cell = table.TableCell(**kwargs)
+        parent.addElement(cell)
+        return cell
 
     def add_icon(self, parent, iname, width, color):
         """Add a fontawesome icon to an element"""
@@ -209,3 +241,35 @@ class CVBuilderBase(NVPComponent):
             return self.build(cfg)
 
         return False
+
+    def draw_hline(self, parent):
+        """Draw an horizontal line"""
+
+        # <draw:line text:anchor-type="paragraph"
+        #                         draw:z-index="8" draw:name="Ligne 1" draw:style-name="gr2"
+        #                         draw:text-style-name="P1" svg:x1="0.076cm" svg:y1="0.39cm"
+        #                         svg:x2="12.63cm" svg:y2="0.374cm">
+        #                         <text:p />
+        #                     </draw:line>
+        line = draw.Line(
+            stylename=self.get_style("LineStyle"),
+            anchortype="as-char",
+            zindex=0,
+            x1="0cm",
+            y1="0.4cm",
+            x2=f"{16.9*3.0/4.0:.2f}cm",
+            y2="0.4cm",
+        )
+        parent.addElement(line)
+        # Create a frame to hold the line
+        # frame = draw.Frame(width="100%", height="100%", zindex=0)
+        # frame = draw.Frame()
+
+        # # Create the line element
+        # line = draw.Line(startx="0", starty="50%", endx="100%", endy="50%", stroke="black", zindex=0)
+
+        # # Add the line to the frame
+        # frame.addElement(line)
+
+        # Add the frame to the cell
+        # parent.addElement(frame)

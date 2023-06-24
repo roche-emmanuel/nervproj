@@ -81,6 +81,29 @@ class CVBuilder(CVBuilderBase):
             )
         )
 
+        style = self.add_auto_graphic_style("LineStyle")
+        style.addElement(
+            GraphicProperties(
+                wrap="none",
+                runthrough="background",
+                strokewidth="0.035cm",
+                flowwithtext="false",
+                # allowoverlap="true",
+                markerstartwidth="0.5cm",
+                markerendwidth="0.5cm",
+                strokecolor=self.rgb_to_hex(self.colors["highlight"]),
+                paddingtop="0.018cm",
+                paddingbottom="0.018cm",
+                paddingleft="0.018cm",
+                paddingright="0.018cm",
+                wrapinfluenceonposition="once-concurrent",
+                verticalpos="bottom",
+                verticalrel="text",
+                horizontalpos="from-left",
+                horizontalrel="paragraph",
+            )
+        )
+
         style = self.add_graphic_style("InlinePhotoStyle", parentstylename="PhotoStyle")
         style.addElement(
             GraphicProperties(
@@ -338,14 +361,11 @@ class CVBuilder(CVBuilderBase):
         tbl.addElement(table.TableColumn(stylename="MainTableCol1Style"))
 
         # border="0.06pt solid black"
-        row = table.TableRow()
-        tbl.addElement(row)
+        row = self.add_row(tbl)
 
         # First column:
-        cell1 = table.TableCell(stylename="DefaultCellStyle", valuetype="string")
-        row.addElement(cell1)
-        cell2 = table.TableCell(stylename="VCenteredCellStyle", valuetype="string")
-        row.addElement(cell2)
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
 
         # Write the photo:
         self.write_photo_infos(cell1)
@@ -354,12 +374,9 @@ class CVBuilder(CVBuilderBase):
         self.write_profile_infos(cell2)
 
         # Add another row:
-        row = table.TableRow()
-        tbl.addElement(row)
-        cell1 = table.TableCell(stylename="DefaultCellStyle", valuetype="string")
-        row.addElement(cell1)
-        cell2 = table.TableCell(stylename="VCenteredCellStyle", valuetype="string")
-        row.addElement(cell2)
+        row = self.add_row(tbl)
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
 
         txt = text.P(text="Job Applied For", stylename="LeftTitle")
         cell1.addElement(txt)
@@ -368,20 +385,19 @@ class CVBuilder(CVBuilderBase):
         cell2.addElement(txt)
 
         # Add another row - work experience
-        row = table.TableRow()
-        tbl.addElement(row)
-        cell1 = table.TableCell(stylename="DefaultCellStyle", valuetype="string")
-        row.addElement(cell1)
-        cell2 = table.TableCell(stylename="VCenteredCellStyle", valuetype="string")
-        row.addElement(cell2)
+        row = self.add_row(tbl)
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
 
         txt = text.P(text="Work Experience", stylename="LeftTitle")
         cell1.addElement(txt)
 
-        txt = text.P(
-            text="------------------------------------------------------------------------", stylename="MainText"
-        )
-        cell2.addElement(txt)
+        self.draw_hline(self.add_P(cell2))
+
+        # txt = text.P(
+        #     text="------------------------------------------------------------------------", stylename="MainText"
+        # )
+        # cell2.addElement(txt)
 
         # Save the CV to a file
         doc.save(odt_file)
