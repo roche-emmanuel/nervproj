@@ -23,13 +23,16 @@ class ThumbGen(NVPComponent):
         """Re-implementation of process_cmd_path"""
 
         if cmd == "gen-thumb":
-            cfg_file = self.get_param("input_file")
+            tagname = self.get_param("tag_name")
+
+            # get the prefix:
+            prefix = tagname[:3]
+            cfg_file = self.get_path(self.get_cwd(), "descs", prefix, tagname + ".yml")
             cfg = self.read_yaml(cfg_file)
 
             # Get the entry from the file:
-            tag_name = self.get_param("tag_name")
-            desc = cfg[tag_name]["thumbnail"]
-            return self.generate_thumbnail(tag_name, desc)
+            desc = cfg["thumbnail"]
+            return self.generate_thumbnail(tagname, desc)
 
         return False
 
