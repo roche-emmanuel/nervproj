@@ -34,7 +34,13 @@ class CVBuilder(CVBuilderBase):
         self.desc = None
         self.styles = {}
 
-        self.colors = {"address": (153, 153, 153), "infos": (51, 51, 51), "highlight": (0, 110, 184), "text": (0, 0, 0)}
+        self.colors = {
+            "address": (153, 153, 153),
+            "infos": (51, 51, 51),
+            "highlight": (0, 110, 184),
+            "text": (0, 0, 0),
+            "darktext": (51, 51, 51),
+        }
 
     def define_styles(self):
         """Define the styles we will use in the document"""
@@ -144,7 +150,23 @@ class CVBuilder(CVBuilderBase):
                 fontweight="normal",
                 fontname="Source Sans Pro",
                 fontfamily="Source Sans Pro",
-                color=self.rgb_to_hex((0, 110, 184)),
+                color=self.rgb_to_hex(self.colors["highlight"]),
+                # texttransform="uppercase",
+                fontvariant="small-caps",
+            )
+        )
+
+        style = self.add_paragraph_style("JobStyle")
+        style.addElement(
+            ParagraphProperties(textalign="center", margintop="0cm", marginbottom="0.2cm", verticalalign="center")
+        )
+        style.addElement(
+            TextProperties(
+                fontsize="9pt",
+                fontweight="normal",
+                fontname="Source Sans Pro",
+                fontfamily="Source Sans Pro",
+                color=self.rgb_to_hex(self.colors["darktext"]),
                 # texttransform="uppercase",
                 fontvariant="small-caps",
             )
@@ -341,6 +363,40 @@ class CVBuilder(CVBuilderBase):
         image = draw.Image(href=img_ref)
         picture.addElement(image)
 
+    def write_job_section(self, tbl, jobdesc):
+        """Write a Job/employer section"""
+        row = self.add_row(tbl)
+        # Not writting anything in the first cell here:
+        self.add_cell(row, stylename="DefaultCellStyle")
+
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        employer = jobdesc["employer"]
+        from_t = self.format_date(jobdesc["from"])
+        to_t = self.format_date(jobdesc["to"])
+        pos = jobdesc["position"]
+
+        txt = self.add_p(cell2, stylename="JobStyle")
+        content = f"{employer} · {pos} · {from_t} to {to_t}"
+        self.add_text(txt, content)
+
+    def write_work_experience(self, tbl):
+        """Write the work experience sections"""
+
+        # Add another row
+        row = self.add_row(tbl)
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        txt = text.P(text="Work Experience", stylename="LeftTitle")
+        cell1.addElement(txt)
+
+        self.draw_hline(self.add_p(cell2))
+
+        # Get the work sections:
+        for jobdesc in self.desc["work_experience"]:
+            self.write_job_section(tbl, jobdesc)
+
     def build(self, desc):
         """This function is used build the CV from the given description"""
         filename = desc["filename"]
@@ -384,20 +440,8 @@ class CVBuilder(CVBuilderBase):
         txt = text.P(text=self.desc["job_applied_for"], stylename="MainText")
         cell2.addElement(txt)
 
-        # Add another row - work experience
-        row = self.add_row(tbl)
-        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
-        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
-
-        txt = text.P(text="Work Experience", stylename="LeftTitle")
-        cell1.addElement(txt)
-
-        self.draw_hline(self.add_P(cell2))
-
-        # txt = text.P(
-        #     text="------------------------------------------------------------------------", stylename="MainText"
-        # )
-        # cell2.addElement(txt)
+        # Add the work experience section:
+        self.write_work_experience(tbl)
 
         # Save the CV to a file
         doc.save(odt_file)

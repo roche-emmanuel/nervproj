@@ -155,7 +155,7 @@ class CVBuilderBase(NVPComponent):
         hex_value = "#{:02x}{:02x}{:02x}".format(r, g, b)
         return hex_value
 
-    def add_P(self, parent, **kwargs):
+    def add_p(self, parent, **kwargs):
         """Add a row to a table"""
         pgraph = text.P(**kwargs)
         parent.addElement(pgraph)
@@ -241,6 +241,20 @@ class CVBuilderBase(NVPComponent):
             return self.build(cfg)
 
         return False
+
+    def format_date(self, dstr):
+        """Format a date string in the form 03/2022 to Feb. 2022"""
+        parts = dstr.split("/")
+
+        if len(parts) == 1:
+            # return this string as is:
+            return dstr
+
+        # months short names
+        months = ["Jan.", "Feb.", "Mar.", "Apr.", "May", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."]
+        month_str = months[int(parts[0]) - 1]
+
+        return f"{month_str} {parts[1]}"
 
     def draw_hline(self, parent):
         """Draw an horizontal line"""
