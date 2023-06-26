@@ -92,6 +92,21 @@ class CVBuilder(CVBuilderBase):
         self.add_brand_icon(txt, "twitter", "9pt", self.colors["infos"])
         self.add_text(txt, f" {self.desc['twitter']}")
 
+        txt = text.P(stylename="InfosStyle")
+        parent.addElement(txt)
+        # language: f1ab
+        self.add_icon(txt, "\uf1ab", "9pt", self.colors["infos"])
+
+        langs = self.desc["languages"]
+        lnames = list(langs.keys())
+        num = len(lnames)
+
+        for idx, lname in enumerate(lnames):
+            self.add_text(txt, f" {lname}: ")
+            self.add_text(txt, f" {langs[lname]}", stylename="LanguageStyle")
+            if idx < (num - 1):
+                self.add_text(txt, " |")
+
     def write_photo_infos(self, parent):
         """Write the photo infos"""
         # Create a paragraph to hold the picture
@@ -123,7 +138,7 @@ class CVBuilder(CVBuilderBase):
         #     fill=255,
         # )
 
-        mask_radius = min(image.width, image.height) // 5  # Adjust the radius to control the roundness of corners
+        mask_radius = min(image.width, image.height) // 2  # Adjust the radius to control the roundness of corners
         idraw.rounded_rectangle([(0, 0), image.size], fill=255, radius=mask_radius)
 
         # Apply the circular mask to the original image
@@ -166,7 +181,7 @@ class CVBuilder(CVBuilderBase):
         projname = mission["project"]
         pos = mission["position"]
 
-        desc = mission["description"]
+        desc = mission[self.desc_field]
         if isinstance(desc, str):
             desc = [desc]
 
@@ -232,8 +247,13 @@ class CVBuilder(CVBuilderBase):
         cell1 = self.add_cell(row, stylename="DefaultCellStyle")
         cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
 
-        txt = text.P(text="Work Experience", stylename="LeftTitle")
+        # txt = text.P(text="Work Experience", stylename="LeftTitle")
+        # cell1.addElement(txt)
+        txt = text.P(text="", stylename="LeftTitle")
         cell1.addElement(txt)
+        # fa: briefcase: f0b1
+        self.add_icon(txt, "\uf0b1", "12pt", self.colors["highlight"])
+        self.add_text(txt, " Work Experience")
 
         self.draw_hline(self.add_p(cell2))
 
@@ -279,7 +299,7 @@ class CVBuilder(CVBuilderBase):
 
         projname = proj["project"]
 
-        desc = proj["description"]
+        desc = proj[self.desc_field]
         if isinstance(desc, str):
             desc = [desc]
 
@@ -324,8 +344,13 @@ class CVBuilder(CVBuilderBase):
         cell1 = self.add_cell(row, stylename="DefaultCellStyle")
         cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
 
-        txt = text.P(text="Personal Projects", stylename="LeftTitle")
+        # txt = text.P(text="Personal Projects", stylename="LeftTitle")
+        # cell1.addElement(txt)
+        txt = text.P(text="", stylename="LeftTitle")
         cell1.addElement(txt)
+        # fa: flask: f0c3
+        self.add_icon(txt, "\uf0c3", "12pt", self.colors["highlight"])
+        self.add_text(txt, " Personal Projects")
 
         self.draw_hline(self.add_p(cell2))
 
@@ -377,14 +402,84 @@ class CVBuilder(CVBuilderBase):
         cell1 = self.add_cell(row, stylename="DefaultCellStyle")
         cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
 
-        txt = text.P(text="Education", stylename="LeftTitle")
+        txt = text.P(text="", stylename="LeftTitle")
         cell1.addElement(txt)
-
+        # fa: graduation-cap: f19d
+        self.add_icon(txt, "\uf19d", "12pt", self.colors["highlight"])
+        self.add_text(txt, " Education and Training")
         self.draw_hline(self.add_p(cell2))
 
         # Get the work sections:
         for edu in self.desc["education"]:
             self.write_education_section(tbl, edu)
+
+    def write_additional_skills(self, tbl):
+        """Write the additional skills section"""
+
+        # Add another row
+        row = self.add_row(tbl, stylename="MainTableRow")
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        txt = text.P(text="", stylename="LeftTitle")
+        cell1.addElement(txt)
+        # fa: screwdriver-wrench: f7d9
+        self.add_icon(txt, "\uf7d9", "12pt", self.colors["highlight"])
+        self.add_text(txt, " Other Skills")
+        self.draw_hline(self.add_p(cell2))
+
+        row = self.add_row(tbl, stylename="MainTableRow")
+
+        self.add_cell(row, stylename="DefaultCellStyle")
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        # Make a list of skills:
+        txt = text.P(text="", stylename="MainText")
+        cell2.addElement(txt)
+        skills = self.desc["additional_skills"]
+        snames = list(skills.keys())
+        num = len(snames)
+
+        for idx, sname in enumerate(snames):
+            self.add_text(txt, "- " + sname + ": ", stylename="LanguageStyle")
+            self.add_text(txt, skills[sname])
+
+            if idx < (num - 1):
+                self.add_linebreak(txt)
+
+    def write_interests(self, tbl):
+        """Write the interests section"""
+
+        # Add another row
+        row = self.add_row(tbl, stylename="MainTableRow")
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        txt = text.P(text="", stylename="LeftTitle")
+        cell1.addElement(txt)
+        # fa: heart: f004
+        self.add_icon(txt, "\uf004", "12pt", self.colors["highlight"])
+        self.add_text(txt, " Interests")
+        self.draw_hline(self.add_p(cell2))
+
+        row = self.add_row(tbl, stylename="MainTableRow")
+
+        self.add_cell(row, stylename="DefaultCellStyle")
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        # Make a list of skills:
+        txt = text.P(text="", stylename="MainText")
+        cell2.addElement(txt)
+        interests = self.desc["personal_interests"]
+        snames = list(interests.keys())
+        num = len(snames)
+
+        for idx, sname in enumerate(snames):
+            self.add_text(txt, "- " + sname + ": ", stylename="LanguageStyle")
+            self.add_text(txt, interests[sname])
+
+            if idx < (num - 1):
+                self.add_linebreak(txt)
 
     def build(self, desc):
         """This function is used build the CV from the given description"""
@@ -420,13 +515,16 @@ class CVBuilder(CVBuilderBase):
 
         # Add another row:
         row = self.add_row(tbl, stylename="MainTableRow")
-        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+        _cell1 = self.add_cell(row, stylename="DefaultCellStyle")
         cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
 
-        txt = text.P(text="Job Applied For", stylename="LeftTitle")
-        cell1.addElement(txt)
+        # txt = text.P(text="Job Applied For", stylename="LeftTitle")
+        # cell1.addElement(txt)
 
-        txt = text.P(text=self.desc["job_applied_for"], stylename="ApplyingPositionStyle")
+        # txt = text.P(text=self.desc["job_applied_for"], stylename="ApplyingPositionStyle")
+        txt = text.P(text="", stylename="ApplyingPositionStyle")
+        self.add_text(txt, "Applying to position: ", stylename="ApplyHeaderStyle")
+        self.add_text(txt, self.desc["job_applied_for"])
         cell2.addElement(txt)
 
         # Add the work experience section:
@@ -437,6 +535,10 @@ class CVBuilder(CVBuilderBase):
 
         # Add the education section:
         self.write_education(tbl)
+
+        self.write_additional_skills(tbl)
+
+        self.write_interests(tbl)
 
         # Save the CV to a file
         doc.save(odt_file)
@@ -454,5 +556,8 @@ if __name__ == "__main__":
 
     psr = context.build_parser("build")
     psr.add_str("-i", "--input", dest="input_file")("Input CV yaml config file to use")
+    psr.add_flag("-s", "--short", dest="short_version")(
+        "Generate short version using overviews instead of descriptions"
+    )
 
     comp.run()

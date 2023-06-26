@@ -110,6 +110,14 @@ def define_cv_styles(self):
         )
     )
 
+    style = self.add_text_style("ApplyHeaderStyle")
+    style.addElement(
+        TextProperties(
+            fontweight="bold",
+            color=self.rgb_to_hex(self.colors["highlight"]),
+        )
+    )
+
     style = self.add_paragraph_style("QualificationsStyle")
     style.addElement(
         ParagraphProperties(textalign="center", margintop="0cm", marginbottom="0.2cm", verticalalign="center")
@@ -253,6 +261,13 @@ def define_cv_styles(self):
         )
     )
 
+    style = self.add_auto_style("LanguageStyle", "text")
+    style.addElement(
+        TextProperties(
+            fontweight="bold", color=self.rgb_to_hex(self.colors["highlight"], lighten=0.1), textshadow="1pt 1pt"
+        )
+    )
+
     style = self.add_paragraph_style("TechsStyleBase")
     style.addElement(
         ParagraphProperties(
@@ -306,7 +321,7 @@ def define_cv_styles(self):
     style = self.add_paragraph_style("ApplyingPositionStyle")
     style.addElement(
         ParagraphProperties(
-            textalign="left", margintop="0cm", marginbottom="0.0cm", marginleft="0cm", verticalalign="center"
+            textalign="center", margintop="0cm", marginbottom="0.0cm", marginleft="0cm", verticalalign="center"
         )
     )
     style.addElement(
@@ -333,7 +348,7 @@ def define_cv_styles(self):
     )
     style.addElement(
         TextProperties(
-            fontsize="7pt",
+            fontsize=self.text_size,
             fontweight="normal",
             fontname="Source Sans Pro",
             fontfamily="Source Sans Pro",

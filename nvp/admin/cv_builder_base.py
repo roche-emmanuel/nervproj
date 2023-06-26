@@ -35,9 +35,11 @@ class CVBuilderBase(NVPComponent):
         self.desc = None
         self.styles = {}
         self.colors = {}
-
+        self.desc_field = "description"
+        self.text_size = "7.5pt"
         # Target page width in centimeters:
         self.page_width = 19.0
+        self.ext_count = 0
 
     def get_text_dimensions(self, text_string, font):
         """Get the dimensions of a text"""
@@ -56,18 +58,22 @@ class CVBuilderBase(NVPComponent):
         if icon_name in fa.icons:
             icon = fa.icons[icon_name]
 
-        # Create a blank image with an alpha channel
-        image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-
-        # Create a drawing context
-        idraw = ImageDraw.Draw(image)
-
         # Load the Font Awesome font
         font = ImageFont.truetype(font_file, size - 6)
 
         # Calculate the text size and position
         # text_width, text_height = draw.textsize(icon, font=font)
         text_width, text_height = self.get_text_dimensions(icon, font)
+
+        size = max(text_width, text_height) + 6
+        # logger.info("Using image size: %d", size)
+
+        # Create a blank image with an alpha channel
+        image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+
+        # Create a drawing context
+        idraw = ImageDraw.Draw(image)
+
         text_x = (size - text_width) // 2
         text_y = (size - text_height) // 2
 
@@ -269,6 +275,9 @@ class CVBuilderBase(NVPComponent):
 
         if cmd == "build":
             file = self.get_param("input_file")
+            short = self.get_param("short_version")
+            self.desc_field = "overview" if short else "description"
+            self.text_size = "8pt" if short else "7.5pt"
 
             # Read the configuration:
             cfg = self.read_yaml(file)
