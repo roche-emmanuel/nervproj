@@ -5,6 +5,7 @@ import logging
 from io import BytesIO
 
 import fontawesome as fa
+from cv.styles import define_cv_styles
 from odf import draw, table, text
 from odf.opendocument import OpenDocumentText
 from odf.style import (
@@ -41,222 +42,6 @@ class CVBuilder(CVBuilderBase):
             "text": (0, 0, 0),
             "darktext": (51, 51, 51),
         }
-
-    def define_styles(self):
-        """Define the styles we will use in the document"""
-
-        style = self.add_paragraph_style("VerticalCenterStyle")
-        style.addElement(ParagraphProperties(verticalalign="center"))
-
-        style = self.add_graphic_style("GraphicsBase")
-        style.addElement(
-            GraphicProperties(
-                anchortype="paragraph",
-                x="0cm",
-                y="0cm",
-                wrap="dynamic",
-                numberwrappedparagraphs="nolimit",
-                wrapcontour="false",
-                verticalpos="top",
-                verticalrel="paragraph",
-                horizontalpos="center",
-                horizontalrel="paragraph",
-            )
-        )
-
-        style = self.add_graphic_style("PhotoStyle", parentstylename="GraphicsBase")
-        style.addElement(
-            GraphicProperties(
-                wrap="none",
-                runthrough="foreground",
-                verticalpos="middle",
-                verticalrel="paragraph-content",
-                horizontalpos="center",
-                horizontalrel="paragraph-content",
-                mirror="none",
-                clip="rect(0cm, 0cm, 0cm, 0cm)",
-                luminance="0%",
-                contrast="0%",
-                red="0%",
-                green="0%",
-                blue="0%",
-                gamma="100%",
-                colorinversion="false",
-                imageopacity="100%",
-                colormode="standard",
-            )
-        )
-
-        style = self.add_auto_graphic_style("LineStyle")
-        style.addElement(
-            GraphicProperties(
-                wrap="none",
-                runthrough="background",
-                strokewidth="0.035cm",
-                flowwithtext="false",
-                # allowoverlap="true",
-                markerstartwidth="0.5cm",
-                markerendwidth="0.5cm",
-                strokecolor=self.rgb_to_hex(self.colors["highlight"]),
-                paddingtop="0.018cm",
-                paddingbottom="0.018cm",
-                paddingleft="0.018cm",
-                paddingright="0.018cm",
-                wrapinfluenceonposition="once-concurrent",
-                verticalpos="bottom",
-                verticalrel="text",
-                horizontalpos="from-left",
-                horizontalrel="paragraph",
-            )
-        )
-
-        style = self.add_graphic_style("InlinePhotoStyle", parentstylename="PhotoStyle")
-        style.addElement(
-            GraphicProperties(
-                wrap="parallel",
-                wrapcontour="false",
-                verticalpos="middle",
-                verticalrel="text",
-                horizontalpos="from-left",
-            )
-        )
-
-        style = self.add_paragraph_style("FirstNameStyle")
-        style.addElement(ParagraphProperties(textalign="center", verticalalign="center"))
-        style.addElement(
-            TextProperties(
-                fontsize="32pt", fontweight="normal", fontname="Roboto Condensed", fontfamily="Roboto Condensed"
-            )
-        )
-
-        style = self.add_text_style("LastNameStyle")
-        style.addElement(
-            TextProperties(
-                fontsize="32pt",
-                fontweight="normal",
-                fontname="Roboto",
-                fontfamily="Roboto",
-                color=self.rgb_to_hex(self.colors["highlight"]),
-            )
-        )
-
-        style = self.add_paragraph_style("QualificationsStyle")
-        style.addElement(
-            ParagraphProperties(textalign="center", margintop="0cm", marginbottom="0.2cm", verticalalign="center")
-        )
-        style.addElement(
-            TextProperties(
-                fontsize="7.6pt",
-                fontweight="normal",
-                fontname="Source Sans Pro",
-                fontfamily="Source Sans Pro",
-                color=self.rgb_to_hex(self.colors["highlight"]),
-                # texttransform="uppercase",
-                fontvariant="small-caps",
-            )
-        )
-
-        style = self.add_paragraph_style("JobStyle")
-        style.addElement(
-            ParagraphProperties(textalign="center", margintop="0cm", marginbottom="0.2cm", verticalalign="center")
-        )
-        style.addElement(
-            TextProperties(
-                fontsize="9pt",
-                fontweight="normal",
-                fontname="Source Sans Pro",
-                fontfamily="Source Sans Pro",
-                color=self.rgb_to_hex(self.colors["darktext"]),
-                # texttransform="uppercase",
-                fontvariant="small-caps",
-            )
-        )
-
-        style = self.add_paragraph_style("AddressStyle")
-        style.addElement(
-            ParagraphProperties(textalign="center", margintop="0cm", marginbottom="0.2cm", verticalalign="center")
-        )
-        style.addElement(
-            TextProperties(
-                fontsize="8pt",
-                fontweight="normal",
-                fontname="Source Sans Pro",
-                fontfamily="Source Sans Pro",
-                color=self.rgb_to_hex(self.colors["address"]),
-                # texttransform="uppercase",
-                fontvariant="small-caps",
-            )
-        )
-
-        style = self.add_paragraph_style("InfosStyle")
-        style.addElement(
-            ParagraphProperties(textalign="center", margintop="0cm", marginbottom="0.2cm", verticalalign="center")
-        )
-        style.addElement(
-            TextProperties(
-                fontsize="9pt",
-                fontweight="normal",
-                fontname="Calibri",
-                fontfamily="Calibri",
-                # fontname="Candara",
-                # fontfamily="Candara",
-                color=self.rgb_to_hex(self.colors["infos"]),
-                # texttransform="uppercase",
-                # fontvariant="small-caps",
-            )
-        )
-
-        style = self.add_paragraph_style("LeftTitle")
-        style.addElement(
-            ParagraphProperties(
-                textalign="right", margintop="0cm", marginbottom="0.cm", marginright="0.3cm", verticalalign="center"
-            )
-        )
-        style.addElement(
-            TextProperties(
-                fontsize="12pt",
-                fontweight="normal",
-                fontname="Calibri",
-                fontfamily="Calibri",
-                color=self.rgb_to_hex(self.colors["highlight"]),
-                fontvariant="small-caps",
-            )
-        )
-
-        style = self.add_paragraph_style("MainText")
-        style.addElement(
-            ParagraphProperties(
-                textalign="left", margintop="0cm", marginbottom="0.0cm", marginleft="0cm", verticalalign="center"
-            )
-        )
-        style.addElement(
-            TextProperties(
-                fontsize="12pt",
-                fontweight="normal",
-                fontname="Calibri",
-                fontfamily="Calibri",
-                color=self.rgb_to_hex(self.colors["text"]),
-                # fontvariant="small-caps",
-            )
-        )
-
-        # usable page width in centimeters:
-        pwidth = 17.0
-
-        style = self.add_auto_table_style("MainTableStyle")
-        style.addElement(TableProperties(width="100%", align="margins"))
-
-        # rel1 = (2 ^ 16 - 1) // 4
-        # rel2 = ((2 ^ 16 - 1) * 3) // 4
-        style = self.add_auto_table_column_style("MainTableCol0Style")
-        style.addElement(TableColumnProperties(columnwidth=f"{pwidth/4.0:.2f}cm"))  # , relcolumnwidth=f"{rel1}*"
-        style = self.add_auto_table_column_style("MainTableCol1Style")
-        style.addElement(TableColumnProperties(columnwidth=f"{pwidth*3.0/4.0:.2f}cm"))  # , relcolumnwidth=f"{rel2}*"
-
-        style = self.add_auto_table_cell_style("DefaultCellStyle")
-        style.addElement(TableCellProperties(padding="0cm", border="none"))
-        style = self.add_auto_table_cell_style("VCenteredCellStyle")
-        style.addElement(TableCellProperties(padding="0cm", border="none", verticalalign="middle"))
 
     def write_profile_infos(self, parent):
         """Write the profile infos"""
@@ -363,9 +148,83 @@ class CVBuilder(CVBuilderBase):
         image = draw.Image(href=img_ref)
         picture.addElement(image)
 
+    def write_mission_section(self, tbl, mission):
+        """Write a mission section"""
+        row = self.add_row(tbl, stylename="MainTableRow")
+
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+
+        from_t = self.format_date(mission["from"])
+        to_t = self.format_date(mission["to"])
+        dur = self.compute_month_duration(mission["from"], mission["to"]) + 1
+        client = mission["client"]
+
+        dur_y = 0
+        dur_m = dur
+        if dur >= 12:
+            dur_y = dur // 12
+            dur_m = dur - 12 * dur_y
+
+        dur_parts = []
+        if dur_y > 0:
+            dur_parts.append(f"{dur_y} year{'s' if dur_y>1 else ''}")
+        if dur_m > 0:
+            dur_parts.append(f"{dur_m} month{'s' if dur_m>1 else ''}")
+
+        dur_str = ", ".join(dur_parts)
+
+        txt = text.P(text=f"{from_t} - {to_t}", stylename="MissionDateStyle")
+        cell1.addElement(txt)
+        txt = text.P(text=dur_str, stylename="MissionDateStyle")
+        cell1.addElement(txt)
+        txt = text.P(text=f"Client: {client}", stylename="MissionClientStyle")
+        cell1.addElement(txt)
+
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        projname = mission["project"]
+        pos = mission["position"]
+
+        desc = mission["description"]
+        if isinstance(desc, str):
+            desc = [desc]
+
+        techs = mission["techs"].split(",")
+
+        # Add a table for the project/position line:
+        ptable = self.add_table(cell2, 2)
+        subrow = self.add_row(ptable)
+
+        proj_cell = self.add_cell(subrow)
+        txt = text.P(text=f"{projname}", stylename="MissionProjectStyle")
+        proj_cell.addElement(txt)
+
+        pos_cell = self.add_cell(subrow)
+        txt = text.P(text=f"{pos}", stylename="MissionPositionStyle")
+        pos_cell.addElement(txt)
+
+        txt = text.P(text=f"", stylename="MainText")
+        cell2.addElement(txt)
+        num = len(desc)
+        for idx, elem in enumerate(desc):
+            self.add_text(txt, "- " + elem)
+            if idx < (num - 1):
+                self.add_linebreak(txt)
+
+        techs = [tech.strip() for tech in techs]
+
+        txt = text.P(text="", stylename="TechsStyleBase")
+        num = len(techs)
+        for idx, tech in enumerate(techs):
+            self.add_text(txt, tech, stylename="TechsStyle")
+            if idx < (num - 1):
+                self.add_text(txt, " · ")
+
+        cell2.addElement(txt)
+
     def write_job_section(self, tbl, jobdesc):
         """Write a Job/employer section"""
-        row = self.add_row(tbl)
+        row = self.add_row(tbl, stylename="MainTableRow")
         # Not writting anything in the first cell here:
         self.add_cell(row, stylename="DefaultCellStyle")
 
@@ -377,14 +236,18 @@ class CVBuilder(CVBuilderBase):
         pos = jobdesc["position"]
 
         txt = self.add_p(cell2, stylename="JobStyle")
-        content = f"{employer} · {pos} · {from_t} to {to_t}"
+        content = f"{employer} · {pos} · {from_t} - {to_t}"
         self.add_text(txt, content)
+
+        # Now write the missions at this post:
+        for mis in jobdesc["missions"]:
+            self.write_mission_section(tbl, mis)
 
     def write_work_experience(self, tbl):
         """Write the work experience sections"""
 
         # Add another row
-        row = self.add_row(tbl)
+        row = self.add_row(tbl, stylename="MainTableRow")
         cell1 = self.add_cell(row, stylename="DefaultCellStyle")
         cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
 
@@ -408,7 +271,7 @@ class CVBuilder(CVBuilderBase):
         self.desc = desc
 
         # Define the styles:
-        self.define_styles()
+        define_cv_styles(self)
 
         tbl = table.Table(stylename="MainTableStyle")
         self.doc.text.addElement(tbl)
@@ -417,7 +280,7 @@ class CVBuilder(CVBuilderBase):
         tbl.addElement(table.TableColumn(stylename="MainTableCol1Style"))
 
         # border="0.06pt solid black"
-        row = self.add_row(tbl)
+        row = self.add_row(tbl, stylename="MainTableRow")
 
         # First column:
         cell1 = self.add_cell(row, stylename="DefaultCellStyle")
@@ -430,14 +293,14 @@ class CVBuilder(CVBuilderBase):
         self.write_profile_infos(cell2)
 
         # Add another row:
-        row = self.add_row(tbl)
+        row = self.add_row(tbl, stylename="MainTableRow")
         cell1 = self.add_cell(row, stylename="DefaultCellStyle")
         cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
 
         txt = text.P(text="Job Applied For", stylename="LeftTitle")
         cell1.addElement(txt)
 
-        txt = text.P(text=self.desc["job_applied_for"], stylename="MainText")
+        txt = text.P(text=self.desc["job_applied_for"], stylename="ApplyingPositionStyle")
         cell2.addElement(txt)
 
         # Add the work experience section:

@@ -2,6 +2,7 @@
 
 This component is used to generate a CV document from a given yaml description"""
 import logging
+from datetime import datetime
 from io import BytesIO
 
 import fontawesome as fa
@@ -149,9 +150,27 @@ class CVBuilderBase(NVPComponent):
         parent.addElement(span)
         return span
 
-    def rgb_to_hex(self, rgb):
+    def add_linebreak(self, parent):
+        """Add a text line break element"""
+        lbreak = text.LineBreak()
+        parent.addElement(lbreak)
+        return lbreak
+
+    def rgb_to_hex(self, rgb, lighten=0.0, darken=0.0):
         """Convert RGB tuple to hexadecimal color code."""
         r, g, b = rgb
+        if lighten != 0:
+            # Lighten the color:
+            r = int(r + (255.0 - r) * lighten)
+            g = int(g + (255.0 - g) * lighten)
+            b = int(b + (255.0 - b) * lighten)
+
+        if darken != 0:
+            # draken the color:
+            r = int(r + (0.0 - r) * lighten)
+            g = int(g + (0.0 - g) * lighten)
+            b = int(b + (0.0 - b) * lighten)
+
         hex_value = "#{:02x}{:02x}{:02x}".format(r, g, b)
         return hex_value
 
@@ -161,11 +180,24 @@ class CVBuilderBase(NVPComponent):
         parent.addElement(pgraph)
         return pgraph
 
-    def add_row(self, tbl):
+    def add_row(self, tbl, **kwargs):
         """Add a row to a table"""
-        row = table.TableRow()
+        row = table.TableRow(**kwargs)
         tbl.addElement(row)
         return row
+
+    def add_table(self, parent, ncols=None):
+        """Add a table"""
+        tbl = table.Table()
+        parent.addElement(tbl)
+
+        if ncols is None:
+            return tbl
+
+        for i in range(ncols):
+            tbl.addElement(table.TableColumn())
+
+        return tbl
 
     def add_cell(self, parent, **kwargs):
         """Add a cell"""
@@ -255,6 +287,26 @@ class CVBuilderBase(NVPComponent):
         month_str = months[int(parts[0]) - 1]
 
         return f"{month_str} {parts[1]}"
+
+    def compute_month_duration(self, date1, date2):
+        """Compute the month duration between 2 dates given as MM/YYYY"""
+        format_string = "%m/%Y"
+
+        # get the current date:
+        cur_date = datetime.now()
+        if date1 == "Present":
+            date1 = f"{cur_date.month:02d}/{cur_date.year}"
+        if date2 == "Present":
+            date2 = f"{cur_date.month:02d}/{cur_date.year}"
+
+        # Convert strings to datetime objects
+        datetime1 = datetime.strptime(date1, format_string)
+        datetime2 = datetime.strptime(date2, format_string)
+
+        # Calculate the number of months between the dates
+        months = (datetime2.year - datetime1.year) * 12 + (datetime2.month - datetime1.month)
+
+        return abs(months)  # Return the absolute value to handle reversed order of dates
 
     def draw_hline(self, parent):
         """Draw an horizontal line"""
