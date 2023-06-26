@@ -588,7 +588,7 @@ scripts:
     notify: false
     custom_python_env: sd_webui_env
     cwd: D:\Projects\sd_webui
-    cmd: cmd /c update.bat
+    cmd: cmd /c start update.bat
     python_path: ["${NVP_ROOT_DIR}"]
 
   sd_webui:
@@ -596,7 +596,7 @@ scripts:
     notify: false
     custom_python_env: sd_webui_env
     cwd: D:\Projects\sd_webui
-    cmd: cmd /c run.bat
+    cmd: cmd /c start run.bat
     python_path: ["${NVP_ROOT_DIR}"]
 
   txt2img:

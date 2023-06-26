@@ -36,6 +36,9 @@ class CVBuilderBase(NVPComponent):
         self.styles = {}
         self.colors = {}
 
+        # Target page width in centimeters:
+        self.page_width = 19.0
+
     def get_text_dimensions(self, text_string, font):
         """Get the dimensions of a text"""
         # https://stackoverflow.com/a/46220683/9263761
@@ -323,7 +326,7 @@ class CVBuilderBase(NVPComponent):
             zindex=0,
             x1="0cm",
             y1="0.4cm",
-            x2=f"{16.9*3.0/4.0:.2f}cm",
+            x2=f"{self.page_width*4.0/5.0:.2f}cm",
             y2="0.4cm",
         )
         parent.addElement(line)

@@ -15,6 +15,8 @@ from odf.style import (
 def define_cv_styles(self):
     """Define the styles"""
 
+    loextns = "urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"
+
     style = self.add_paragraph_style("VerticalCenterStyle")
     style.addElement(ParagraphProperties(verticalalign="center"))
 
@@ -126,19 +128,27 @@ def define_cv_styles(self):
 
     style = self.add_paragraph_style("JobStyle")
     style.addElement(
-        ParagraphProperties(textalign="center", margintop="0cm", marginbottom="0.2cm", verticalalign="center")
+        ParagraphProperties(textalign="center", margintop="0.15cm", marginbottom="0.15cm", verticalalign="center")
     )
-    style.addElement(
-        TextProperties(
-            fontsize="9pt",
-            fontweight="normal",
-            fontname="Source Sans Pro",
-            fontfamily="Source Sans Pro",
-            color=self.rgb_to_hex(self.colors["darktext"]),
-            # texttransform="uppercase",
-            fontvariant="small-caps",
-        )
+    props = TextProperties(
+        fontsize="9.5pt",
+        fontweight="bold",
+        fontname="Source Sans Pro",
+        fontfamily="Source Sans Pro",
+        color=self.rgb_to_hex(self.colors["darktext"]),
+        # texttransform="uppercase",
+        backgroundcolor=self.rgb_to_hex(self.colors["darktext"], lighten=0.9),
+        fontvariant="small-caps",
     )
+    style.addElement(props)
+
+    props.setAttrNS(loextns, "char-shading-value", "0")
+    props.setAttrNS(loextns, "padding-left", "1.2cm")
+    props.setAttrNS(loextns, "padding-right", "1.2cm")
+    props.setAttrNS(loextns, "padding-top", "0.05cm")
+    props.setAttrNS(loextns, "padding-bottom", "0.05cm")
+    props.setAttrNS(loextns, "border", "1.5pt solid " + self.rgb_to_hex(self.colors["darktext"], lighten=0.3))
+    props.setAttrNS(loextns, "shadow", "3pt 3pt")
 
     style = self.add_paragraph_style("MissionProjectStyle")
     style.addElement(
@@ -146,7 +156,7 @@ def define_cv_styles(self):
     )
     style.addElement(
         TextProperties(
-            fontsize="8pt",
+            fontsize="9pt",
             fontweight="bold",
             fontname="Roboto Condensed",
             fontfamily="Roboto Condensed",
@@ -158,15 +168,18 @@ def define_cv_styles(self):
 
     style = self.add_paragraph_style("MissionPositionStyle")
     style.addElement(
-        ParagraphProperties(textalign="right", margintop="0cm", marginbottom="0.2cm", verticalalign="center")
+        ParagraphProperties(
+            textalign="right", margintop="0cm", marginright="0.08cm", marginbottom="0.2cm", verticalalign="center"
+        )
     )
     style.addElement(
         TextProperties(
-            fontsize="8pt",
-            fontweight="italic",
+            fontsize="9pt",
+            fontweight="bold",
             fontname="Roboto Condensed",
             fontfamily="Roboto Condensed",
-            color=self.rgb_to_hex(self.colors["highlight"]),
+            color=self.rgb_to_hex(self.colors["highlight"], lighten=0.1),
+            textshadow="1pt 1pt",
             # texttransform="uppercase",
             # fontvariant="small-caps",
         )
@@ -192,7 +205,7 @@ def define_cv_styles(self):
     style = self.add_paragraph_style("MissionClientStyle")
     style.addElement(
         ParagraphProperties(
-            textalign="right", margintop="0cm", marginbottom="0.cm", marginright="0.3cm", verticalalign="center"
+            textalign="right", margintop="0.1cm", marginbottom="0.cm", marginright="0.3cm", verticalalign="center"
         )
     )
     style.addElement(
@@ -242,7 +255,9 @@ def define_cv_styles(self):
 
     style = self.add_paragraph_style("TechsStyleBase")
     style.addElement(
-        ParagraphProperties(textalign="center", margintop="0.15cm", marginbottom="0.15cm", verticalalign="center")
+        ParagraphProperties(
+            textalign="center", margintop="0.15cm", marginbottom="0.15cm", verticalalign="center", lineheight="125%"
+        )
     )
     style.addElement(
         TextProperties(
@@ -257,7 +272,6 @@ def define_cv_styles(self):
     style = self.add_auto_style("TechsStyle", "text")
     style.addElement(TextProperties(backgroundcolor="transparent"))
 
-    loextns = "urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"
     props = TextProperties(backgroundcolor=self.rgb_to_hex(self.colors["highlight"], lighten=0.9))
     style.addElement(props)
 
@@ -277,10 +291,13 @@ def define_cv_styles(self):
     )
     style.addElement(
         TextProperties(
-            fontsize="12pt",
-            fontweight="normal",
-            fontname="Calibri",
-            fontfamily="Calibri",
+            fontsize="11pt",
+            fontweight="bold",
+            fontname="Verdana",
+            fontfamily="Verdana",
+            # fontweight="normal",
+            # fontname="Calibri",
+            # fontfamily="Calibri",
             color=self.rgb_to_hex(self.colors["highlight"]),
             fontvariant="small-caps",
         )
@@ -327,7 +344,7 @@ def define_cv_styles(self):
     )
 
     # usable page width in centimeters:
-    pwidth = 19.0
+    pwidth = self.page_width
 
     style = self.add_auto_table_style("MainTableStyle")
     style.addElement(TableProperties(width=f"{pwidth}cm", marginleft="-1.0cm", align="left"))
@@ -345,4 +362,7 @@ def define_cv_styles(self):
     style = self.add_auto_table_cell_style("DefaultCellStyle")
     style.addElement(TableCellProperties(padding="0cm", border="none"))
     style = self.add_auto_table_cell_style("VCenteredCellStyle")
+    style.addElement(TableCellProperties(padding="0cm", border="none", verticalalign="middle"))
+
+    style = self.add_auto_table_cell_style("JobCellStyle")
     style.addElement(TableCellProperties(padding="0cm", border="none", verticalalign="middle"))

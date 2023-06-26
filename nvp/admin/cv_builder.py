@@ -154,29 +154,10 @@ class CVBuilder(CVBuilderBase):
 
         cell1 = self.add_cell(row, stylename="DefaultCellStyle")
 
-        from_t = self.format_date(mission["from"])
-        to_t = self.format_date(mission["to"])
-        dur = self.compute_month_duration(mission["from"], mission["to"]) + 1
+        self.write_duration_elements(cell1, mission["from"], mission["to"])
+
         client = mission["client"]
 
-        dur_y = 0
-        dur_m = dur
-        if dur >= 12:
-            dur_y = dur // 12
-            dur_m = dur - 12 * dur_y
-
-        dur_parts = []
-        if dur_y > 0:
-            dur_parts.append(f"{dur_y} year{'s' if dur_y>1 else ''}")
-        if dur_m > 0:
-            dur_parts.append(f"{dur_m} month{'s' if dur_m>1 else ''}")
-
-        dur_str = ", ".join(dur_parts)
-
-        txt = text.P(text=f"{from_t} - {to_t}", stylename="MissionDateStyle")
-        cell1.addElement(txt)
-        txt = text.P(text=dur_str, stylename="MissionDateStyle")
-        cell1.addElement(txt)
         txt = text.P(text=f"Client: {client}", stylename="MissionClientStyle")
         cell1.addElement(txt)
 
@@ -203,7 +184,7 @@ class CVBuilder(CVBuilderBase):
         txt = text.P(text=f"{pos}", stylename="MissionPositionStyle")
         pos_cell.addElement(txt)
 
-        txt = text.P(text=f"", stylename="MainText")
+        txt = text.P(text="", stylename="MainText")
         cell2.addElement(txt)
         num = len(desc)
         for idx, elem in enumerate(desc):
@@ -260,6 +241,151 @@ class CVBuilder(CVBuilderBase):
         for jobdesc in self.desc["work_experience"]:
             self.write_job_section(tbl, jobdesc)
 
+    def write_duration_elements(self, cell, from_date, to_date):
+        """Write the duration element in the given cell"""
+        from_t = self.format_date(from_date)
+        to_t = self.format_date(to_date)
+
+        dur = self.compute_month_duration(from_date, to_date) + 1
+
+        dur_y = 0
+        dur_m = dur
+        if dur >= 12:
+            dur_y = dur // 12
+            dur_m = dur - 12 * dur_y
+
+        dur_parts = []
+        if dur_y > 0:
+            dur_parts.append(f"{dur_y} year{'s' if dur_y>1 else ''}")
+        if dur_m > 0:
+            dur_parts.append(f"{dur_m} month{'s' if dur_m>1 else ''}")
+
+        dur_str = ", ".join(dur_parts)
+
+        txt = text.P(text=f"{from_t} - {to_t}", stylename="MissionDateStyle")
+        cell.addElement(txt)
+        txt = text.P(text=dur_str, stylename="MissionDateStyle")
+        cell.addElement(txt)
+
+    def write_project_section(self, tbl, proj):
+        """Write a project description section"""
+        row = self.add_row(tbl, stylename="MainTableRow")
+
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+
+        self.write_duration_elements(cell1, proj["from"], proj["to"])
+
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        projname = proj["project"]
+
+        desc = proj["description"]
+        if isinstance(desc, str):
+            desc = [desc]
+
+        techs = proj["techs"].split(",")
+
+        # Add a table for the project/position line:
+        ptable = self.add_table(cell2, 2)
+        subrow = self.add_row(ptable)
+
+        proj_cell = self.add_cell(subrow)
+        txt = text.P(text=f"{projname}", stylename="MissionProjectStyle")
+        proj_cell.addElement(txt)
+
+        self.add_cell(subrow)
+        # txt = text.P(text=f"{pos}", stylename="MissionPositionStyle")
+        # pos_cell.addElement(txt)
+
+        txt = text.P(text=f"", stylename="MainText")
+        cell2.addElement(txt)
+        num = len(desc)
+        for idx, elem in enumerate(desc):
+            self.add_text(txt, "- " + elem)
+            if idx < (num - 1):
+                self.add_linebreak(txt)
+
+        techs = [tech.strip() for tech in techs]
+
+        txt = text.P(text="", stylename="TechsStyleBase")
+        num = len(techs)
+        for idx, tech in enumerate(techs):
+            self.add_text(txt, tech, stylename="TechsStyle")
+            if idx < (num - 1):
+                self.add_text(txt, " · ")
+
+        cell2.addElement(txt)
+
+    def write_personal_projects(self, tbl):
+        """Write the personal project sections"""
+
+        # Add another row
+        row = self.add_row(tbl, stylename="MainTableRow")
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        txt = text.P(text="Personal Projects", stylename="LeftTitle")
+        cell1.addElement(txt)
+
+        self.draw_hline(self.add_p(cell2))
+
+        # Get the work sections:
+        for proj in self.desc["personal_projects"]:
+            self.write_project_section(tbl, proj)
+
+    def write_education_section(self, tbl, edu):
+        """Write education section"""
+        row = self.add_row(tbl, stylename="MainTableRow")
+
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+
+        self.write_duration_elements(cell1, edu["from"], edu["to"])
+
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        school = edu["school"]
+        qual = edu["qualification"]
+
+        desc = edu["description"]
+        if isinstance(desc, str):
+            desc = [desc]
+
+        # Add a table for the project/position line:
+        ptable = self.add_table(cell2, 2)
+        subrow = self.add_row(ptable)
+
+        proj_cell = self.add_cell(subrow)
+        txt = text.P(text=f"{school}", stylename="MissionProjectStyle")
+        proj_cell.addElement(txt)
+
+        pos_cell = self.add_cell(subrow)
+        txt = text.P(text=f"{qual}", stylename="MissionPositionStyle")
+        pos_cell.addElement(txt)
+
+        txt = text.P(text=f"", stylename="MainText")
+        cell2.addElement(txt)
+        num = len(desc)
+        for idx, elem in enumerate(desc):
+            self.add_text(txt, "- " + elem)
+            if idx < (num - 1):
+                self.add_linebreak(txt)
+
+    def write_education(self, tbl):
+        """Write the education section"""
+        # Add another row
+        row = self.add_row(tbl, stylename="MainTableRow")
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        txt = text.P(text="Education", stylename="LeftTitle")
+        cell1.addElement(txt)
+
+        self.draw_hline(self.add_p(cell2))
+
+        # Get the work sections:
+        for edu in self.desc["education"]:
+            self.write_education_section(tbl, edu)
+
     def build(self, desc):
         """This function is used build the CV from the given description"""
         filename = desc["filename"]
@@ -305,6 +431,12 @@ class CVBuilder(CVBuilderBase):
 
         # Add the work experience section:
         self.write_work_experience(tbl)
+
+        # Add the personal projects:
+        self.write_personal_projects(tbl)
+
+        # Add the education section:
+        self.write_education(tbl)
 
         # Save the CV to a file
         doc.save(odt_file)
