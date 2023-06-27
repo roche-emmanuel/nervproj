@@ -4,20 +4,10 @@ This component is used to generate a CV document from a given yaml description""
 import logging
 from io import BytesIO
 
-import fontawesome as fa
 from cv.styles import define_cv_styles
 from odf import draw, table, text
 from odf.opendocument import OpenDocumentText
-from odf.style import (
-    GraphicProperties,
-    ParagraphProperties,
-    Style,
-    TableCellProperties,
-    TableColumnProperties,
-    TableProperties,
-    TextProperties,
-)
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 from nvp.admin.cv_builder_base import CVBuilderBase
 from nvp.nvp_context import NVPContext
