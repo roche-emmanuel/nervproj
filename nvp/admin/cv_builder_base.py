@@ -7,16 +7,7 @@ from io import BytesIO
 
 import fontawesome as fa
 from odf import draw, table, text
-from odf.opendocument import OpenDocumentText
-from odf.style import (
-    GraphicProperties,
-    ParagraphProperties,
-    Style,
-    TableCellProperties,
-    TableColumnProperties,
-    TableProperties,
-    TextProperties,
-)
+from odf.style import Style
 from PIL import Image, ImageDraw, ImageFont
 
 from nvp.nvp_component import NVPComponent
@@ -35,8 +26,9 @@ class CVBuilderBase(NVPComponent):
         self.desc = None
         self.styles = {}
         self.colors = {}
-        self.desc_field = "description"
-        self.text_size = "7.5pt"
+        self.desc_field = None
+        self.text_size = None
+        self.left_col_ratio = None
         # Target page width in centimeters:
         self.page_width = 19.0
         self.ext_count = 0
@@ -276,8 +268,10 @@ class CVBuilderBase(NVPComponent):
         if cmd == "build":
             file = self.get_param("input_file")
             short = self.get_param("short_version")
+
             self.desc_field = "overview" if short else "description"
             self.text_size = "8pt" if short else "7.5pt"
+            self.left_col_ratio = 0.20 if short else 0.165
 
             # Read the configuration:
             cfg = self.read_yaml(file)
@@ -335,7 +329,7 @@ class CVBuilderBase(NVPComponent):
             zindex=0,
             x1="0cm",
             y1="0.4cm",
-            x2=f"{self.page_width*4.0/5.0:.2f}cm",
+            x2=f"{self.page_width*(0.998 - self.left_col_ratio):.2f}cm",
             y2="0.4cm",
         )
         parent.addElement(line)

@@ -163,11 +163,16 @@ class CVBuilder(CVBuilderBase):
         image = draw.Image(href=img_ref)
         picture.addElement(image)
 
-    def write_mission_section(self, tbl, mission):
+    def write_mission_section(self, tbl, mission, pcell1, pcell2):
         """Write a mission section"""
-        row = self.add_row(tbl, stylename="MainTableRow")
 
-        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+        if pcell1 is None:
+            row = self.add_row(tbl, stylename="MainTableRow")
+            cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+            cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+        else:
+            cell1 = pcell1
+            cell2 = pcell2
 
         self.write_duration_elements(cell1, mission["from"], mission["to"])
 
@@ -175,8 +180,6 @@ class CVBuilder(CVBuilderBase):
 
         txt = text.P(text=f"Client: {client}", stylename="MissionClientStyle")
         cell1.addElement(txt)
-
-        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
 
         projname = mission["project"]
         pos = mission["position"]
@@ -221,10 +224,12 @@ class CVBuilder(CVBuilderBase):
     def write_job_section(self, tbl, jobdesc):
         """Write a Job/employer section"""
         row = self.add_row(tbl, stylename="MainTableRow")
-        # Not writting anything in the first cell here:
-        self.add_cell(row, stylename="DefaultCellStyle")
 
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
         cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        # Add a place holder paragraph on the left side:
+        txt = self.add_p(cell1, stylename="JobTitlePlaceHolderStyle")
 
         employer = jobdesc["employer"]
         from_t = self.format_date(jobdesc["from"])
@@ -236,8 +241,12 @@ class CVBuilder(CVBuilderBase):
         self.add_text(txt, content)
 
         # Now write the missions at this post:
+        pcell1 = cell1
+        pcell2 = cell2
         for mis in jobdesc["missions"]:
-            self.write_mission_section(tbl, mis)
+            self.write_mission_section(tbl, mis, pcell1, pcell2)
+            pcell1 = None
+            pcell2 = None
 
     def write_work_experience(self, tbl):
         """Write the work experience sections"""

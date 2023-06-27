@@ -134,6 +134,11 @@ def define_cv_styles(self):
         )
     )
 
+    style = self.add_paragraph_style("JobTitlePlaceHolderStyle")
+    style.addElement(
+        ParagraphProperties(textalign="center", margintop="0.15cm", marginbottom="0.38cm", verticalalign="center")
+    )
+
     style = self.add_paragraph_style("JobStyle")
     style.addElement(
         ParagraphProperties(textalign="center", margintop="0.15cm", marginbottom="0.15cm", verticalalign="center")
@@ -367,12 +372,12 @@ def define_cv_styles(self):
     style = self.add_auto_style("MainTableRow", "table-row")
     style.addElement(TableRowProperties(keeptogether="always"))
 
-    # rel1 = (2 ^ 16 - 1) // 4
-    # rel2 = ((2 ^ 16 - 1) * 3) // 4
+    left_size = pwidth * self.left_col_ratio
+    right_size = pwidth - left_size
     style = self.add_auto_table_column_style("MainTableCol0Style")
-    style.addElement(TableColumnProperties(columnwidth=f"{pwidth/5.0:.2f}cm"))  # , relcolumnwidth=f"{rel1}*"
+    style.addElement(TableColumnProperties(columnwidth=f"{left_size:.2f}cm"))  # , relcolumnwidth=f"{rel1}*"
     style = self.add_auto_table_column_style("MainTableCol1Style")
-    style.addElement(TableColumnProperties(columnwidth=f"{pwidth*4.0/5.0:.2f}cm"))  # , relcolumnwidth=f"{rel2}*"
+    style.addElement(TableColumnProperties(columnwidth=f"{right_size:.2f}cm"))  # , relcolumnwidth=f"{rel2}*"
 
     style = self.add_auto_table_cell_style("DefaultCellStyle")
     style.addElement(TableCellProperties(padding="0cm", border="none"))
