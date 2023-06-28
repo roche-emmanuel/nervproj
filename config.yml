@@ -576,6 +576,13 @@ scripts:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/ai/whisper_gen.py convert
     python_path: ["${NVP_ROOT_DIR}"]
 
+  split-text:
+    notify: false
+    help: Split a text file by number of words
+    custom_python_env: whisper_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/ai/whisper_gen.py split_text
+    python_path: ["${NVP_ROOT_DIR}"]
+
   gpt4all:
     notify: false
     help: Run GPT4All chat

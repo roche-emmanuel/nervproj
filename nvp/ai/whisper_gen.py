@@ -30,15 +30,22 @@ class WhisperGen(NVPComponent):
 
         if cmd == "convert":
             file = self.get_param("input_file")
+            nwords = self.get_param("num_words")
             model = self.get_param("model")
             if file == "all":
-                return self.process_all_files(model)
+                return self.process_all_files(model, nwords)
 
-            return self.convert_audio_to_text(file, model)
+            return self.convert_audio_to_text(file, model, nwords)
+
+        if cmd == "split_text":
+            file = self.get_param("input_file")
+            nwords = self.get_param("num_words")
+
+            return self.split_text_chunks(file, nwords)
 
         return False
 
-    def process_all_files(self, model):
+    def process_all_files(self, model, nwords):
         """Process all the video files not already processed in the current folder"""
         cur_dir = self.get_cwd()
         all_files = self.get_all_files(cur_dir, recursive=False)
@@ -53,11 +60,11 @@ class WhisperGen(NVPComponent):
                 continue
 
             # Otherwise we process this file:
-            self.convert_audio_to_text(fname, model)
+            self.convert_audio_to_text(fname, model, nwords)
 
         return True
 
-    def convert_audio_to_text(self, file, model):
+    def convert_audio_to_text(self, file, model, nwords):
         """Translate an audio file to text"""
         logger.info("Should translate audio file to text: %s", file)
 
@@ -82,6 +89,45 @@ class WhisperGen(NVPComponent):
         self.write_text_file(txt, file + ".txt")
         logger.info("Done converting auto to text in %.2f secs", elapsed)
         logger.info("Generated output: %s", txt)
+
+        # When done generating a file we should also count the number of words, and split on
+        # multiple chunks if needed:
+        self.split_text_chunks(file + ".txt", nwords)
+
+        return True
+
+    def split_text_chunks(self, filename, num_words):
+        """Split a given text file into multiple chunk files"""
+
+        content = self.read_text_file(filename)
+        words = content.split(" ")
+
+        num = len(words)
+        if num < num_words:
+            logger.info("No need to split text content with %d words", num)
+            return True
+
+        cur_words = []
+        idx = 0
+
+        for word in words:
+            cur_words.append(word)
+            if len(cur_words) >= num_words and word[-1] == ".":
+                # Write a chunk file:
+                chunkfile = self.set_path_extension(filename, f"_chunk{idx}.txt")
+                self.write_text_file(" ".join(cur_words), chunkfile)
+                idx += 1
+                cur_words = []
+
+        if len(cur_words) > 0:
+            # Write the remaining words:
+            chunkfile = self.set_path_extension(filename, f"_chunk{idx}.txt")
+            self.write_text_file(" ".join(cur_words), chunkfile)
+            idx += 1
+            cur_words = []
+
+        logger.info("Splitted file of %d words in %d chunks", num, idx)
+
         return True
 
 
@@ -95,5 +141,10 @@ if __name__ == "__main__":
     psr = context.build_parser("convert")
     psr.add_str("-i", "--input", dest="input_file", default="all")("Audio file to convert to text")
     psr.add_str("-m", "--model", dest="model", default="large")("Model to use for the convertion")
+    psr.add_int("-n", "--nwords", dest="num_words", default=2500)("Number of words to write per chunk.")
+
+    psr = context.build_parser("split_text")
+    psr.add_str("-i", "--input", dest="input_file")("Text file to split")
+    psr.add_int("-n", "--nwords", dest="num_words", default=2500)("Number of words to write per chunk.")
 
     comp.run()
