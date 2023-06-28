@@ -31,11 +31,33 @@ class WhisperGen(NVPComponent):
         if cmd == "convert":
             file = self.get_param("input_file")
             model = self.get_param("model")
-            return self.translate_audio(file, model)
+            if file == "all":
+                return self.process_all_files(model)
+
+            return self.convert_audio_to_text(file, model)
 
         return False
 
-    def translate_audio(self, file, model):
+    def process_all_files(self, model):
+        """Process all the video files not already processed in the current folder"""
+        cur_dir = self.get_cwd()
+        all_files = self.get_all_files(cur_dir, recursive=False)
+        exts = [".mkv", ".mp3", ".mp4"]
+        for fname in all_files:
+            ext = self.get_path_extension(fname).lower()
+            if ext not in exts:
+                continue
+
+            # Check if we already have the text file:
+            if self.file_exists(self.get_path(cur_dir, fname + ".txt")):
+                continue
+
+            # Otherwise we process this file:
+            self.convert_audio_to_text(fname, model)
+
+        return True
+
+    def convert_audio_to_text(self, file, model):
         """Translate an audio file to text"""
         logger.info("Should translate audio file to text: %s", file)
 
@@ -71,7 +93,7 @@ if __name__ == "__main__":
     comp = context.register_component("WhisperGen", WhisperGen(context))
 
     psr = context.build_parser("convert")
-    psr.add_str("-i", "--input", dest="input_file")("Audio file to convert to text")
+    psr.add_str("-i", "--input", dest="input_file", default="all")("Audio file to convert to text")
     psr.add_str("-m", "--model", dest="model", default="large")("Model to use for the convertion")
 
     comp.run()
