@@ -3,6 +3,7 @@
 This component is used to generate youtube thumbnails from a given description in yaml"""
 
 import logging
+import os
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -25,9 +26,13 @@ class ThumbGen(NVPComponent):
         if cmd == "gen-thumb":
             tagname = self.get_param("tag_name")
 
+            # Get the desc dir:
+            desc_dir = os.environ["NV_YT_DESC_DIR"]
+
             # get the prefix:
             prefix = tagname[:3]
-            cfg_file = self.get_path(self.get_cwd(), "descs", prefix, tagname + ".yml")
+            # cfg_file = self.get_path(self.get_cwd(), "descs", prefix, tagname + ".yml")
+            cfg_file = self.get_path(desc_dir, prefix, tagname + ".yml")
             cfg = self.read_yaml(cfg_file)
 
             # Get the entry from the file:
