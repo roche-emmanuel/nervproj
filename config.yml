@@ -345,6 +345,9 @@ libraries:
   - name: gpt4all_chat
     version: git-1.0
     git: git@github.com:roche-emmanuel/gpt4all.git
+  - name: ggml
+    version: git-1.0
+    git: git@github.com:roche-emmanuel/ggml.git
 
 # list of available projects:
 projects: []
