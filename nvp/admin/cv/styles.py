@@ -139,6 +139,22 @@ def define_cv_styles(self):
         ParagraphProperties(textalign="center", margintop="0.15cm", marginbottom="0.38cm", verticalalign="center")
     )
 
+    style = self.add_paragraph_style("SkillCatStyle")
+    style.addElement(
+        ParagraphProperties(textalign="center", margintop="0.2cm", marginbottom="0.05cm", verticalalign="center")
+    )
+    style.addElement(
+        TextProperties(
+            fontsize="9pt",
+            fontweight="bold",
+            fontname="Roboto Condensed",
+            fontfamily="Roboto Condensed",
+            color=self.rgb_to_hex(self.colors["highlight"]),
+            # texttransform="uppercase",
+            fontvariant="small-caps",
+        )
+    )
+
     style = self.add_paragraph_style("JobStyle")
     style.addElement(
         ParagraphProperties(textalign="center", margintop="0.15cm", marginbottom="0.15cm", verticalalign="center")
@@ -340,6 +356,29 @@ def define_cv_styles(self):
         )
     )
 
+    style = self.add_paragraph_style("SkillLineParagraphStyle")
+    style.addElement(
+        ParagraphProperties(
+            textalign="left",
+            margintop="0cm",
+            marginbottom="0.0cm",
+            marginleft="0.0cm",
+            verticalalign="center",
+            lineheight="100%",
+        )
+    )
+    style.addElement(
+        TextProperties(
+            fontsize="6pt",
+            fontweight="normal",
+            fontname="Liberation Serif",
+            fontfamily="Liberation Serif",
+            color=self.rgb_to_hex(self.colors["text"]),
+            # textshadow="4pt 4pt",
+            # fontvariant="small-caps",
+        )
+    )
+
     style = self.add_paragraph_style("MainText")
     style.addElement(
         ParagraphProperties(
@@ -386,3 +425,92 @@ def define_cv_styles(self):
 
     style = self.add_auto_table_cell_style("JobCellStyle")
     style.addElement(TableCellProperties(padding="0cm", border="none", verticalalign="middle"))
+
+    style = self.add_auto_style("MainTableWithBreakStyle", "table", parentstylename="MainTableStyle")
+    style.addElement(TableProperties(breakbefore="page", width=f"{pwidth}cm", marginleft="-1.0cm", align="left"))
+
+    settings = self.desc["settings"]
+    nsteps = settings["num_skill_steps"]
+    pad = settings["skill_step_padding"]
+    scol = settings["skill_start_color"]
+    ecol = settings["skill_end_color"]
+    mcol = settings["skill_missing_color"]
+    swidth = settings["skill_stroke_width"]
+
+    style = self.add_paragraph_style("SkillElemStyle")
+    style.addElement(
+        ParagraphProperties(
+            textalign="left",
+            marginleft=f"{pad}cm",
+            margintop="0.05cm",
+            marginbottom="0.05cm",
+            verticalalign="center",
+        )
+    )
+    style.addElement(
+        TextProperties(
+            fontsize="7pt",
+            fontweight="bold",
+            fontname="Source Sans Pro",
+            fontfamily="Source Sans Pro",
+            color=self.rgb_to_hex(self.colors["darktext"]),
+            # texttransform="uppercase",
+            # fontvariant="small-caps",
+        )
+    )
+
+    # Default gray line style:
+    style = self.add_auto_graphic_style("SkillLineStyleDef")
+    style.addElement(
+        GraphicProperties(
+            wrap="none",
+            runthrough="background",
+            strokewidth=f"{swidth}cm",
+            flowwithtext="false",
+            # allowoverlap="true",
+            markerstartwidth="0.0cm",
+            markerendwidth="0.0cm",
+            strokecolor=self.rgb_to_hex(mcol),
+            paddingtop="0.0cm",
+            paddingbottom="0.0cm",
+            paddingleft="0.0cm",
+            paddingright="0.0cm",
+            wrapinfluenceonposition="once-concurrent",
+            verticalpos="paragraph",
+            verticalrel="from-top",
+            horizontalpos="from-left",
+            horizontalrel="paragraph",
+        )
+    )
+
+    # Add the line element styles:
+    for i in range(nsteps):
+        x = i / (nsteps - 1)
+        col = (
+            int(scol[0] * (1.0 - x) + ecol[0] * x),
+            int(scol[1] * (1.0 - x) + ecol[1] * x),
+            int(scol[2] * (1.0 - x) + ecol[2] * x),
+        )
+
+        style = self.add_auto_graphic_style(f"SkillLineStyle{i}")
+        style.addElement(
+            GraphicProperties(
+                wrap="none",
+                runthrough="background",
+                strokewidth=f"{swidth}cm",
+                flowwithtext="false",
+                # allowoverlap="true",
+                markerstartwidth="0.0cm",
+                markerendwidth="0.0cm",
+                strokecolor=self.rgb_to_hex(col),
+                paddingtop="0.0cm",
+                paddingbottom="0.0cm",
+                paddingleft="0.0cm",
+                paddingright="0.0cm",
+                wrapinfluenceonposition="once-concurrent",
+                verticalpos="paragraph",
+                verticalrel="from-top",
+                horizontalpos="from-left",
+                horizontalrel="paragraph",
+            )
+        )

@@ -480,6 +480,119 @@ class CVBuilder(CVBuilderBase):
             if idx < (num - 1):
                 self.add_linebreak(txt)
 
+    def write_skill_elements(self, cell, elems):
+        """Write all the skill elements in a given cell"""
+
+        # Get the number of columns:
+        settings = self.desc["settings"]
+        ncols = settings["num_skill_columns"]
+        nsteps = settings["num_skill_steps"]
+        pad = settings["skill_step_padding"]
+        spacing = settings["skill_step_spacing"]
+
+        # Compute the width of one cell in centimeters
+        cwidth = self.page_width * (1.0 - self.left_col_ratio) / ncols
+
+        # Compute the size of each step in centimeters:
+        stepw = (cwidth - 2 * pad - (nsteps - 1) * spacing) / nsteps
+        # logger.info("Skill step size is: %.4fcm", stepw)
+
+        tbl = self.add_table(cell, ncols=1)
+
+        # Create the Elem style if needed:
+        for sname, level in elems.items():
+
+            # For each skill category we add an element:
+            row = self.add_row(tbl, stylename="MainTableRow")
+            cell = self.add_cell(row, stylename="DefaultCellStyle")
+
+            txt = self.add_p(cell, stylename="SkillElemStyle")
+            self.add_text(txt, sname)
+            # Add the line representing the level:
+            lvl_p = self.add_p(cell, stylename="SkillLineParagraphStyle")
+            xpos = pad
+            # Draw all the elements:
+            for i in range(nsteps):
+                suffix = f"{i}" if level >= (i / nsteps) else "Def"
+                line = draw.Line(
+                    stylename=self.get_style(f"SkillLineStyle{suffix}"),
+                    # anchortype="as-char",
+                    anchortype="paragraph",
+                    zindex=0,
+                    x1=f"{xpos:.6f}cm",
+                    y1="0.1cm",
+                    x2=f"{xpos+stepw:.6f}cm",
+                    y2="0.1cm",
+                )
+                lvl_p.addElement(line)
+                xpos += stepw + spacing
+
+    def write_skills(self, tbl):
+        """Write the skills"""
+        settings = self.desc["settings"]
+
+        if settings.get("break_on_skills", False):
+            tbl = table.Table(stylename="MainTableWithBreakStyle")
+            self.doc.text.addElement(tbl)
+            tbl.addElement(table.TableColumn(stylename="MainTableCol0Style"))
+            tbl.addElement(table.TableColumn(stylename="MainTableCol1Style"))
+
+        parent_tbl = tbl
+
+        # Add another row
+        row = self.add_row(tbl, stylename="MainTableRow")
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        # txt = text.P(text="Work Experience", stylename="LeftTitle")
+        # cell1.addElement(txt)
+        txt = text.P(text="", stylename="LeftTitle")
+        cell1.addElement(txt)
+        # fa: gears: f085
+        self.add_icon(txt, "\uf085", "12pt", self.colors["highlight"])
+        self.add_text(txt, " Main Skills")
+
+        self.draw_hline(self.add_p(cell2))
+
+        # get the skills categories:
+        skills = self.desc["skills"]
+        ncols = settings["num_skill_columns"]
+
+        # Add a new big cell:
+        row = self.add_row(tbl, stylename="MainTableRow")
+
+        self.add_cell(row, stylename="DefaultCellStyle")
+        parent_cell = self.add_cell(row, stylename="DefaultCellStyle")
+        # parent_cell = self.add_cell(row, numbercolumnsspanned=2)
+        # TableCell(numberrowsspanned=2, numbercolumnsspanned=3)
+
+        # Add a table with the number of target columns in this big parent cell:
+        tbl = self.add_table(parent_cell, ncols=ncols)
+
+        # For each skill category we add an element:
+        row = self.add_row(tbl, stylename="MainTableRow")
+        # cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+        # cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+        cat_idx = 0
+
+        for cname, elems in skills.items():
+            if cat_idx == ncols:
+                # Got to next row:
+                cat_idx = 0
+                row = self.add_row(tbl, stylename="MainTableRow")
+
+            cell = self.add_cell(row, stylename="DefaultCellStyle")
+
+            txt = self.add_p(cell, stylename="SkillCatStyle")
+            self.add_text(txt, cname)
+
+            # write all the elements:
+            self.write_skill_elements(cell, elems)
+
+            cat_idx += 1
+
+        return parent_tbl
+
     def build(self, desc):
         """This function is used build the CV from the given description"""
         filename = desc["filename"]
@@ -534,6 +647,9 @@ class CVBuilder(CVBuilderBase):
 
         # Add the education section:
         self.write_education(tbl)
+
+        # Next we build the skill sections:
+        tbl = self.write_skills(tbl)
 
         self.write_additional_skills(tbl)
 
