@@ -30,6 +30,7 @@ class CVBuilder(CVBuilderBase):
             "infos": (51, 51, 51),
             "highlight": (0, 110, 184),
             "text": (0, 0, 0),
+            "grey": (170, 170, 170),
             "darktext": (51, 51, 51),
         }
 

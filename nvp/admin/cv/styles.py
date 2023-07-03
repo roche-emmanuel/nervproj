@@ -1,8 +1,13 @@
 """In this module we define the styles used in the CV builder"""
 
 
+from odf import table
 from odf.style import (
+    Footer,
     GraphicProperties,
+    MasterPage,
+    PageLayout,
+    PageLayoutProperties,
     ParagraphProperties,
     TableCellProperties,
     TableColumnProperties,
@@ -10,6 +15,7 @@ from odf.style import (
     TableRowProperties,
     TextProperties,
 )
+from odf.text import PageCount, PageNumber
 
 
 def define_cv_styles(self):
@@ -109,6 +115,9 @@ def define_cv_styles(self):
             color=self.rgb_to_hex(self.colors["highlight"]),
         )
     )
+
+    style = self.add_text_style("UpscriptStyle")
+    style.addElement(TextProperties(textposition="super 58%"))
 
     style = self.add_text_style("ApplyHeaderStyle")
     style.addElement(
@@ -437,6 +446,15 @@ def define_cv_styles(self):
     mcol = settings["skill_missing_color"]
     swidth = settings["skill_stroke_width"]
 
+    shades = settings.get("skill_colors_shades", [0.0] * 6)
+
+    scol = self.rgb_lighten(scol, shades[0])
+    scol = self.rgb_darken(scol, shades[1])
+    ecol = self.rgb_lighten(ecol, shades[2])
+    ecol = self.rgb_darken(ecol, shades[3])
+    mcol = self.rgb_lighten(mcol, shades[4])
+    mcol = self.rgb_darken(mcol, shades[5])
+
     style = self.add_paragraph_style("SkillElemStyle")
     style.addElement(
         ParagraphProperties(
@@ -514,3 +532,162 @@ def define_cv_styles(self):
                 horizontalrel="paragraph",
             )
         )
+
+    style = self.add_paragraph_style("FooterLeftStyle")
+    style.addElement(
+        ParagraphProperties(
+            textalign="left",
+            margintop="0cm",
+            marginbottom="0.0cm",
+            # marginleft="0.2cm",
+            verticalalign="center",
+            # lineheight="120%",
+        )
+    )
+    style.addElement(
+        TextProperties(
+            fontsize=self.text_size,
+            fontweight="normal",
+            fontname="Roboto Condensed",
+            fontfamily="Roboto Condensed",
+            color=self.rgb_to_hex(self.colors["grey"]),
+            # textshadow="4pt 4pt",
+            # fontvariant="small-caps",
+        )
+    )
+
+    style = self.add_paragraph_style("FooterCenterStyle")
+    style.addElement(
+        ParagraphProperties(
+            textalign="center",
+            margintop="0cm",
+            marginbottom="0.0cm",
+            # marginleft="0.2cm",
+            verticalalign="center",
+            # lineheight="120%",
+        )
+    )
+    style.addElement(
+        TextProperties(
+            fontsize=self.text_size,
+            fontweight="normal",
+            fontname="Roboto Condensed",
+            fontfamily="Roboto Condensed",
+            color=self.rgb_to_hex(self.colors["grey"]),
+            # textshadow="4pt 4pt",
+            fontvariant="small-caps",
+        )
+    )
+
+    style = self.add_paragraph_style("FooterRightStyle")
+    style.addElement(
+        ParagraphProperties(
+            textalign="right",
+            margintop="0cm",
+            marginbottom="0.0cm",
+            # marginleft="0.2cm",
+            verticalalign="center",
+            # lineheight="120%",
+        )
+    )
+    style.addElement(
+        TextProperties(
+            fontsize=self.text_size,
+            fontweight="normal",
+            fontname="Roboto Condensed",
+            fontfamily="Roboto Condensed",
+            color=self.rgb_to_hex(self.colors["grey"]),
+            # textshadow="4pt 4pt",
+            # fontvariant="small-caps",
+        )
+    )
+
+    # Add the pagelayout:
+    # <style:page-layout style:name="Mpm1">
+    #     <style:page-layout-properties fo:page-width="21.001cm" fo:page-height="29.7cm"
+    #         style:num-format="1" style:print-orientation="portrait" fo:margin-top="2cm"
+    #         fo:margin-bottom="2cm" fo:margin-left="2cm" fo:margin-right="2cm"
+    #         style:writing-mode="lr-tb" style:footnote-max-height="0cm" loext:margin-gutter="0cm">
+    #         <style:footnote-sep style:width="0.018cm" style:distance-before-sep="0.101cm"
+    #             style:distance-after-sep="0.101cm" style:line-style="solid"
+    #             style:adjustment="left" style:rel-width="25%" style:color="#000000" />
+    #     </style:page-layout-properties>
+    #     <style:header-style />
+    #     <style:footer-style>
+    #         <style:header-footer-properties fo:min-height="0cm" fo:margin-top="0.499cm"
+    #             fo:background-color="transparent" draw:fill="none" />
+    #     </style:footer-style>
+    # </style:page-layout>
+    pl = PageLayout(name="pagelayout")
+    pl.addElement(PageLayoutProperties(margintop="1cm", marginbottom="1cm"))
+    self.doc.automaticstyles.addElement(pl)
+    mp = MasterPage(name="Standard", pagelayoutname=pl)
+    self.doc.masterstyles.addElement(mp)
+    # h = Header()
+    # hp = P(text="header try")
+    # h.addElement(hp)
+    # mp.addElement(h)
+
+    footer = Footer()
+    mp.addElement(footer)
+
+    # <office:master-styles>
+    #     <style:master-page style:name="Standard" style:page-layout-name="Mpm1">
+    #         <style:footer>
+    #             <table:table table:name="Tableau35" table:style-name="Tableau35">
+    #                 <table:table-column table:style-name="Tableau35.A"
+    #                     table:number-columns-repeated="3" />
+    #                 <table:table-row>
+    #                     <table:table-cell table:style-name="Tableau35.A1" office:value-type="string">
+    #                         <text:p text:style-name="MP1">TheDate</text:p>
+    #                     </table:table-cell>
+    #                     <table:table-cell table:style-name="Tableau35.A1" office:value-type="string">
+    #                         <text:p text:style-name="MP2">Emmanuel Roche - CV</text:p>
+    #                     </table:table-cell>
+    #                     <table:table-cell table:style-name="Tableau35.C1" office:value-type="string">
+    #                         <text:p text:style-name="MP3"><text:page-number
+    #                                 text:select-page="current">8</text:page-number>/<text:page-count>
+    #                             8</text:page-count></text:p>
+    #                     </table:table-cell>
+    #                 </table:table-row>
+    #             </table:table>
+    #             <text:p text:style-name="Footer" />
+    #         </style:footer>
+    #     </style:master-page>
+    # </office:master-styles>
+
+    style = self.add_auto_table_column_style("FooterColStyle")
+    style.addElement(TableColumnProperties(columnwidth=f"{pwidth/3.0:.4f}cm"))
+
+    tbl = table.Table(stylename="MainTableStyle")
+    footer.addElement(tbl)
+
+    tbl.addElement(table.TableColumn(stylename="FooterColStyle"))
+    tbl.addElement(table.TableColumn(stylename="FooterColStyle"))
+    tbl.addElement(table.TableColumn(stylename="FooterColStyle"))
+    # tbl = self.add_table(footer, 3, stylename="MainTableStyle")
+
+    row = self.add_row(tbl, stylename="MainTableRow")
+
+    cell = self.add_cell(row, stylename="FooterLeftStyle")
+    txt = self.add_p(cell)
+
+    # Write the date:
+    cur_date = settings.get("cv_date", self.get_current_date())
+    self.add_text(txt, cur_date[0])
+    self.add_text(txt, cur_date[1], stylename="UpscriptStyle")
+    self.add_text(txt, ", " + cur_date[2])
+
+    cell = self.add_cell(row, stylename="FooterCenterStyle")
+    txt = self.add_p(cell)
+    # Write the name/cv:
+    fname = self.desc["first_name"]
+    lname = self.desc["last_name"]
+    self.add_text(txt, f"{fname} {lname} - Curriculum Vitae")
+
+    cell = self.add_cell(row, stylename="FooterRightStyle")
+    txt = self.add_p(cell)
+
+    txt.addElement(PageNumber(selectpage="current"))
+    self.add_text(txt, "/")
+    txt.addElement(PageCount(selectpage="current"))

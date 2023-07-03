@@ -1,6 +1,7 @@
 """CVBuilderBase handling component
 
 This component is used to generate a CV document from a given yaml description"""
+import datetime
 import logging
 from datetime import datetime
 from io import BytesIO
@@ -157,23 +158,51 @@ class CVBuilderBase(NVPComponent):
         parent.addElement(lbreak)
         return lbreak
 
+    def rgb_lighten(self, rgb, factor):
+        """Lighten a color"""
+        r, g, b = rgb
+        if factor != 0:
+            # Lighten the color:
+            r = int(r + (255.0 - r) * factor)
+            g = int(g + (255.0 - g) * factor)
+            b = int(b + (255.0 - b) * factor)
+        return (r, g, b)
+
+    def rgb_darken(self, rgb, factor):
+        """darken a color"""
+        r, g, b = rgb
+        if factor != 0:
+            # draken the color:
+            r = int(r + (0.0 - r) * factor)
+            g = int(g + (0.0 - g) * factor)
+            b = int(b + (0.0 - b) * factor)
+        return (r, g, b)
+
     def rgb_to_hex(self, rgb, lighten=0.0, darken=0.0):
         """Convert RGB tuple to hexadecimal color code."""
+        rgb = self.rgb_lighten(rgb, lighten)
+        rgb = self.rgb_darken(rgb, darken)
+
         r, g, b = rgb
-        if lighten != 0:
-            # Lighten the color:
-            r = int(r + (255.0 - r) * lighten)
-            g = int(g + (255.0 - g) * lighten)
-            b = int(b + (255.0 - b) * lighten)
-
-        if darken != 0:
-            # draken the color:
-            r = int(r + (0.0 - r) * lighten)
-            g = int(g + (0.0 - g) * lighten)
-            b = int(b + (0.0 - b) * lighten)
-
         hex_value = "#{:02x}{:02x}{:02x}".format(r, g, b)
         return hex_value
+
+    def get_current_date(self):
+        """Get the current formatted date"""
+        # Get the current date
+        current_date = datetime.today()
+
+        # Format the date
+        day_str = current_date.strftime("%B %d")
+        year_str = current_date.strftime("%Y")
+
+        # Add the appropriate suffix to the day
+        day_suffix = (
+            "th" if 11 <= current_date.day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(current_date.day % 10, "th")
+        )
+        # formatted_date = formatted_date.replace(f" {current_date.day},", f" {current_date.day}{day_suffix},")
+
+        return (day_str, day_suffix, year_str)
 
     def add_p(self, parent, **kwargs):
         """Add a row to a table"""
@@ -187,9 +216,9 @@ class CVBuilderBase(NVPComponent):
         tbl.addElement(row)
         return row
 
-    def add_table(self, parent, ncols=None):
+    def add_table(self, parent, ncols=None, **kwargs):
         """Add a table"""
-        tbl = table.Table()
+        tbl = table.Table(**kwargs)
         parent.addElement(tbl)
 
         if ncols is None:
