@@ -116,6 +116,25 @@ def define_cv_styles(self):
         )
     )
 
+    # <style:style style:name="Internet_20_link" style:display-name="Internet link"
+    #     style:family="text">
+    #     <style:text-properties fo:color="#000080" loext:opacity="100%"
+    #         style:text-underline-style="solid" style:text-underline-width="auto"
+    #         style:text-underline-color="font-color" />
+    # </style:style>
+
+    style = self.add_text_style("HyperlinkStyle")
+    # style.addElement(
+    #     TextProperties(
+    #         fontsize="32pt",
+    #         fontweight="normal",
+    #         fontname="Roboto",
+    #         fontfamily="Roboto",
+    #         color=self.rgb_to_hex(self.colors["highlight"]),
+    #     )
+    # )
+    style = self.add_text_style("VisitedHyperlinkStyle")
+
     style = self.add_text_style("UpscriptStyle")
     style.addElement(TextProperties(textposition="super 58%"))
 

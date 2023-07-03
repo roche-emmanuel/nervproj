@@ -47,6 +47,7 @@ class CVBuilder(CVBuilderBase):
 
         # img = self.convert_icon_to_image("map-pin", 256, self.colors['address'])
         # img.save("map_pin.png", "PNG")
+        web = self.desc["website"]
 
         txt = text.P(stylename="AddressStyle")
         parent.addElement(txt)
@@ -69,7 +70,10 @@ class CVBuilder(CVBuilderBase):
 
         self.add_text(txt, " · ")
         self.add_icon(txt, "globe", "9pt", self.colors["infos"])
-        self.add_text(txt, f" {self.desc['website']}")
+        self.add_text(txt, " ")
+        self.add_link(txt, f"{web['name']}", web["url"])
+
+        # self.add_text(txt, f" {self.desc['website']}")
 
         # content = f"☏ {self.desc['phone']} | ✉ {self.desc['email']}"
         # txt = text.P(text=content, stylename="InfosStyle")
@@ -78,14 +82,16 @@ class CVBuilder(CVBuilderBase):
         txt = text.P(stylename="InfosStyle")
         parent.addElement(txt)
 
-        self.add_brand_icon(txt, "github", "9pt", self.colors["infos"])
-        self.add_text(txt, f" {self.desc['github']} | ")
-        self.add_brand_icon(txt, "linkedin", "9pt", self.colors["infos"])
-        self.add_text(txt, f" {self.desc['linkedin']} | ")
-        self.add_brand_icon(txt, "twitter", "9pt", self.colors["infos"])
-        self.add_text(txt, f" {self.desc['twitter']} | ")
-        self.add_brand_icon(txt, "youtube", "9pt", self.colors["infos"])
-        self.add_text(txt, f" {self.desc['youtube']}")
+        social = self.desc["social"]
+        num = len(social)
+
+        for idx, sname in enumerate(list(social.keys())):
+            sdesc = social[sname]
+            self.add_brand_icon(txt, sname, "9pt", self.colors["infos"])
+            self.add_text(txt, " ")
+            self.add_link(txt, f"{sdesc['name']}", sdesc["url"])
+            if idx < (num - 1):
+                self.add_text(txt, " | ")
 
         txt = text.P(stylename="InfosStyle")
         parent.addElement(txt)
@@ -190,8 +196,16 @@ class CVBuilder(CVBuilderBase):
         subrow = self.add_row(ptable)
 
         proj_cell = self.add_cell(subrow)
-        txt = text.P(text=f"{projname}", stylename="MissionProjectStyle")
+        txt = text.P(text="", stylename="MissionProjectStyle")
         proj_cell.addElement(txt)
+
+        if "url" in mission:
+            self.add_link(txt, f"{projname}", mission["url"])
+            # self.add_text(txt, " ")
+            # self.add_icon(txt, "\uf0c1", "6pt", self.colors["highlight"]) # link
+            # self.add_icon(txt, "\uf08e", "6pt", self.colors["highlight"]) # square with arrow
+        else:
+            self.add_text(txt, f"{projname}")
 
         pos_cell = self.add_cell(subrow)
         txt = text.P(text=f"{pos}", stylename="MissionPositionStyle")

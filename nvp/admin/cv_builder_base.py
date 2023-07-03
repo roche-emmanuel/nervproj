@@ -152,6 +152,17 @@ class CVBuilderBase(NVPComponent):
         parent.addElement(span)
         return span
 
+    def add_link(self, parent, txt, link, **kwargs):
+        """Add a text element"""
+        # xlink:type="simple" xlink:href="https://nervtech.org/"
+        #                         text:style-name="Internet_20_link"
+        #                         text:visited-style-name="Visited_20_Internet_20_Link">
+        elem = text.A(type="simple", href=link, stylename="HyperlinkStyle", visitedstylename="VisitedHyperlinkStyle")
+        parent.addElement(elem)
+        span = text.Span(text=txt, **kwargs)
+        elem.addElement(span)
+        return span
+
     def add_linebreak(self, parent):
         """Add a text line break element"""
         lbreak = text.LineBreak()
