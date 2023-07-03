@@ -61,11 +61,15 @@ class CVBuilder(CVBuilderBase):
 
         txt = text.P(stylename="InfosStyle")
         self.add_icon(txt, "phone", "9pt", self.colors["infos"])
-        txt.addElement(text.Span(text=" " + self.desc["phone"] + " "))
-        span = text.Span()
-        txt.addElement(span)
-        self.add_icon(span, "envelope", "9pt", self.colors["infos"])
-        txt.addElement(text.Span(text=" " + self.desc["email"]))
+        self.add_text(txt, f" {self.desc['phone']}")
+
+        self.add_text(txt, " · ")
+        self.add_icon(txt, "envelope", "9pt", self.colors["infos"])
+        self.add_text(txt, f" {self.desc['email']}")
+
+        self.add_text(txt, " · ")
+        self.add_icon(txt, "globe", "9pt", self.colors["infos"])
+        self.add_text(txt, f" {self.desc['website']}")
 
         # content = f"☏ {self.desc['phone']} | ✉ {self.desc['email']}"
         # txt = text.P(text=content, stylename="InfosStyle")
@@ -74,14 +78,14 @@ class CVBuilder(CVBuilderBase):
         txt = text.P(stylename="InfosStyle")
         parent.addElement(txt)
 
-        self.add_icon(txt, "globe", "9pt", self.colors["infos"])
-        self.add_text(txt, f" {self.desc['website']} | ")
         self.add_brand_icon(txt, "github", "9pt", self.colors["infos"])
         self.add_text(txt, f" {self.desc['github']} | ")
         self.add_brand_icon(txt, "linkedin", "9pt", self.colors["infos"])
         self.add_text(txt, f" {self.desc['linkedin']} | ")
         self.add_brand_icon(txt, "twitter", "9pt", self.colors["infos"])
-        self.add_text(txt, f" {self.desc['twitter']}")
+        self.add_text(txt, f" {self.desc['twitter']} | ")
+        self.add_brand_icon(txt, "youtube", "9pt", self.colors["infos"])
+        self.add_text(txt, f" {self.desc['youtube']}")
 
         txt = text.P(stylename="InfosStyle")
         parent.addElement(txt)
@@ -596,7 +600,7 @@ class CVBuilder(CVBuilderBase):
 
     def build(self, desc):
         """This function is used build the CV from the given description"""
-        filename = desc["filename"]
+        filename = desc["settings"]["filename"]
         odt_file = filename + ".odt"
 
         # Create a new document
