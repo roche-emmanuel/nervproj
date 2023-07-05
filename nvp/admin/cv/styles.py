@@ -430,6 +430,31 @@ def define_cv_styles(self):
         )
     )
 
+    style = self.add_paragraph_style("CoverLetterStyle")
+    style.addElement(
+        ParagraphProperties(
+            textalign="justify",
+            margintop="0cm",
+            marginbottom="0.3cm",
+            marginleft="0.0cm",
+            textindent="0.6cm",
+            autotextindent="false",
+            verticalalign="center",
+            lineheight="120%",
+        )
+    )
+    style.addElement(
+        TextProperties(
+            fontsize="9pt",
+            fontweight="normal",
+            fontname="Source Sans Pro",
+            fontfamily="Source Sans Pro",
+            color=self.rgb_to_hex(self.colors["text"]),
+            textshadow="1pt 1pt",
+            # fontvariant="small-caps",
+        )
+    )
+
     # usable page width in centimeters:
     pwidth = self.page_width
 

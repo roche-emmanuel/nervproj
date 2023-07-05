@@ -612,6 +612,61 @@ class CVBuilder(CVBuilderBase):
 
         return parent_tbl
 
+    def write_cover_letter(self):
+        """Write the cover letter for this job"""
+        if "cover_letter" not in self.desc:
+            # Nothing to write here
+            return
+
+        # get the filename
+        fname = self.desc["cover_letter"]
+
+        # Add a new table entry:
+        tbl = table.Table(stylename="MainTableWithBreakStyle")
+        self.doc.text.addElement(tbl)
+        tbl.addElement(table.TableColumn(stylename="MainTableCol0Style"))
+        tbl.addElement(table.TableColumn(stylename="MainTableCol1Style"))
+
+        # Add another row
+        row = self.add_row(tbl, stylename="MainTableRow")
+        cell1 = self.add_cell(row, stylename="DefaultCellStyle")
+        cell2 = self.add_cell(row, stylename="VCenteredCellStyle")
+
+        # txt = text.P(text="Work Experience", stylename="LeftTitle")
+        # cell1.addElement(txt)
+        txt = text.P(text="", stylename="LeftTitle")
+        cell1.addElement(txt)
+        # fa: enveloppe: f0e0
+        self.add_icon(txt, "\uf0e0", "12pt", self.colors["highlight"])
+        self.add_text(txt, " Cover Letter")
+
+        self.draw_hline(self.add_p(cell2))
+
+        # Read the file:
+        letter_cfg = self.read_yaml(fname + ".yml")
+
+        content = letter_cfg["cover_letter"]
+
+        row = self.add_row(tbl, stylename="MainTableRow")
+
+        self.add_cell(row, stylename="DefaultCellStyle")
+        pcell = self.add_cell(row, stylename="DefaultCellStyle")
+
+        self.add_p(pcell, text="", stylename="CoverLetterStyle")
+        self.add_p(pcell, text="Dear recruiter,", stylename="CoverLetterStyle")
+        self.add_p(pcell, text="", stylename="CoverLetterStyle")
+
+        for line in content:
+            self.add_p(pcell, text=line, stylename="CoverLetterStyle")
+
+        fname = self.desc["first_name"]
+        lname = self.desc["last_name"]
+        lname = lname[0] + lname[1:].lower()
+        self.add_p(pcell, text="", stylename="CoverLetterStyle")
+        self.add_p(pcell, text="Sincerely,", stylename="CoverLetterStyle")
+        # self.add_p(pcell, text=f"", stylename="CoverLetterStyle")
+        self.add_p(pcell, text=f"{fname} {lname}.", stylename="CoverLetterStyle")
+
     def build(self, desc):
         """This function is used build the CV from the given description"""
         filename = desc["settings"]["filename"]
@@ -673,6 +728,9 @@ class CVBuilder(CVBuilderBase):
         self.write_additional_skills(tbl)
 
         self.write_interests(tbl)
+
+        # Write the cover letter part if applicable:
+        self.write_cover_letter()
 
         # Save the CV to a file
         doc.save(odt_file)
