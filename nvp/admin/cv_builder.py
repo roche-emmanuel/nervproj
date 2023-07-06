@@ -256,8 +256,21 @@ class CVBuilder(CVBuilderBase):
             pcell1 = None
             pcell2 = None
 
-    def write_work_experience(self, tbl):
+    def create_main_table(self):
+        """Create a main table container"""
+        tbl = table.Table(stylename="MainTableStyle")
+        self.doc.text.addElement(tbl)
+
+        tbl.addElement(table.TableColumn(stylename="MainTableCol0Style"))
+        tbl.addElement(table.TableColumn(stylename="MainTableCol1Style"))
+
+        return tbl
+
+    def write_work_experience(self, tbl=None):
         """Write the work experience sections"""
+
+        if tbl is None:
+            tbl = self.create_main_table()
 
         # Add another row
         row = self.add_row(tbl, stylename="MainTableRow")
@@ -277,6 +290,8 @@ class CVBuilder(CVBuilderBase):
         # Get the work sections:
         for jobdesc in self.desc["work_experience"]:
             self.write_job_section(tbl, jobdesc)
+
+        return tbl
 
     def write_duration_elements(self, cell, from_date, to_date):
         """Write the duration element in the given cell"""
@@ -353,8 +368,11 @@ class CVBuilder(CVBuilderBase):
 
         cell2.addElement(txt)
 
-    def write_personal_projects(self, tbl):
+    def write_personal_projects(self, tbl=None):
         """Write the personal project sections"""
+
+        if tbl is None:
+            tbl = self.create_main_table()
 
         # Add another row
         row = self.add_row(tbl, stylename="MainTableRow")
@@ -374,6 +392,8 @@ class CVBuilder(CVBuilderBase):
         # Get the work sections:
         for proj in self.desc["personal_projects"]:
             self.write_project_section(tbl, proj)
+
+        return tbl
 
     def write_education_section(self, tbl, edu):
         """Write education section"""
@@ -412,8 +432,12 @@ class CVBuilder(CVBuilderBase):
             if idx < (num - 1):
                 self.add_linebreak(txt)
 
-    def write_education(self, tbl):
+    def write_education(self, tbl=None):
         """Write the education section"""
+
+        if tbl is None:
+            tbl = self.create_main_table()
+
         # Add another row
         row = self.add_row(tbl, stylename="MainTableRow")
         cell1 = self.add_cell(row, stylename="DefaultCellStyle")
@@ -430,8 +454,13 @@ class CVBuilder(CVBuilderBase):
         for edu in self.desc["education"]:
             self.write_education_section(tbl, edu)
 
-    def write_additional_skills(self, tbl):
+        return tbl
+
+    def write_additional_skills(self, tbl=None):
         """Write the additional skills section"""
+
+        if tbl is None:
+            tbl = self.create_main_table()
 
         # Add another row
         row = self.add_row(tbl, stylename="MainTableRow")
@@ -464,8 +493,11 @@ class CVBuilder(CVBuilderBase):
             if idx < (num - 1):
                 self.add_linebreak(txt)
 
-    def write_interests(self, tbl):
+    def write_interests(self, tbl=None):
         """Write the interests section"""
+
+        if tbl is None:
+            tbl = self.create_main_table()
 
         # Add another row
         row = self.add_row(tbl, stylename="MainTableRow")
@@ -545,7 +577,7 @@ class CVBuilder(CVBuilderBase):
                 lvl_p.addElement(line)
                 xpos += stepw + spacing
 
-    def write_skills(self, tbl):
+    def write_skills(self, tbl=None):
         """Write the skills"""
         settings = self.desc["settings"]
 
@@ -554,6 +586,9 @@ class CVBuilder(CVBuilderBase):
             self.doc.text.addElement(tbl)
             tbl.addElement(table.TableColumn(stylename="MainTableCol0Style"))
             tbl.addElement(table.TableColumn(stylename="MainTableCol1Style"))
+        elif tbl is None:
+            if tbl is None:
+                tbl = self.create_main_table()
 
         parent_tbl = tbl
 
@@ -694,11 +729,7 @@ class CVBuilder(CVBuilderBase):
         # Define the styles:
         define_cv_styles(self, kwargs)
 
-        tbl = table.Table(stylename="MainTableStyle")
-        self.doc.text.addElement(tbl)
-
-        tbl.addElement(table.TableColumn(stylename="MainTableCol0Style"))
-        tbl.addElement(table.TableColumn(stylename="MainTableCol1Style"))
+        tbl = self.create_main_table()
 
         # border="0.06pt solid black"
         row = self.add_row(tbl, stylename="MainTableRow")
@@ -736,20 +767,20 @@ class CVBuilder(CVBuilderBase):
         tbl = self.create_new_document()
 
         # Add the work experience section:
-        self.write_work_experience(tbl)
+        self.write_work_experience()
 
         # Add the personal projects:
-        self.write_personal_projects(tbl)
+        self.write_personal_projects()
 
         # Add the education section:
-        self.write_education(tbl)
+        self.write_education()
 
         # Next we build the skill sections:
-        tbl = self.write_skills(tbl)
+        self.write_skills()
 
-        self.write_additional_skills(tbl)
+        self.write_additional_skills()
 
-        self.write_interests(tbl)
+        self.write_interests()
 
         self.save_document("_cv")
 
