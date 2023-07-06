@@ -436,7 +436,7 @@ class NVPObject(object):
         content = jstyleson.dumps(data, indent=indent)
         self.write_text_file(content, *parts)
 
-    def read_yaml(self, *parts):
+    def read_yaml(self, *parts) -> dict:
         """Read a YAML file as dict"""
         fname = self.get_path(*parts)
         try:

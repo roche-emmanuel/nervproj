@@ -22,7 +22,6 @@ class CVBuilder(CVBuilderBase):
         """Component constructor"""
         CVBuilderBase.__init__(self, ctx)
         self.doc = None
-        self.desc = None
         self.styles = {}
 
         self.colors = {
@@ -614,12 +613,12 @@ class CVBuilder(CVBuilderBase):
 
     def write_cover_letter(self):
         """Write the cover letter for this job"""
-        if "cover_letter" not in self.desc:
+        if "cover_letter" not in self.app_desc:
             # Nothing to write here
             return
 
         # get the filename
-        fname = self.desc["cover_letter"]
+        fname = self.app_desc["cover_letter"]
 
         # Add a new table entry:
         tbl = table.Table(stylename="MainTableWithBreakStyle")
@@ -642,10 +641,8 @@ class CVBuilder(CVBuilderBase):
 
         self.draw_hline(self.add_p(cell2))
 
-        # Read the file:
-        letter_cfg = self.read_yaml(fname + ".yml")
-
-        content = letter_cfg["cover_letter"]
+        # Read cover letter:
+        content = self.app_desc["cover_letter"]
 
         row = self.add_row(tbl, stylename="MainTableRow")
 
@@ -667,15 +664,46 @@ class CVBuilder(CVBuilderBase):
         # self.add_p(pcell, text=f"", stylename="CoverLetterStyle")
         self.add_p(pcell, text=f"{fname} {lname}.", stylename="CoverLetterStyle")
 
-    def build(self, desc):
+    def convert_to_pdf(self, odt_file):
+        """Convert the given odt file to pdf with unoconv"""
+        # Check here if the writer path is specified:
+        if "writer_path" not in self.desc["settings"]:
+            logger.info("LibreOffice writer path not provided: not generating pdf file.")
+            return
+
+        folder = self.get_parent_folder(odt_file)
+        pdf_file = self.set_path_extension(odt_file, ".pdf")
+
+        cwd = self.get_cwd()
+        # cmd = ["unoconv", "-f", "pdf", "-o", pdf_file, odt_file]
+        # writer_path = "D:/LiberKey/Apps/LibreOffice/LibreOfficeLKL.exe"
+        writer_path = self.desc["settings"]["writer_path"]
+
+        cmd = [writer_path, "--headless", "--convert-to", "pdf", odt_file, "--outdir", folder]
+        res, rcode, outs = self.execute(cmd, cwd=cwd)
+
+        if not res:
+            logger.error("convert command %s (in %s) failed with return code %d:\n%s", cmd, cwd, rcode, outs)
+            self.throw("Detected pdf convert failure.")
+
+        logger.info("Done writting %s.", pdf_file)
+
+    def build(self, cv_file):
         """This function is used build the CV from the given description"""
-        filename = desc["settings"]["filename"]
-        odt_file = filename + ".odt"
 
         # Create a new document
         doc = OpenDocumentText()
         self.doc = doc
-        self.desc = desc
+        self.desc = self.read_yaml(cv_file)
+
+        filename = self.desc["settings"]["filename"]
+        odt_file = filename + ".odt"
+
+        if "application" in self.desc:
+            # Try to read the application file:
+            folder = self.get_parent_folder(cv_file)
+            app_cfg_file = self.get_path(folder, "applications", self.desc["application"] + ".yml")
+            self.app_desc = self.read_yaml(app_cfg_file)
 
         # Define the styles:
         define_cv_styles(self)
@@ -709,9 +737,10 @@ class CVBuilder(CVBuilderBase):
 
         # txt = text.P(text=self.desc["job_applied_for"], stylename="ApplyingPositionStyle")
         txt = text.P(text="", stylename="ApplyingPositionStyle")
-        self.add_text(txt, "Applying to position: ", stylename="ApplyHeaderStyle")
-        self.add_text(txt, self.desc["job_applied_for"])
-        cell2.addElement(txt)
+        if "job_applied_for" in self.app_desc:
+            self.add_text(txt, "Applying to position: ", stylename="ApplyHeaderStyle")
+            self.add_text(txt, self.app_desc["job_applied_for"])
+            cell2.addElement(txt)
 
         # Add the work experience section:
         self.write_work_experience(tbl)
@@ -736,6 +765,10 @@ class CVBuilder(CVBuilderBase):
         doc.save(odt_file)
 
         logger.info("Done writing %s", odt_file)
+
+        # Also convert the file to pdf here:
+        self.convert_to_pdf(odt_file)
+
         return True
 
 

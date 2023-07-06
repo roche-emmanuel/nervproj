@@ -24,7 +24,8 @@ class CVBuilderBase(NVPComponent):
         """Component constructor"""
         NVPComponent.__init__(self, ctx)
         self.doc = None
-        self.desc = None
+        self.desc = {}
+        self.app_desc = None
         self.styles = {}
         self.colors = {}
         self.desc_field = None
@@ -298,7 +299,7 @@ class CVBuilderBase(NVPComponent):
         image = draw.Image(href=img_ref)
         picture.addElement(image)
 
-    def build(self, desc):
+    def build(self, cv_file):
         """Build the CV"""
         raise NotImplementedError("Need to implement build")
 
@@ -313,10 +314,7 @@ class CVBuilderBase(NVPComponent):
             self.text_size = "8pt" if short else "7.5pt"
             self.left_col_ratio = 0.20 if short else 0.165
 
-            # Read the configuration:
-            cfg = self.read_yaml(file)
-
-            return self.build(cfg)
+            return self.build(file)
 
         return False
 
