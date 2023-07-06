@@ -18,7 +18,7 @@ from odf.style import (
 from odf.text import PageCount, PageNumber
 
 
-def define_cv_styles(self):
+def define_cv_styles(self, opts=None):
     """Define the styles"""
 
     loextns = "urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"
@@ -82,6 +82,8 @@ def define_cv_styles(self):
             paddingright="0.018cm",
             wrapinfluenceonposition="once-concurrent",
             verticalpos="bottom",
+            # verticalrel="text",
+            # verticalpos="middle",
             verticalrel="text",
             horizontalpos="from-left",
             horizontalrel="paragraph",
@@ -435,8 +437,9 @@ def define_cv_styles(self):
         ParagraphProperties(
             textalign="justify",
             margintop="0cm",
-            marginbottom="0.3cm",
-            marginleft="0.0cm",
+            marginbottom="0.25cm",
+            marginleft="1.0cm",
+            marginright="1.0cm",
             textindent="0.6cm",
             autotextindent="false",
             verticalalign="center",
@@ -445,7 +448,33 @@ def define_cv_styles(self):
     )
     style.addElement(
         TextProperties(
-            fontsize="9pt",
+            fontsize="8.5pt",
+            fontweight="normal",
+            fontname="Source Sans Pro",
+            fontfamily="Source Sans Pro",
+            color=self.rgb_to_hex(self.colors["text"]),
+            textshadow="1pt 1pt",
+            # fontvariant="small-caps",
+        )
+    )
+
+    style = self.add_paragraph_style("CoverLetterRightStyle")
+    style.addElement(
+        ParagraphProperties(
+            textalign="right",
+            margintop="0cm",
+            marginbottom="0.25cm",
+            marginleft="1.0cm",
+            marginright="1.0cm",
+            textindent="0.6cm",
+            autotextindent="false",
+            verticalalign="center",
+            lineheight="120%",
+        )
+    )
+    style.addElement(
+        TextProperties(
+            fontsize="8.5pt",
             fontweight="normal",
             fontname="Source Sans Pro",
             fontfamily="Source Sans Pro",
@@ -727,7 +756,11 @@ def define_cv_styles(self):
     # Write the name/cv:
     fname = self.desc["first_name"]
     lname = self.desc["last_name"]
-    self.add_text(txt, f"{fname} {lname} - Curriculum Vitae")
+    doc_type = "Curriculum Vitae"
+    if opts is not None:
+        doc_type = opts.get("document_type", doc_type)
+
+    self.add_text(txt, f"{fname} {lname} - {doc_type}")
 
     cell = self.add_cell(row, stylename="FooterRightStyle")
     txt = self.add_p(cell)

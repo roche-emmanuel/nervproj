@@ -613,18 +613,12 @@ class CVBuilder(CVBuilderBase):
 
     def write_cover_letter(self):
         """Write the cover letter for this job"""
+
         if "cover_letter" not in self.app_desc:
             # Nothing to write here
-            return
+            return False
 
-        # get the filename
-        fname = self.app_desc["cover_letter"]
-
-        # Add a new table entry:
-        tbl = table.Table(stylename="MainTableWithBreakStyle")
-        self.doc.text.addElement(tbl)
-        tbl.addElement(table.TableColumn(stylename="MainTableCol0Style"))
-        tbl.addElement(table.TableColumn(stylename="MainTableCol1Style"))
+        tbl = self.create_new_document(document_type="Cover Letter")
 
         # Add another row
         row = self.add_row(tbl, stylename="MainTableRow")
@@ -646,12 +640,12 @@ class CVBuilder(CVBuilderBase):
 
         row = self.add_row(tbl, stylename="MainTableRow")
 
-        self.add_cell(row, stylename="DefaultCellStyle")
-        pcell = self.add_cell(row, stylename="DefaultCellStyle")
+        # self.add_cell(row, stylename="DefaultCellStyle")
+        pcell = self.add_cell(row, stylename="DefaultCellStyle", numbercolumnsspanned=2)
 
         self.add_p(pcell, text="", stylename="CoverLetterStyle")
         self.add_p(pcell, text="Dear recruiter,", stylename="CoverLetterStyle")
-        self.add_p(pcell, text="", stylename="CoverLetterStyle")
+        # self.add_p(pcell, text="", stylename="CoverLetterStyle")
 
         for line in content:
             self.add_p(pcell, text=line, stylename="CoverLetterStyle")
@@ -660,9 +654,11 @@ class CVBuilder(CVBuilderBase):
         lname = self.desc["last_name"]
         lname = lname[0] + lname[1:].lower()
         self.add_p(pcell, text="", stylename="CoverLetterStyle")
-        self.add_p(pcell, text="Sincerely,", stylename="CoverLetterStyle")
+        self.add_p(pcell, text="Sincerely,", stylename="CoverLetterRightStyle")
         # self.add_p(pcell, text=f"", stylename="CoverLetterStyle")
-        self.add_p(pcell, text=f"{fname} {lname}.", stylename="CoverLetterStyle")
+        self.add_p(pcell, text=f"{fname} {lname}.", stylename="CoverLetterRightStyle")
+
+        self.save_document("_letter")
 
     def convert_to_pdf(self, odt_file):
         """Convert the given odt file to pdf with unoconv"""
@@ -688,25 +684,15 @@ class CVBuilder(CVBuilderBase):
 
         logger.info("Done writting %s.", pdf_file)
 
-    def build(self, cv_file):
-        """This function is used build the CV from the given description"""
+    def create_new_document(self, **kwargs):
+        """Start creating a new document"""
 
         # Create a new document
         doc = OpenDocumentText()
         self.doc = doc
-        self.desc = self.read_yaml(cv_file)
-
-        filename = self.desc["settings"]["filename"]
-        odt_file = filename + ".odt"
-
-        if "application" in self.desc:
-            # Try to read the application file:
-            folder = self.get_parent_folder(cv_file)
-            app_cfg_file = self.get_path(folder, "applications", self.desc["application"] + ".yml")
-            self.app_desc = self.read_yaml(app_cfg_file)
 
         # Define the styles:
-        define_cv_styles(self)
+        define_cv_styles(self, kwargs)
 
         tbl = table.Table(stylename="MainTableStyle")
         self.doc.text.addElement(tbl)
@@ -742,6 +728,13 @@ class CVBuilder(CVBuilderBase):
             self.add_text(txt, self.app_desc["job_applied_for"])
             cell2.addElement(txt)
 
+        return tbl
+
+    def write_cv(self):
+        """Write the CV content"""
+
+        tbl = self.create_new_document()
+
         # Add the work experience section:
         self.write_work_experience(tbl)
 
@@ -758,16 +751,37 @@ class CVBuilder(CVBuilderBase):
 
         self.write_interests(tbl)
 
-        # Write the cover letter part if applicable:
-        self.write_cover_letter()
+        self.save_document("_cv")
+
+    def save_document(self, suffix):
+        """Save an odt document and generate the pdf too"""
 
         # Save the CV to a file
-        doc.save(odt_file)
+        filename = self.desc["settings"]["filename"]
+        odt_file = filename + suffix + ".odt"
+        self.doc.save(odt_file)
 
         logger.info("Done writing %s", odt_file)
 
         # Also convert the file to pdf here:
         self.convert_to_pdf(odt_file)
+
+    def build(self, cv_file):
+        """This function is used build the CV from the given description"""
+
+        self.desc = self.read_yaml(cv_file)
+
+        if "application" in self.desc:
+            # Try to read the application file:
+            folder = self.get_parent_folder(cv_file)
+            app_cfg_file = self.get_path(folder, "applications", self.desc["application"] + ".yml")
+            self.app_desc = self.read_yaml(app_cfg_file)
+
+        # Write Curriculum Vitae:
+        self.write_cv()
+
+        # Write the cover letter:
+        self.write_cover_letter()
 
         return True
 

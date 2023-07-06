@@ -364,10 +364,11 @@ class CVBuilderBase(NVPComponent):
         line = draw.Line(
             stylename=self.get_style("LineStyle"),
             anchortype="as-char",
+            # anchortype="paragraph",
             zindex=0,
-            x1="0cm",
+            x1="0.01cm",
             y1="0.4cm",
-            x2=f"{self.page_width*(0.998 - self.left_col_ratio):.2f}cm",
+            x2=f"{self.page_width*(0.998 - self.left_col_ratio):.4f}cm",
             y2="0.4cm",
         )
         parent.addElement(line)
