@@ -25,6 +25,7 @@ class BoostBuilder(NVPBuilder):
         msvc_env = msvc_comp.get_env()
 
         logger.info("Building boost library...")
+        # bs_cmd = ["bootstrap.bat", "vc141", "--without-icu"] # to compile with VS2017
         bs_cmd = ["bootstrap.bat", "--without-icu"]
         bs_cmd = ["cmd.exe", "/c", " ".join(bs_cmd)]
         logger.info("Executing bootstrap command: %s", bs_cmd)
