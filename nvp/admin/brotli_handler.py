@@ -13,6 +13,11 @@ from nvp.nvp_context import NVPContext
 logger = logging.getLogger(__name__)
 
 
+def create_component(ctx: NVPContext):
+    """Create an instance of the component"""
+    return BrotliHandler(ctx)
+
+
 class BrotliHandler(NVPComponent):
     """BrotliHandler component class"""
 

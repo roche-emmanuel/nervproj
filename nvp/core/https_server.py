@@ -66,6 +66,27 @@ class HttpsServer(NVPComponent):
         logger.info("Serving directory %s...", root_dir)
         os.chdir(root_dir)  # change the current working directory to the folder to serve
 
+        # Check if we have .wasm files in this folder:
+        wasm_files = self.get_all_files(root_dir, exp=r"\.wasm$", recursive=False)
+        for wfile in wasm_files:
+            in_file = self.get_path(root_dir, wfile)
+            logger.info("Found WASM file %s", in_file)
+
+            # check if we have a corresponding wasm.br file:
+            brfile = in_file + ".br"
+            if not self.file_exists(brfile):
+                logger.info("Generating %s...", brfile)
+                brotli = self.get_component("brotli")
+                brotli.compress_file(in_file, brfile)
+            elif self.get_file_mtime(wfile) > self.get_file_mtime(brfile):
+                # The brfile already exists but the wasm file is more recent
+                logger.info("Updating %s...", brfile)
+                self.remove_file(brfile)
+                brotli = self.get_component("brotli")
+                brotli.compress_file(in_file, brfile)
+            else:
+                logger.info("%s is OK", brfile)
+
         class MyRequestHandler(http.server.SimpleHTTPRequestHandler):
             """Simple request handler"""
 

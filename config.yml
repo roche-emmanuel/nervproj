@@ -784,3 +784,4 @@ components:
   rchat: nvp.communication.rocketchat
   tools: nvp.core.tools
   pyenvs: nvp.core.py_env
+  brotli: nvp.admin.brotli_handler
