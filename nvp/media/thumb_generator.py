@@ -5,7 +5,7 @@ This component is used to generate youtube thumbnails from a given description i
 import logging
 import os
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -59,6 +59,55 @@ class ThumbGen(NVPComponent):
 
         # load that image:
         img = Image.open(self.get_path(bg_dir, iname))
+        return img
+
+    def add_images(self, img, idescs):
+        """Add "sub-images" on our background image"""
+
+        img_dir = self.get_path(self.get_cwd(), "inputs")
+
+        ref_size = min(img.width, img.height)
+
+        for desc in idescs:
+            logger.info("Adding sub image: %s", desc["src"])
+
+            # load the image from source:
+            sub_img = Image.open(self.get_path(img_dir, desc["src"]))
+            sub_img = sub_img.convert("RGBA")
+
+            # Rescale the image to fit the requested scale:
+            tgt_size = ref_size * desc["scale"]
+
+            # compute the scaling factor:
+            sfactor = min(tgt_size / sub_img.width, tgt_size / sub_img.height)
+
+            # Resize the image sub_img to the "tgt_size" value keeping the aspect ratio:
+            sub_img = sub_img.resize((int(sub_img.width * sfactor), int(sub_img.height * sfactor)))
+
+            if "outline_size" in desc:
+                # sub_img = ImageOps.expand(sub_img, border=desc["outline_size"], fill=desc["outline_color"])
+                alpha = sub_img.split()[3]
+                edges = alpha.filter(ImageFilter.FIND_EDGES)
+                edges = edges.filter(ImageFilter.MaxFilter(size=desc["outline_size"]))
+                edges = edges.convert("L")
+                mask = edges.point(lambda p: p > 0 and 255)
+
+                contours = Image.new("RGBA", sub_img.size, (0, 0, 0, 0))
+                contours.paste(Image.new("RGBA", sub_img.size, tuple(desc["outline_color"])), mask=mask)
+
+                contours.paste(sub_img, mask=sub_img)
+                sub_img = contours
+
+            if "angle" in desc:
+                sub_img = sub_img.rotate(desc["angle"], expand=True)
+
+            # Compute center position:
+            xpos = int(desc["pos"][0] * img.width) - sub_img.width // 2
+            ypos = int(desc["pos"][1] * img.height) - sub_img.height // 2
+
+            img.paste(sub_img, (xpos, ypos), mask=sub_img)
+            # img = sub_img
+
         return img
 
     def fill_area(self, img, width, height):
@@ -289,6 +338,9 @@ class ThumbGen(NVPComponent):
         # load the background image:
         img = self.load_background_image(desc["background"])
         img = self.fill_area(img, width, height)
+
+        # Add the additional images:
+        img = self.add_images(img, desc.get("images", []))
 
         # Write the title if any:
         img = self.draw_title(img, desc)
