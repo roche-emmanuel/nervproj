@@ -140,7 +140,7 @@ class ThumbGen(NVPComponent):
         """Retrieve the input dir"""
         return self.get_path(self.get_cwd(), "inputs")
 
-    def draw_subtitle(self, img, desc):
+    def draw_subtitle(self, img, desc, drawbg):
         """Draw the subtitle of the thumbnail if applicable"""
 
         fname = "subtitle"
@@ -165,9 +165,9 @@ class ThumbGen(NVPComponent):
             "shadow_offset_y": 8,
         }
 
-        return self.draw_text_overlay(img, params)
+        return self.draw_text_overlay(img, params, drawbg)
 
-    def draw_title(self, img, desc):
+    def draw_title(self, img, desc, drawbg):
         """Draw the title elements"""
 
         fname = "title"
@@ -193,7 +193,7 @@ class ThumbGen(NVPComponent):
             "shadow_offset_y": 0,
         }
 
-        return self.draw_text_overlay(img, params)
+        return self.draw_text_overlay(img, params, drawbg)
 
     def get_text_dimensions(self, text_string, font):
         """Get the dimensions of a text"""
@@ -208,7 +208,7 @@ class ThumbGen(NVPComponent):
 
         return (text_width, text_height)
 
-    def draw_text_overlay(self, img, params):
+    def draw_text_overlay(self, img, params, drawbg):
         """Draw a text overlay on the image with an optional background band and outline effect."""
 
         overlay = Image.new("RGBA", img.size)
@@ -261,58 +261,60 @@ class ThumbGen(NVPComponent):
         if y < 0:
             y = img.height + y - total_text_height
 
-        draw.rectangle([(0, y - hpad), (img.width, y - hpad + rect_height)], fill=rect_color)
-        anchor = "lt"
+        if drawbg:
+            draw.rectangle([(0, y - hpad), (img.width, y - hpad + rect_height)], fill=rect_color)
+        else:
+            anchor = "lt"
 
-        if text_halign == "center":
-            x = img.width // 2
-            anchor = "mt"
-        if text_halign == "right":
-            x = img.width - x
-            anchor = "rt"
+            if text_halign == "center":
+                x = img.width // 2
+                anchor = "mt"
+            if text_halign == "right":
+                x = img.width - x
+                anchor = "rt"
 
-        # x = (img.width - text_width) // 2
-        # y = (img.height - text_height) // 2
+            # x = (img.width - text_width) // 2
+            # y = (img.height - text_height) // 2
 
-        # Draw the text outline if applicable:
+            # Draw the text outline if applicable:
 
-        # if outline_width > 0:
-        #     outline_color = params["outline_color"]
+            # if outline_width > 0:
+            #     outline_color = params["outline_color"]
 
-        #     for xo in range(-outline_width, outline_width + 1):
-        #         for yo in range(-outline_width, outline_width + 1):
-        #             draw.text((x + xo, y + yo), text, font=font, fill=outline_color)
+            #     for xo in range(-outline_width, outline_width + 1):
+            #         for yo in range(-outline_width, outline_width + 1):
+            #             draw.text((x + xo, y + yo), text, font=font, fill=outline_color)
 
-        # Write the text on the image
-        # Split the text lines:
+            # Write the text on the image
+            # Split the text lines:
 
-        xoff = params["shadow_offset_x"]
-        yoff = params["shadow_offset_y"]
-        shadow_color = (0, 0, 0, 128)
+            xoff = params["shadow_offset_x"]
+            yoff = params["shadow_offset_y"]
+            shadow_color = (0, 0, 0, 128)
 
-        for line in lines:
-            if xoff != 0 or xoff != 0:
-                # draw the shadow first:
+            for line in lines:
+                if xoff != 0 or xoff != 0:
+                    # draw the shadow first:
+                    draw.text(
+                        (x + xoff, y + yoff),
+                        line,
+                        font=font,
+                        fill=shadow_color,
+                        stroke_width=0,
+                        stroke_fill=None,
+                        anchor=anchor,
+                    )
+
                 draw.text(
-                    (x + xoff, y + yoff),
+                    (x, y),
                     line,
                     font=font,
-                    fill=shadow_color,
-                    stroke_width=0,
-                    stroke_fill=None,
+                    fill=text_color,
+                    stroke_width=outline_width,
+                    stroke_fill=outline_color,
                     anchor=anchor,
                 )
-
-            draw.text(
-                (x, y),
-                line,
-                font=font,
-                fill=text_color,
-                stroke_width=outline_width,
-                stroke_fill=outline_color,
-                anchor=anchor,
-            )
-            y += text_height + line_spacing
+                y += text_height + line_spacing
 
         # Composite the images:
         img.alpha_composite(overlay)
@@ -339,14 +341,18 @@ class ThumbGen(NVPComponent):
         img = self.load_background_image(desc["background"])
         img = self.fill_area(img, width, height)
 
+        # First we draw the background rects:
+        img = self.draw_title(img, desc, True)
+        img = self.draw_subtitle(img, desc, True)
+
         # Add the additional images:
         img = self.add_images(img, desc.get("images", []))
 
         # Write the title if any:
-        img = self.draw_title(img, desc)
+        img = self.draw_title(img, desc, False)
 
         # Write the subtile if any:
-        img = self.draw_subtitle(img, desc)
+        img = self.draw_subtitle(img, desc, False)
 
         # save the image:
         logger.info("Writing thumbnail: %s", out_file)
