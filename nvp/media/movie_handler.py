@@ -54,7 +54,8 @@ class MovieHandler(NVPComponent):
         if cmd == "cut-media":
             file = self.get_param("input_file")
             duration = self.get_param("duration")
-            return self.cut_media(file, duration)
+            start_time = self.get_param("start_time")
+            return self.cut_media(file, duration, start_time)
 
         if cmd == "split-media":
             file = self.get_param("input_file")
@@ -135,7 +136,7 @@ class MovieHandler(NVPComponent):
         logger.info("Done writting file.")
         return True
 
-    def cut_media(self, file, duration):
+    def cut_media(self, file, duration, start_time):
         """Concantenate a list of media files"""
         logger.info("Cutting media file %s at %s", file, duration)
 
@@ -146,7 +147,7 @@ class MovieHandler(NVPComponent):
         tools: ToolsManager = self.get_component("tools")
         ffmpeg_path = tools.get_tool_path("ffmpeg")
 
-        cmd = [ffmpeg_path, "-threads", "8", "-i", file, "-t", duration, "-c", "copy", out_file]
+        cmd = [ffmpeg_path, "-threads", "8", "-i", file, "-ss", start_time, "-t", duration, "-c", "copy", out_file]
 
         # We now execute that command:
         logger.debug("Executing command: %s", cmd)
@@ -459,6 +460,7 @@ if __name__ == "__main__":
     psr = context.build_parser("cut-media")
     psr.add_str("-i", "--input", dest="input_file")("input video file to cut")
     psr.add_str("-d", "--duration", dest="duration")("Duration to keep")
+    psr.add_str("-s", "--start", dest="start_time", default="00:00:00")("Start time of the section to keep")
 
     psr = context.build_parser("split-media")
     psr.add_str("-i", "--input", dest="input_file")("input video file to split")

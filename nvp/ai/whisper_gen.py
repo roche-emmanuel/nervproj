@@ -126,7 +126,12 @@ class WhisperGen(NVPComponent):
             idx += 1
             cur_words = []
 
-        logger.info("Splitted file of %d words in %d chunks", num, idx)
+        # If we wrote only 1 chunk in the end then we can just remove it:
+        if idx == 1:
+            self.remove_file(self.set_path_extension(filename, "_chunk0.txt"))
+            logger.info("Not splitting file with %d words.", num)
+        else:
+            logger.info("Splitted file of %d words in %d chunks", num, idx)
 
         return True
 
@@ -141,10 +146,10 @@ if __name__ == "__main__":
     psr = context.build_parser("convert")
     psr.add_str("-i", "--input", dest="input_file", default="all")("Audio file to convert to text")
     psr.add_str("-m", "--model", dest="model", default="large")("Model to use for the convertion")
-    psr.add_int("-n", "--nwords", dest="num_words", default=2500)("Number of words to write per chunk.")
+    psr.add_int("-n", "--nwords", dest="num_words", default=3000)("Number of words to write per chunk.")
 
     psr = context.build_parser("split_text")
     psr.add_str("-i", "--input", dest="input_file")("Text file to split")
-    psr.add_int("-n", "--nwords", dest="num_words", default=2500)("Number of words to write per chunk.")
+    psr.add_int("-n", "--nwords", dest="num_words", default=3000)("Number of words to write per chunk.")
 
     comp.run()
