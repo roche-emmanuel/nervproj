@@ -61,6 +61,38 @@ class ThumbGen(NVPComponent):
         img = Image.open(self.get_path(bg_dir, iname))
         return img
 
+    def adjust_tint(self, image, tint_factors):
+        """Adjust the tint of an image"""
+        # Split the image into its individual color channels (R, G, B)
+        r, g, b, a = image.split()
+
+        # Reduce the intensity of the red channel using the tint_factor
+        r = r.point(lambda i: i * tint_factors[0])
+        g = g.point(lambda i: i * tint_factors[1])
+        b = b.point(lambda i: i * tint_factors[2])
+
+        # Merge the adjusted color channels back into a single image
+        adjusted_image = Image.merge("RGBA", (r, g, b, a))
+
+        return adjusted_image
+
+    def adjust_brightness(self, image, factor):
+        """Adjust the tint of an image"""
+        # Create a lambda function to adjust the pixel values
+        adjust = lambda value: min(int(value * factor), 255)
+
+        r, g, b, a = image.split()
+        r = r.point(adjust)
+        g = g.point(adjust)
+        b = b.point(adjust)
+
+        # Merge the adjusted color channels back into a single image
+        return Image.merge("RGBA", (r, g, b, a))
+
+    def mirror_image_horiz(self, img):
+        """Mirror an image horizontally"""
+        return img.transpose(Image.FLIP_LEFT_RIGHT)
+
     def add_images(self, img, idescs):
         """Add "sub-images" on our background image"""
 
@@ -83,6 +115,15 @@ class ThumbGen(NVPComponent):
 
             # Resize the image sub_img to the "tgt_size" value keeping the aspect ratio:
             sub_img = sub_img.resize((int(sub_img.width * sfactor), int(sub_img.height * sfactor)))
+
+            if "tint_factors" in desc:
+                sub_img = self.adjust_tint(sub_img, desc["tint_factors"])
+
+            if "brightness" in desc:
+                sub_img = self.adjust_brightness(sub_img, desc["brightness"])
+
+            if desc.get("mirror", False):
+                sub_img = self.mirror_image_horiz(sub_img)
 
             if "outline_size" in desc:
                 # sub_img = ImageOps.expand(sub_img, border=desc["outline_size"], fill=desc["outline_color"])
