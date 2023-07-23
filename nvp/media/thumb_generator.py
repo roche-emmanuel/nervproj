@@ -5,12 +5,16 @@ This component is used to generate youtube thumbnails from a given description i
 import logging
 import os
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from scipy.ndimage import distance_transform_edt
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
 
 logger = logging.getLogger(__name__)
+
+from rembg import new_session, remove
 
 
 class ThumbGen(NVPComponent):
@@ -39,7 +43,95 @@ class ThumbGen(NVPComponent):
             desc = cfg["thumbnail"]
             return self.generate_thumbnail(tagname, desc)
 
+        if cmd == "remove-bg":
+            in_file = self.get_param("input_file")
+            out_file = self.get_param("output_file")
+            model = self.get_param("model_name")
+            min_dist = self.get_param("min_dist")
+            max_dist = self.get_param("max_dist")
+
+            bg_color = self.get_param("bg_color")
+            return self.remove_background(in_file, out_file, model, min_dist, max_dist, bg_color)
+
         return False
+
+    def compute_distance_to_foreground(self, img):
+        """Compute the euclidian distance to the 1 elements assuming that 1 is for the forreground"""
+        arr = np.array(img)
+
+        binary_arr = np.zeros_like(arr)
+        binary_arr[arr < 200] = 1
+
+        # arr.astype(np.bool_).astype(np.uint8)
+
+        # flip 0/1:
+        # binary_arr = 1 - binary_arr
+
+        dist = distance_transform_edt(binary_arr)
+        return dist
+
+    def remove_background(self, in_file, out_file, model_name, min_dist, max_dist, bg_color):
+        """Remove the background from an image file"""
+        # Usage infos: https://github.com/roche-emmanuel/rembg/blob/main/USAGE.md
+
+        if out_file is None:
+            out_file = self.set_path_extension(in_file, "_nobg.png")
+
+        logger.info("Removing background from %s...", in_file)
+        input_img = Image.open(in_file)
+        # output_img = remove(input_img)
+
+        # model_name = "u2net"
+        # model_name = "isnet-general-use"
+        session = new_session(model_name)
+
+        if max_dist != min_dist:
+            # Get the mask only:
+            mask = remove(input_img, session=session, only_mask=True).convert("L")
+            logger.info("Retrieved foreground mask.")
+
+            # Compute the distance to foreground:
+            dist = self.compute_distance_to_foreground(mask)
+
+            # Convert the input image to RGBA:
+            img = input_img.convert("RGBA")
+
+            img_arr = np.array(img)
+
+            dist = np.clip(dist, min_dist, max_dist)
+            alpha = 1.0 - (dist - min_dist) / (max_dist - min_dist)
+
+            # mask_arr = np.array(mask)
+
+            # img_arr[:, :, 3] = (img_arr[:, :, 3].astype(np.float64) * alpha).astype(np.uint8)
+            img_arr[:, :, 3] = (255 * alpha).astype(np.uint8)
+
+            # img_arr[:, :, 3] = mask_arr
+
+            # Convert the numpy array back to image:
+            output_img = Image.fromarray(img_arr)
+        else:
+            # Use default processing:
+            output_img = remove(input_img, session=session)
+
+        if bg_color is not None:
+            col = [np.float32(el) / 255.0 for el in bg_color.split(",")]
+            arr = np.array(output_img).astype(np.float32) / 255.0
+            colarr = np.zeros_like(arr)
+            alpha = arr[:, :, 3]
+
+            for i in range(4):
+                colarr[:, :, i] = col[i]
+
+                arr[:, :, i] = arr[:, :, i] * alpha + colarr[:, :, i] * (1.0 - alpha)
+
+            arr = (arr * 255.0).astype(np.uint8)
+
+            output_img = Image.fromarray(arr)
+
+        output_img.save(out_file)
+        logger.info("Done removing background.")
+        return True
 
     def load_background_image(self, iname):
         """Load a background image"""
@@ -416,5 +508,13 @@ if __name__ == "__main__":
     psr.add_str("-i", "--input", dest="input_file", default="videos.yml")(
         "input file where to read the config settings from"
     )
+
+    psr = context.build_parser("remove-bg")
+    psr.add_str("-i", "--input", dest="input_file")("input image file from which to remove the background")
+    psr.add_str("-o", "--output", dest="output_file")("output image file")
+    psr.add_str("-m", "--model", dest="model_name", default="u2net")("Name of model to use")
+    psr.add_float("--mind", dest="min_dist", default=0.0)("Min falloff dist")
+    psr.add_float("--maxd", dest="max_dist", default=5.0)("Max falloff dist")
+    psr.add_str("--bgcolor", dest="bg_color")("Background color as coma separated list of U8s")
 
     comp.run()

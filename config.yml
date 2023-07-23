@@ -652,6 +652,13 @@ scripts:
     env_vars:
       NV_YT_DESC_DIR: D:/Projects/NervHome/data/youtube/descs/
 
+  rembg:
+    notify: false
+    custom_python_env: media_env
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/media/thumb_generator.py remove-bg
+    python_path: ["${NVP_ROOT_DIR}"]
+
+
   brenc:
     notify: false
     custom_python_env: brotli_env
@@ -694,6 +701,8 @@ custom_python_envs:
       - Pillow
       - ffmpeg-python
       - opencv-python
+      - rembg[gpu]
+      - scipy
 
   brotli_env:
     inherit: default_env
