@@ -248,12 +248,14 @@ class ThumbGen(NVPComponent):
         """Mirror an image horizontally"""
         return img.transpose(Image.FLIP_LEFT_RIGHT)
 
-    def add_images(self, img, idescs):
+    def add_images(self, img_arr, idescs):
         """Add "sub-images" on our background image"""
 
         img_dir = self.get_path(self.get_cwd(), "inputs")
 
-        ref_size = min(img.width, img.height)
+        width = img_arr.shape[1]
+        height = img_arr.shape[0]
+        ref_size = min(width, height)
 
         for desc in idescs:
             logger.info("Adding sub image: %s", desc["src"])
@@ -298,13 +300,13 @@ class ThumbGen(NVPComponent):
                 sub_img = sub_img.rotate(desc["angle"], expand=True)
 
             # Compute center position:
-            xpos = int(desc["pos"][0] * img.width) - sub_img.width // 2
-            ypos = int(desc["pos"][1] * img.height) - sub_img.height // 2
+            xpos = int(desc["pos"][0] * width) - sub_img.width // 2
+            ypos = int(desc["pos"][1] * height) - sub_img.height // 2
 
-            img.paste(sub_img, (xpos, ypos), mask=sub_img)
+            # img.paste(sub_img, (xpos, ypos), mask=sub_img)
             # img = sub_img
 
-        return img
+        return img_arr
 
     def fill_area(self, img, width, height):
         """Stretch the input image as needed to fill a given area"""
@@ -336,13 +338,13 @@ class ThumbGen(NVPComponent):
         """Retrieve the input dir"""
         return self.get_path(self.get_cwd(), "inputs")
 
-    def draw_subtitle(self, img, desc, drawbg):
+    def draw_subtitle(self, img_arr, desc, drawbg):
         """Draw the subtitle of the thumbnail if applicable"""
 
         fname = "subtitle"
         if fname not in desc:
             # Nothing to do:
-            return img
+            return img_arr
 
         params = {
             "text": desc[fname],
@@ -361,16 +363,16 @@ class ThumbGen(NVPComponent):
             "shadow_offset_y": 8,
         }
 
-        return self.draw_text_overlay(img, params, drawbg)
+        return self.draw_text_overlay(img_arr, params, drawbg)
 
-    def draw_title(self, img, desc, drawbg):
+    def draw_title(self, img_arr, desc, drawbg):
         """Draw the title elements"""
 
         fname = "title"
 
         if fname not in desc:
             # Nothing to do:
-            return img
+            return img_arr
 
         params = {
             "text": desc[fname],
@@ -389,7 +391,7 @@ class ThumbGen(NVPComponent):
             "shadow_offset_y": 0,
         }
 
-        return self.draw_text_overlay(img, params, drawbg)
+        return self.draw_text_overlay(img_arr, params, drawbg)
 
     def get_text_dimensions(self, text_string, font):
         """Get the dimensions of a text"""
@@ -404,10 +406,14 @@ class ThumbGen(NVPComponent):
 
         return (text_width, text_height)
 
-    def draw_text_overlay(self, img, params, drawbg):
+    def draw_text_overlay(self, img_arr, params, drawbg):
         """Draw a text overlay on the image with an optional background band and outline effect."""
 
-        overlay = Image.new("RGBA", img.size)
+        width = img_arr.shape[1]
+        height = img_arr.shape[0]
+
+        # overlay = Image.new("RGBA", img.size)
+        overlay = Image.new("RGBA", (width, height))
 
         # Create an ImageDraw object
         draw = ImageDraw.Draw(overlay)
@@ -455,22 +461,22 @@ class ThumbGen(NVPComponent):
         rect_height = 2 * hpad + total_text_height
 
         if y < 0:
-            y = img.height + y - total_text_height
+            y = height + y - total_text_height
 
         if drawbg:
-            draw.rectangle([(0, y - hpad), (img.width, y - hpad + rect_height)], fill=rect_color)
+            draw.rectangle([(0, y - hpad), (width, y - hpad + rect_height)], fill=rect_color)
         else:
             anchor = "lt"
 
             if text_halign == "center":
-                x = img.width // 2
+                x = width // 2
                 anchor = "mt"
             if text_halign == "right":
-                x = img.width - x
+                x = width - x
                 anchor = "rt"
 
-            # x = (img.width - text_width) // 2
-            # y = (img.height - text_height) // 2
+            # x = (width - text_width) // 2
+            # y = (height - text_height) // 2
 
             # Draw the text outline if applicable:
 
@@ -512,10 +518,16 @@ class ThumbGen(NVPComponent):
                 )
                 y += text_height + line_spacing
 
-        # Composite the images:
-        img.alpha_composite(overlay)
+        ov_arr = np.array(overlay).astype(np.float32) / 255.0
 
-        return img
+        # Composite the images:
+        # img.alpha_composite(overlay)
+        alpha = ov_arr[:, :, 3]
+        for i in range(3):
+            img_arr[:, :, i] = img_arr[:, :, i] * (1.0 - alpha) + ov_arr[:, :, i] * alpha
+
+        # return Image.fromarray((img_arr * 255.0).astype(np.uint8))
+        return img_arr
 
     def generate_thumbnail(self, tagname, desc):
         """This function is used to generate a thumbnail with the given input settings"""
@@ -543,20 +555,25 @@ class ThumbGen(NVPComponent):
 
         img = self.fill_area(img, width, height)
 
+        arr = np.array(img).astype(np.float32) / 255.0
+
         # First we draw the background rects:
-        img = self.draw_title(img, desc, True)
-        img = self.draw_subtitle(img, desc, True)
+        arr = self.draw_title(arr, desc, True)
+        arr = self.draw_subtitle(arr, desc, True)
 
         # Add the additional images:
-        img = self.add_images(img, desc.get("images", []))
+        # arr = self.add_images(arr, desc.get("images", []))
 
         # Write the title if any:
-        img = self.draw_title(img, desc, False)
+        arr = self.draw_title(arr, desc, False)
 
         # Write the subtile if any:
-        img = self.draw_subtitle(img, desc, False)
+        arr = self.draw_subtitle(arr, desc, False)
 
         # save the image:
+        # img = Image.fromarray(arr)
+        img = Image.fromarray((arr * 255.0).astype(np.uint8))
+
         logger.info("Writing thumbnail: %s", out_file)
         img.save(out_file, "PNG")
 
