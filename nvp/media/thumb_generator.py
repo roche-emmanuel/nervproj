@@ -341,7 +341,7 @@ class ThumbGen(NVPComponent):
             text_heights.append(text_height)
             tot_height += text_height
 
-        if len(lines) > 0:
+        if len(lines) > 1:
             tot_height += line_spacing * (nlines - 1)
         tot_height = int(tot_height)
 
@@ -434,11 +434,11 @@ class ThumbGen(NVPComponent):
         if anchor == "bl":
             return xpos, ypos - shh
         if anchor == "dbl":
-            return xpos - hpad, ypos - vpad - shh
+            return xpos - hpad, ypos + vpad - shh
         if anchor == "br":
             return xpos - sww, ypos - shh
         if anchor == "dbr":
-            return xpos - sww + hpad, ypos - vpad - shh
+            return xpos - sww + hpad, ypos + vpad - shh
 
     def add_element(self, img, desc):
         """Add a single element to the image"""
