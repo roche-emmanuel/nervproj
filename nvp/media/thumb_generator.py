@@ -277,8 +277,8 @@ class ThumbGen(NVPComponent):
 
         return Image.fromarray(sub_arr)
 
-    def add_element(self, img, desc):
-        """Add a single element to the image"""
+    def add_image_layer(self, img, desc):
+        """Add a sub image"""
         img_dir = self.get_path(self.get_cwd(), "inputs")
 
         width = img.width
@@ -300,30 +300,205 @@ class ThumbGen(NVPComponent):
         # Resize the image sub_img to the "tgt_size" value keeping the aspect ratio:
         sub_img = sub_img.resize((int(sub_img.width * sfactor), int(sub_img.height * sfactor)))
 
+        return sub_img
+
+    def to_px_size(self, value, ref_size):
+        """convert a string to a pixel count"""
+        if isinstance(value, str) and value.endswith("px"):
+            val = float(value[:-2])
+        elif isinstance(value, str) and value.endswith("%"):
+            val = float(value[:-1]) * ref_size / 100.0
+        else:
+            val = float(value) * ref_size
+
+        if val < 0.0:
+            val = ref_size + val
+
+        return int(val)
+
+    def add_text_layer(self, img, desc):
+        """Add a text layer"""
+
+        font_file = self.get_path(self.get_input_dir(), "fonts", desc.get("font", "BebasNeue.otf"))
+        self.check(self.file_exists(font_file), "Invalid font file %s", font_file)
+
+        # Specify the font style, size, and color
+        # font = ImageFont.truetype("arial.ttf", 72)  # Replace "arial.ttf" with the path to your font file
+        font = ImageFont.truetype(font_file, desc.get("font_size", 160))
+
+        line_spacing = desc.get("line_spacing", 10.0)
+
+        lines = desc["text"].split("\n")
+        nlines = len(lines)
+        max_width = 0
+        tot_height = 0
+        text_heights = []
+        for line in lines:
+            text_width, text_height = self.get_text_dimensions(line, font)
+            text_width = int(text_width)
+            text_height = int(text_height)
+            max_width = max(max_width, text_width)
+            text_heights.append(text_height)
+            tot_height += text_height
+
+        if len(lines) > 0:
+            tot_height += line_spacing * (nlines - 1)
+        tot_height = int(tot_height)
+
+        outline_width = desc.get("outline_width", 5)
+
+        # We also need to take into account the outline_width for the total size of the sub image:
+        tot_height += int(2 * outline_width)
+        max_width += int(outline_width)
+
+        # Also check if we should take into account a rect padding:
+        hpad = self.to_px_size(desc.get("hpad", 0), max_width)
+        vpad = self.to_px_size(desc.get("vpad", 0), tot_height)
+
+        max_width += int(2 * hpad)
+        tot_height += int(2 * vpad)
+
+        outline_color = desc.get("outline_color", (255, 0, 0, 255))
+        text_color = desc.get("color", (255, 255, 255, 255))
+        text_halign = desc.get("halign", "left")
+        rect_color = desc.get("rect_color", (0, 0, 0, 0))
+        shadow = desc.get("shadow_offset", [0, 0])
+        xoff = int(shadow[0])
+        yoff = int(shadow[1])
+        shadow_color = desc.get("shadow_color", (0, 0, 0, 128))
+
+        if isinstance(rect_color, list):
+            rect_color = tuple(rect_color)
+        if isinstance(text_color, list):
+            text_color = tuple(text_color)
+        if isinstance(outline_color, list):
+            outline_color = tuple(outline_color)
+
+        sub_img = Image.new("RGBA", (max_width, tot_height))
+        draw = ImageDraw.Draw(sub_img)
+
+        draw.rectangle([(0, 0), (sub_img.width, sub_img.height)], fill=rect_color)
+
+        if desc.get("hide_text", False) is False:
+            anchor = "lt"
+            # x = outline_width
+            x = hpad
+            y = vpad + outline_width
+
+            if text_halign == "center":
+                x = sub_img.width // 2
+                anchor = "mt"
+            if text_halign == "right":
+                x = sub_img.width - hpad - outline_width
+                anchor = "rt"
+
+            for idx, line in enumerate(lines):
+                if xoff != 0 or xoff != 0:
+                    # draw the shadow first:
+                    draw.text(
+                        (x + xoff, y + yoff),
+                        line,
+                        font=font,
+                        fill=shadow_color,
+                        stroke_width=0,
+                        stroke_fill=None,
+                        anchor=anchor,
+                    )
+
+                draw.text(
+                    (x, y),
+                    line,
+                    font=font,
+                    fill=text_color,
+                    stroke_width=outline_width,
+                    stroke_fill=outline_color,
+                    anchor=anchor,
+                )
+                y += text_heights[idx] + line_spacing
+
+        return sub_img
+
+    def apply_anchor_offset(self, anchor, xpos, ypos, sww, shh, hpad, vpad):
+        """Apply an anchor offset"""
+        if anchor == "cc":
+            return xpos - sww // 2, ypos - shh // 2
+
+        if anchor == "tl":
+            return xpos, ypos
+        if anchor == "dtl":
+            return xpos - hpad, ypos - vpad
+        if anchor == "tr":
+            return xpos - sww, ypos
+        if anchor == "dtr":
+            return xpos - sww + hpad, ypos - vpad
+        if anchor == "bl":
+            return xpos, ypos - shh
+        if anchor == "dbl":
+            return xpos - hpad, ypos - vpad - shh
+        if anchor == "br":
+            return xpos - sww, ypos - shh
+        if anchor == "dbr":
+            return xpos - sww + hpad, ypos - vpad - shh
+
+    def add_element(self, img, desc):
+        """Add a single element to the image"""
+        if "src" in desc:
+            layer = self.add_image_layer(img, desc)
+            anchor = desc.get("anchor", "cc")
+        elif "text" in desc:
+            layer = self.add_text_layer(img, desc)
+            anchor = desc.get("anchor", "tl")
+        else:
+            self.throw("Unknown layer type: %s", desc)
+
         if "tint_factors" in desc:
-            sub_img = self.adjust_tint(sub_img, desc["tint_factors"])
+            layer = self.adjust_tint(layer, desc["tint_factors"])
 
         if "brightness" in desc:
-            sub_img = self.adjust_brightness(sub_img, desc["brightness"])
+            layer = self.adjust_brightness(layer, desc["brightness"])
 
         if desc.get("mirror", False):
-            sub_img = self.mirror_image_horiz(sub_img)
+            layer = self.mirror_image_horiz(layer)
 
         if "outline_size" in desc:
             contour_size = desc["outline_size"]
             contour_color = desc["outline_color"]
-            sub_img = self.apply_outline(sub_img, contour_size, contour_color)
+            layer = self.apply_outline(layer, contour_size, contour_color)
 
         if "angle" in desc:
-            sub_img = sub_img.rotate(desc["angle"], expand=True)
+            layer = layer.rotate(desc["angle"], expand=True)
 
         # Compute center position:
-        sww = sub_img.width
-        shh = sub_img.height
-        xpos = int(desc["pos"][0] * width) - sww // 2
-        ypos = int(desc["pos"][1] * height) - shh // 2
+        sww = layer.width
+        shh = layer.height
+        width = img.width
+        height = img.height
 
-        img.paste(sub_img, (xpos, ypos), mask=sub_img)
+        xpos = self.to_px_size(desc["pos"][0], width)
+        ypos = self.to_px_size(desc["pos"][1], height)
+        hpad = self.to_px_size(desc.get("hpad", 0), sww)
+        vpad = self.to_px_size(desc.get("vpad", 0), shh)
+
+        # xpos = desc["pos"][0]
+        # if isinstance(xpos, str) and xpos.endswith("px"):
+        #     xpos = int(xpos[:-2])
+        # else:
+        #     xpos = int(xpos * width)
+
+        # ypos = desc["pos"][1]
+        # if isinstance(ypos, str) and ypos.endswith("px"):
+        #     ypos = int(ypos[:-2])
+        # else:
+        #     ypos = int(ypos * height)
+
+        # if xpos < 0:
+        #     xpos = width + xpos
+        # if ypos < 0:
+        #     ypos = height + ypos
+
+        xpos, ypos = self.apply_anchor_offset(anchor, xpos, ypos, sww, shh, hpad, vpad)
+
+        img.paste(layer, (xpos, ypos), mask=layer)
 
         return img
 
@@ -586,8 +761,11 @@ class ThumbGen(NVPComponent):
         arr = np.array(img).astype(np.float32) / 255.0
 
         # First we draw the background rects:
-        arr = self.draw_title(arr, desc, True)
-        arr = self.draw_subtitle(arr, desc, True)
+        if "title" in desc:
+            arr = self.draw_title(arr, desc, True)
+
+        if "subtitle" in desc:
+            arr = self.draw_subtitle(arr, desc, True)
 
         # Add the additional elements:
         elems = None
@@ -600,10 +778,12 @@ class ThumbGen(NVPComponent):
             arr = self.add_elements(arr, elems)
 
         # Write the title if any:
-        arr = self.draw_title(arr, desc, False)
+        if "title" in desc:
+            arr = self.draw_title(arr, desc, False)
 
         # Write the subtile if any:
-        arr = self.draw_subtitle(arr, desc, False)
+        if "subtitle" in desc:
+            arr = self.draw_subtitle(arr, desc, False)
 
         # save the image:
         # img = Image.fromarray(arr)
