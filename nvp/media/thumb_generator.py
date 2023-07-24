@@ -277,56 +277,62 @@ class ThumbGen(NVPComponent):
 
         return Image.fromarray(sub_arr)
 
-    def add_images(self, img_arr, idescs):
-        """Add "sub-images" on our background image"""
-
+    def add_element(self, img, desc):
+        """Add a single element to the image"""
         img_dir = self.get_path(self.get_cwd(), "inputs")
 
-        width = img_arr.shape[1]
-        height = img_arr.shape[0]
+        width = img.width
+        height = img.height
         ref_size = min(width, height)
+
+        logger.info("Adding sub image: %s", desc["src"])
+
+        # load the image from source:
+        sub_img = Image.open(self.get_path(img_dir, desc["src"]))
+        sub_img = sub_img.convert("RGBA")
+
+        # Rescale the image to fit the requested scale:
+        tgt_size = ref_size * desc["scale"]
+
+        # compute the scaling factor:
+        sfactor = min(tgt_size / sub_img.width, tgt_size / sub_img.height)
+
+        # Resize the image sub_img to the "tgt_size" value keeping the aspect ratio:
+        sub_img = sub_img.resize((int(sub_img.width * sfactor), int(sub_img.height * sfactor)))
+
+        if "tint_factors" in desc:
+            sub_img = self.adjust_tint(sub_img, desc["tint_factors"])
+
+        if "brightness" in desc:
+            sub_img = self.adjust_brightness(sub_img, desc["brightness"])
+
+        if desc.get("mirror", False):
+            sub_img = self.mirror_image_horiz(sub_img)
+
+        if "outline_size" in desc:
+            contour_size = desc["outline_size"]
+            contour_color = desc["outline_color"]
+            sub_img = self.apply_outline(sub_img, contour_size, contour_color)
+
+        if "angle" in desc:
+            sub_img = sub_img.rotate(desc["angle"], expand=True)
+
+        # Compute center position:
+        sww = sub_img.width
+        shh = sub_img.height
+        xpos = int(desc["pos"][0] * width) - sww // 2
+        ypos = int(desc["pos"][1] * height) - shh // 2
+
+        img.paste(sub_img, (xpos, ypos), mask=sub_img)
+
+        return img
+
+    def add_elements(self, img_arr, elems):
+        """Add "sub-images" on our background image"""
         img = Image.fromarray((img_arr * 255.0).astype(np.uint8))
 
-        for desc in idescs:
-            logger.info("Adding sub image: %s", desc["src"])
-
-            # load the image from source:
-            sub_img = Image.open(self.get_path(img_dir, desc["src"]))
-            sub_img = sub_img.convert("RGBA")
-
-            # Rescale the image to fit the requested scale:
-            tgt_size = ref_size * desc["scale"]
-
-            # compute the scaling factor:
-            sfactor = min(tgt_size / sub_img.width, tgt_size / sub_img.height)
-
-            # Resize the image sub_img to the "tgt_size" value keeping the aspect ratio:
-            sub_img = sub_img.resize((int(sub_img.width * sfactor), int(sub_img.height * sfactor)))
-
-            if "tint_factors" in desc:
-                sub_img = self.adjust_tint(sub_img, desc["tint_factors"])
-
-            if "brightness" in desc:
-                sub_img = self.adjust_brightness(sub_img, desc["brightness"])
-
-            if desc.get("mirror", False):
-                sub_img = self.mirror_image_horiz(sub_img)
-
-            if "outline_size" in desc:
-                contour_size = desc["outline_size"]
-                contour_color = desc["outline_color"]
-                sub_img = self.apply_outline(sub_img, contour_size, contour_color)
-
-            if "angle" in desc:
-                sub_img = sub_img.rotate(desc["angle"], expand=True)
-
-            # Compute center position:
-            sww = sub_img.width
-            shh = sub_img.height
-            xpos = int(desc["pos"][0] * width) - sww // 2
-            ypos = int(desc["pos"][1] * height) - shh // 2
-
-            img.paste(sub_img, (xpos, ypos), mask=sub_img)
+        for desc in elems:
+            img = self.add_element(img, desc)
 
         return np.array(img).astype(np.float32) / 255.0
 
@@ -583,8 +589,15 @@ class ThumbGen(NVPComponent):
         arr = self.draw_title(arr, desc, True)
         arr = self.draw_subtitle(arr, desc, True)
 
-        # Add the additional images:
-        arr = self.add_images(arr, desc.get("images", []))
+        # Add the additional elements:
+        elems = None
+        if "elements" in desc:
+            elems = desc["elements"]
+        elif "images" in desc:
+            elems = desc["images"]
+
+        if elems is not None:
+            arr = self.add_elements(arr, elems)
 
         # Write the title if any:
         arr = self.draw_title(arr, desc, False)
