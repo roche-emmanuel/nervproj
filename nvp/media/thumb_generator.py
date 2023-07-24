@@ -248,6 +248,35 @@ class ThumbGen(NVPComponent):
         """Mirror an image horizontally"""
         return img.transpose(Image.FLIP_LEFT_RIGHT)
 
+    def apply_outline(self, sub_img, contour_size, contour_color):
+        """Apply the outline"""
+
+        sub_arr = np.array(sub_img)
+        mask = sub_arr[:, :, 3]
+        col = [np.float32(el) / 255.0 for el in contour_color]
+
+        # Compute the distance to foreground:
+        dist = self.compute_distance_to_foreground(mask)
+
+        img_arr = sub_arr.astype(np.float32) / 255.0
+
+        # Prepare the result image:
+        res = np.copy(img_arr)
+
+        # Fill with the contour color:
+        idx = dist <= contour_size
+        alpha = np.array(mask).astype(np.float32) / 255.0
+
+        for i in range(4):
+            # Fill with the contour color:
+            res[idx, i] = col[i]
+            # Re-add the subject on top of contour:
+            res[:, :, i] = img_arr[:, :, i] * alpha + res[:, :, i] * (1.0 - alpha)
+
+        sub_arr = (res * 255.0).astype(np.uint8)
+
+        return Image.fromarray(sub_arr)
+
     def add_images(self, img_arr, idescs):
         """Add "sub-images" on our background image"""
 
@@ -256,6 +285,7 @@ class ThumbGen(NVPComponent):
         width = img_arr.shape[1]
         height = img_arr.shape[0]
         ref_size = min(width, height)
+        img = Image.fromarray((img_arr * 255.0).astype(np.uint8))
 
         for desc in idescs:
             logger.info("Adding sub image: %s", desc["src"])
@@ -283,30 +313,22 @@ class ThumbGen(NVPComponent):
                 sub_img = self.mirror_image_horiz(sub_img)
 
             if "outline_size" in desc:
-                # sub_img = ImageOps.expand(sub_img, border=desc["outline_size"], fill=desc["outline_color"])
-                alpha = sub_img.split()[3]
-                edges = alpha.filter(ImageFilter.FIND_EDGES)
-                edges = edges.filter(ImageFilter.MaxFilter(size=desc["outline_size"]))
-                edges = edges.convert("L")
-                mask = edges.point(lambda p: p > 0 and 255)
-
-                contours = Image.new("RGBA", sub_img.size, (0, 0, 0, 0))
-                contours.paste(Image.new("RGBA", sub_img.size, tuple(desc["outline_color"])), mask=mask)
-
-                contours.paste(sub_img, mask=sub_img)
-                sub_img = contours
+                contour_size = desc["outline_size"]
+                contour_color = desc["outline_color"]
+                sub_img = self.apply_outline(sub_img, contour_size, contour_color)
 
             if "angle" in desc:
                 sub_img = sub_img.rotate(desc["angle"], expand=True)
 
             # Compute center position:
-            xpos = int(desc["pos"][0] * width) - sub_img.width // 2
-            ypos = int(desc["pos"][1] * height) - sub_img.height // 2
+            sww = sub_img.width
+            shh = sub_img.height
+            xpos = int(desc["pos"][0] * width) - sww // 2
+            ypos = int(desc["pos"][1] * height) - shh // 2
 
-            # img.paste(sub_img, (xpos, ypos), mask=sub_img)
-            # img = sub_img
+            img.paste(sub_img, (xpos, ypos), mask=sub_img)
 
-        return img_arr
+        return np.array(img).astype(np.float32) / 255.0
 
     def fill_area(self, img, width, height):
         """Stretch the input image as needed to fill a given area"""
@@ -562,7 +584,7 @@ class ThumbGen(NVPComponent):
         arr = self.draw_subtitle(arr, desc, True)
 
         # Add the additional images:
-        # arr = self.add_images(arr, desc.get("images", []))
+        arr = self.add_images(arr, desc.get("images", []))
 
         # Write the title if any:
         arr = self.draw_title(arr, desc, False)
