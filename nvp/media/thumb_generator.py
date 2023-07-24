@@ -45,13 +45,48 @@ class ThumbGen(NVPComponent):
 
         if cmd == "remove-bg":
             in_file = self.get_param("input_file")
-            out_file = self.get_param("output_file")
+
             model = self.get_param("model_name")
             min_dist = self.get_param("min_dist")
             max_dist = self.get_param("max_dist")
-
             bg_color = self.get_param("bg_color")
-            return self.remove_background(in_file, out_file, model, min_dist, max_dist, bg_color)
+            contour_size = self.get_param("contour_size")
+            contour_color = self.get_param("contour_color")
+
+            if in_file == "all":
+                # iterate on all image files:
+                cur_dir = self.get_cwd()
+
+                out_dir = self.get_param("out_dir")
+                self.make_folder(out_dir)
+                all_files = self.get_all_files(cur_dir, recursive=False)
+                exts = [".png", ".jpeg", ".jpg"]
+
+                for fname in all_files:
+                    ext = self.get_path_extension(fname).lower()
+                    if ext not in exts:
+                        continue
+
+                    # Check if we already have the text file:
+                    src_file = self.get_path(cur_dir, fname)
+                    # out_file = self.set_path_extension(fname, "_nobg.png")
+                    out_file = self.set_path_extension(fname, ".png")
+                    out_file = self.get_path(out_dir, out_file)
+
+                    if self.file_exists(out_file):
+                        continue
+
+                    # Otherwise we process this file:
+                    self.remove_background(
+                        src_file, out_file, model, min_dist, max_dist, bg_color, contour_size, contour_color
+                    )
+
+                return True
+            else:
+                out_file = self.get_param("output_file")
+                return self.remove_background(
+                    in_file, out_file, model, min_dist, max_dist, bg_color, contour_size, contour_color
+                )
 
         return False
 
@@ -70,7 +105,48 @@ class ThumbGen(NVPComponent):
         dist = distance_transform_edt(binary_arr)
         return dist
 
-    def remove_background(self, in_file, out_file, model_name, min_dist, max_dist, bg_color):
+    def update_bg_color(self, arr, bg_color):
+        """Replace the background color"""
+
+        col = [np.float32(el) / 255.0 for el in bg_color.split(",")]
+        arr = arr.astype(np.float32) / 255.0
+        colarr = np.zeros_like(arr)
+        alpha = arr[:, :, 3]
+
+        for i in range(4):
+            colarr[:, :, i] = col[i]
+
+            arr[:, :, i] = arr[:, :, i] * alpha + colarr[:, :, i] * (1.0 - alpha)
+
+        arr = (arr * 255.0).astype(np.uint8)
+
+        return arr
+
+    def apply_contour(self, arr, mask, dist, contour_size, contour_color):
+        """Apply a contour around the target object"""
+        col = [np.float32(el) / 255.0 for el in contour_color.split(",")]
+        logger.info("Applying contour of size %f, with color %s", contour_size, contour_color)
+
+        img_arr = arr.astype(np.float32) / 255.0
+
+        # Prepare the result image:
+        res = np.copy(img_arr)
+
+        # Fill with the contour color:
+        idx = dist <= contour_size
+        alpha = np.array(mask).astype(np.float32) / 255.0
+
+        for i in range(4):
+            # Fill with the contour color:
+            res[idx, i] = col[i]
+            # Re-add the subject on top of contour:
+            res[:, :, i] = img_arr[:, :, i] * alpha + res[:, :, i] * (1.0 - alpha)
+
+        return (res * 255.0).astype(np.uint8)
+
+    def remove_background(
+        self, in_file, out_file, model_name, min_dist, max_dist, bg_color, contour_size, contour_color
+    ):
         """Remove the background from an image file"""
         # Usage infos: https://github.com/roche-emmanuel/rembg/blob/main/USAGE.md
 
@@ -84,52 +160,39 @@ class ThumbGen(NVPComponent):
         # model_name = "u2net"
         # model_name = "isnet-general-use"
         session = new_session(model_name)
+        # Get the mask only:
+        mask = remove(input_img, session=session, only_mask=True).convert("L")
+        logger.info("Retrieved foreground mask.")
+
+        # Convert the input image to RGBA:
+        img = input_img.convert("RGBA")
+        img_arr = np.array(img)
+
+        # Compute the distance to foreground:
+        dist = self.compute_distance_to_foreground(mask)
+
+        # if a contour size is provided the we apply it here:
+        if contour_size > 0:
+            img_arr = self.apply_contour(img_arr, mask, dist, contour_size, contour_color)
 
         if max_dist != min_dist:
-            # Get the mask only:
-            mask = remove(input_img, session=session, only_mask=True).convert("L")
-            logger.info("Retrieved foreground mask.")
-
-            # Compute the distance to foreground:
-            dist = self.compute_distance_to_foreground(mask)
-
-            # Convert the input image to RGBA:
-            img = input_img.convert("RGBA")
-
-            img_arr = np.array(img)
 
             dist = np.clip(dist, min_dist, max_dist)
             alpha = 1.0 - (dist - min_dist) / (max_dist - min_dist)
 
-            # mask_arr = np.array(mask)
-
-            # img_arr[:, :, 3] = (img_arr[:, :, 3].astype(np.float64) * alpha).astype(np.uint8)
             img_arr[:, :, 3] = (255 * alpha).astype(np.uint8)
 
-            # img_arr[:, :, 3] = mask_arr
-
-            # Convert the numpy array back to image:
-            output_img = Image.fromarray(img_arr)
         else:
             # Use default processing:
-            output_img = remove(input_img, session=session)
+            img_arr[:, :, 3] = mask
 
         if bg_color is not None:
-            col = [np.float32(el) / 255.0 for el in bg_color.split(",")]
-            arr = np.array(output_img).astype(np.float32) / 255.0
-            colarr = np.zeros_like(arr)
-            alpha = arr[:, :, 3]
+            img_arr = self.update_bg_color(img_arr, bg_color)
 
-            for i in range(4):
-                colarr[:, :, i] = col[i]
-
-                arr[:, :, i] = arr[:, :, i] * alpha + colarr[:, :, i] * (1.0 - alpha)
-
-            arr = (arr * 255.0).astype(np.uint8)
-
-            output_img = Image.fromarray(arr)
-
+        # Convert the numpy array back to image:
+        output_img = Image.fromarray(img_arr)
         output_img.save(out_file)
+
         logger.info("Done removing background.")
         return True
 
@@ -510,11 +573,16 @@ if __name__ == "__main__":
     )
 
     psr = context.build_parser("remove-bg")
-    psr.add_str("-i", "--input", dest="input_file")("input image file from which to remove the background")
+    psr.add_str("-i", "--input", dest="input_file", default="all")(
+        "input image file from which to remove the background"
+    )
     psr.add_str("-o", "--output", dest="output_file")("output image file")
     psr.add_str("-m", "--model", dest="model_name", default="u2net")("Name of model to use")
     psr.add_float("--mind", dest="min_dist", default=0.0)("Min falloff dist")
-    psr.add_float("--maxd", dest="max_dist", default=5.0)("Max falloff dist")
+    psr.add_float("--maxd", dest="max_dist", default=0.0)("Max falloff dist")
     psr.add_str("--bgcolor", dest="bg_color")("Background color as coma separated list of U8s")
+    psr.add_str("--out-dir", dest="out_dir", default="nobg")("Output directory")
+    psr.add_str("--ctcolor", dest="contour_color", default="255,255,255,255")("Contour color")
+    psr.add_float("--ctsize", dest="contour_size", default=0.0)("Contour size")
 
     comp.run()
