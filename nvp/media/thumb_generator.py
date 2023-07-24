@@ -533,8 +533,14 @@ class ThumbGen(NVPComponent):
         # write an output file in the output dir:
         out_file = self.get_path(out_dir, f"{tagname}.png")
 
-        # load the background image:
-        img = self.load_background_image(desc["background"])
+        # Check if we have a background image:
+        if "background" in desc:
+            # load the background image:
+            img = self.load_background_image(desc["background"])
+        else:
+            # Create a completely back image:
+            img = Image.new("RGBA", (width, height), (0, 0, 0, 255))
+
         img = self.fill_area(img, width, height)
 
         # First we draw the background rects:
