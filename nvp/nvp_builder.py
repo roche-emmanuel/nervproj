@@ -120,6 +120,10 @@ class NVPBuilder(NVPObject):
     def exec_make(self, build_dir, flags=None, **kwargs):
         """Single execution of make"""
         cmd = ["make"]
+        if self.compiler.is_msvc():
+            # get the full path to make here:
+            cmd = [self.tools.get_tool_path("make")]
+
         if flags is not None:
             cmd += flags
 
