@@ -357,6 +357,9 @@ libraries:
   - name: pixman
     version: 0.42.2
     url: https://www.cairographics.org/releases/pixman-0.42.2.tar.gz
+  - name: cairo
+    version: 1.17.9
+    url: https://www.cairographics.org/snapshots/cairo-1.17.8.tar.xz
 
 # list of available projects:
 projects: []
@@ -660,7 +663,6 @@ scripts:
     custom_python_env: media_env
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/media/thumb_generator.py remove-bg
     python_path: ["${NVP_ROOT_DIR}"]
-
 
   brenc:
     notify: false

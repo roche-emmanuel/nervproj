@@ -5,6 +5,7 @@ import sys
 import time
 from datetime import datetime
 
+import tarfile
 import requests
 import urllib3
 
@@ -435,9 +436,17 @@ class ToolsManager(NVPComponent):
 
         # check if this is a tar.xz archive:
         if src_pkg_path.endswith(".tar.xz"):
-            cmd = ["tar", "-xvJf", src_pkg_path, "-C", dest_dir]
+            # cmd = ["tar", "-xvJf", src_pkg_path, "-C", dest_dir]
+            with tarfile.open(src_pkg_path, "r:xz") as tar:
+                tar.extractall(path=dest_dir)
+            logger.info("Done extracting %s.", src_pkg_path)
+            return
         elif src_pkg_path.endswith(".tar.gz") or src_pkg_path.endswith(".tgz"):
-            cmd = ["tar", "-xvzf", src_pkg_path, "-C", dest_dir]
+            # cmd = ["tar", "-xvzf", src_pkg_path, "-C", dest_dir]
+            with tarfile.open(src_pkg_path, "r:gz") as tar:
+                tar.extractall(path=dest_dir)
+            logger.info("Done extracting %s.", src_pkg_path)
+            return
         elif src_pkg_path.endswith(".7z.exe"):
             if target_name is None:
                 target_name = self.remove_file_extension(os.path.basename(src_pkg_path))
