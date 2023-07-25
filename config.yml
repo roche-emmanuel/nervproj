@@ -658,6 +658,12 @@ scripts:
     env_vars:
       NV_YT_DESC_DIR: D:/Projects/NervHome/data/youtube/descs/
 
+  test-drawsvg:
+    notify: false
+    custom_python_env: media_env
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/media/thumb_generator.py drawsvg-test
+    python_path: ["${NVP_ROOT_DIR}"]
+
   rembg:
     notify: false
     custom_python_env: media_env
@@ -708,6 +714,9 @@ custom_python_envs:
       - opencv-python
       - rembg[gpu]
       - scipy
+      - drawsvg[all]
+    additional_modules:
+      cairo.dll: http://files.nervtech.org/nvp_packages/modules/cairo.dll
 
   brotli_env:
     inherit: default_env
