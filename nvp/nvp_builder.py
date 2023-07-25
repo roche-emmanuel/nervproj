@@ -1,6 +1,7 @@
 """NVP builder class"""
 
 import logging
+import re
 
 from nvp.core.build_manager import BuildManager
 from nvp.nvp_object import NVPObject
@@ -17,6 +18,8 @@ class NVPBuilder(NVPObject):
         self.man = bman
         self.compiler = bman.compiler
         self.env = None
+        self.install_src_dir = None
+        self.install_dst_dir = None
         self.tools = self.ctx.get_component("tools")
         desc = desc or {}
         deftools = ["ninja", "make"] if self.is_windows else ["ninja"]
@@ -40,6 +43,8 @@ class NVPBuilder(NVPObject):
     def build(self, build_dir, prefix, desc):
         """Run the build process either on the proper target platform"""
         self.init_env()
+
+        self.set_install_context(build_dir, prefix)
 
         if self.is_windows:
             self.build_on_windows(build_dir, prefix, desc)
@@ -208,3 +213,59 @@ class NVPBuilder(NVPObject):
         for change in changes:
             content = content.replace(change[0], change[1])
         self.write_text_file(content, filename)
+
+    def set_install_context(self, src_dir=None, dest_dir=None):
+        """Set the installation context"""
+        self.install_src_dir = src_dir
+        self.install_dst_dir = dest_dir
+
+    def install_files(self, src_folder, exp, dst_folder, hint=None, **kwargs):
+        """Helper function used to manually install files"""
+        self.check(self.install_src_dir is not None, "Invalid installation context src_dir")
+        self.check(self.install_dst_dir is not None, "Invalid installation context dst_dir")
+
+        if hint is None:
+            hint = "file"
+
+        # Get all the dawn libs:
+        base_dir = kwargs.get("src_dir", self.install_src_dir)
+        flatten = kwargs.get("flatten", True)
+        excluded = kwargs.get("excluded", [])
+        included = kwargs.get("included", None)
+        recurse = kwargs.get("recurse", False)
+        src_dir = self.get_path(base_dir, src_folder)
+        all_files = self.get_all_files(src_dir, exp=exp, recursive=recurse)
+
+        dst_dir = self.get_path(self.install_dst_dir, dst_folder)
+        self.make_folder(dst_dir)
+
+        res = []
+
+        # copy the dawn libraries:
+        for elem in all_files:
+            ignored = False
+            for pat in excluded:
+                if re.search(pat, elem) is not None:
+                    ignored = True
+                    break
+
+            if included is not None and elem not in included:
+                logger.info("Ignoring element %s", elem)
+                continue
+
+            if ignored:
+                logger.info("Ignoring element %s", elem)
+                continue
+
+            logger.info("Installing %s %s", hint, elem)
+            src = self.get_path(src_dir, elem)
+            dst_file = self.get_filename(src) if flatten else elem
+            dst = self.get_path(dst_dir, dst_file)
+            pdir = self.get_parent_folder(dst)
+            self.make_folder(pdir)
+
+            self.check(not self.file_exists(dst), "File %s already exists.", dst)
+            self.copy_file(src, dst)
+            res.append(elem)
+
+        return res

@@ -358,8 +358,8 @@ libraries:
     version: 0.42.2
     url: https://www.cairographics.org/releases/pixman-0.42.2.tar.gz
   - name: cairo
-    version: 1.17.9
-    url: https://www.cairographics.org/snapshots/cairo-1.17.8.tar.xz
+    version: 1.17.2
+    url: https://www.cairographics.org/snapshots/cairo-1.17.2.tar.xz
 
 # list of available projects:
 projects: []

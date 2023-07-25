@@ -21,7 +21,7 @@ class Builder(NVPBuilder):
         """Build on windows method"""
 
         # Only applicable to msvc
-        self.check(self.compiler.is_msvc(), "Only available wit MSVC compiler")
+        self.check(self.compiler.is_msvc(), "Only available with MSVC compiler")
 
         # Reference:
         # cd pixman
@@ -36,7 +36,7 @@ class Builder(NVPBuilder):
         # cd ..
 
         # Path the Makefile.win32.common file:
-        self.patch_file(self.get_path(build_dir, "Makefile.win32.common"), "MD", "MT")
+        # self.patch_file(self.get_path(build_dir, "Makefile.win32.common"), "MD", "MT")
 
         # Run the make command:
         flags = ["pixman", "-B", "-f", "Makefile.win32", "CFG=release", "MMX=off"]

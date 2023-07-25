@@ -78,51 +78,16 @@ class DawnBuilder(NVPBuilder):
         self.exec_ninja(sub_dir)
 
         # logger.info("Installing dawn libraries...")
-        def install_files(src_folder, exp, dst_folder, hint, **kwargs):
-            # Get all the dawn libs:
-            base_dir = kwargs.get("src_dir", sub_dir)
-            flatten = kwargs.get("flatten", True)
-            excluded = kwargs.get("excluded", [])
-            src_dir = self.get_path(base_dir, src_folder)
-            all_files = self.get_all_files(src_dir, exp=exp, recursive=True)
 
-            dst_dir = self.get_path(prefix, dst_folder)
-            self.make_folder(dst_dir)
+        self.set_install_context(sub_dir, prefix)
 
-            res = []
-
-            # copy the dawn libraries:
-            for elem in all_files:
-                ignored = False
-                for pat in excluded:
-                    if re.search(pat, elem) is not None:
-                        ignored = True
-                        break
-
-                if ignored:
-                    logger.info("Ignoring element %s", elem)
-                    continue
-
-                logger.info("Installing %s %s", hint, elem)
-                src = self.get_path(src_dir, elem)
-                dst_file = self.get_filename(src) if flatten else elem
-                dst = self.get_path(dst_dir, dst_file)
-                pdir = self.get_parent_folder(dst)
-                self.make_folder(pdir)
-
-                self.check(not self.file_exists(dst), "File %s already exists.", dst)
-                self.copy_file(src, dst)
-                res.append(elem)
-
-            return res
-
-        install_files("src/dawn", r"\.lib$", "lib", "library")
-        install_files("src/tint", r"\.lib$", "lib", "library")
-        absl_libs = install_files("third_party", r"absl_.*\.lib$", "lib", "library")
-        install_files("third_party", r"SPIRV-Tools.*\.lib$", "lib", "library")
-        install_files("gen/include/dawn", r"\.h$", "include/dawn", "header")
-        install_files("include", r"\.h$", "include", "header", src_dir=build_dir, flatten=False)
-        install_files(".", r"\.exe$", "bin", "app", excluded=["CMake", "unittests"])
+        self.install_files("src/dawn", r"\.lib$", "lib", "library", recurse=True)
+        self.install_files("src/tint", r"\.lib$", "lib", "library", recurse=True)
+        absl_libs = self.install_files("third_party", r"absl_.*\.lib$", "lib", "library", recurse=True)
+        self.install_files("third_party", r"SPIRV-Tools.*\.lib$", "lib", "library", recurse=True)
+        self.install_files("gen/include/dawn", r"\.h$", "include/dawn", "header", recurse=True)
+        self.install_files("include", r"\.h$", "include", "header", src_dir=build_dir, flatten=False, recurse=True)
+        self.install_files(".", r"\.exe$", "bin", "app", excluded=["CMake", "unittests"], recurse=True)
 
         # Write the list of absl libs to file:
         absl_libs = [self.get_filename(elem) for elem in absl_libs]
@@ -178,58 +143,18 @@ class DawnBuilder(NVPBuilder):
         # self.run_ninja(sub_dir)
         self.exec_ninja(sub_dir)
 
-        res = []
-
-        # logger.info("Installing dawn libraries...")
-        def install_files(src_folder, exp, dst_folder, hint, **kwargs):
-            # Get all the dawn libs:
-            base_dir = kwargs.get("src_dir", sub_dir)
-            flatten = kwargs.get("flatten", True)
-            excluded = kwargs.get("excluded", [])
-            src_dir = self.get_path(base_dir, src_folder)
-            all_files = self.get_all_files(src_dir, exp=exp, recursive=True)
-
-            dst_dir = self.get_path(prefix, dst_folder)
-            self.make_folder(dst_dir)
-
-            # copy the dawn libraries:
-            for elem in all_files:
-                ignored = False
-                for pat in excluded:
-                    if re.search(pat, elem) is not None:
-                        ignored = True
-                        break
-
-                if ignored:
-                    logger.info("Ignoring element %s", elem)
-                    continue
-
-                logger.info("Installing %s %s", hint, elem)
-                src = self.get_path(src_dir, elem)
-                dst_file = self.get_filename(src) if flatten else elem
-                dst = self.get_path(dst_dir, dst_file)
-                pdir = self.get_parent_folder(dst)
-                self.make_folder(pdir)
-
-                self.check(not self.file_exists(dst), "File %s already exists.", dst)
-                self.copy_file(src, dst)
-
-                res.append(elem)
-
-            return res
-
-        install_files("src/dawn", r"\.a$", "lib", "library")
-        install_files("src/tint", r"\.a$", "lib", "library")
-        absl_libs = install_files("third_party", r"absl_.*\.a$", "lib", "library")
-        install_files("third_party", r"SPIRV-Tools.*\.a$", "lib", "library")
-        install_files("gen/include/dawn", r"\.h$", "include/dawn", "header")
-        install_files("include", r"\.h$", "include", "header", src_dir=build_dir, flatten=False)
-        install_files(".", "tint$", "bin", "app")
-        install_files(".", "tint_info$", "bin", "app")
-        install_files(".", "tint-loopy$", "bin", "app")
-        install_files(".", "HelloTriangle$", "bin", "app")
-        install_files(".", "meter$", "bin", "app")
-        install_files(".", "Boids$", "bin", "app")
+        self.install_files("src/dawn", r"\.a$", "lib", "library", recurse=True)
+        self.install_files("src/tint", r"\.a$", "lib", "library", recurse=True)
+        absl_libs = self.install_files("third_party", r"absl_.*\.a$", "lib", "library", recurse=True)
+        self.install_files("third_party", r"SPIRV-Tools.*\.a$", "lib", "library", recurse=True)
+        self.install_files("gen/include/dawn", r"\.h$", "include/dawn", "header", recurse=True)
+        self.install_files("include", r"\.h$", "include", "header", src_dir=build_dir, flatten=False, recurse=True)
+        self.install_files(".", "tint$", "bin", "app", recurse=True)
+        self.install_files(".", "tint_info$", "bin", "app", recurse=True)
+        self.install_files(".", "tint-loopy$", "bin", "app", recurse=True)
+        self.install_files(".", "HelloTriangle$", "bin", "app", recurse=True)
+        self.install_files(".", "meter$", "bin", "app", recurse=True)
+        self.install_files(".", "Boids$", "bin", "app", recurse=True)
 
         # Write the list of absl libs to file:
         absl_libs = [self.get_filename(elem) for elem in absl_libs]
