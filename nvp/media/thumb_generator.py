@@ -372,10 +372,6 @@ class ThumbGen(NVPComponent):
         """Add a sub image"""
         img_dir = self.get_path(self.get_cwd(), "inputs")
 
-        width = img.width
-        height = img.height
-        ref_size = min(width, height)
-
         logger.info("Adding sub image: %s", desc["src"])
 
         # load the image from source:
@@ -383,13 +379,18 @@ class ThumbGen(NVPComponent):
         sub_img = sub_img.convert("RGBA")
 
         # Rescale the image to fit the requested scale:
-        tgt_size = ref_size * desc["scale"]
+        if "scale" in desc:
+            width = img.width
+            height = img.height
+            ref_size = min(width, height)
 
-        # compute the scaling factor:
-        sfactor = min(tgt_size / sub_img.width, tgt_size / sub_img.height)
+            tgt_size = ref_size * desc["scale"]
 
-        # Resize the image sub_img to the "tgt_size" value keeping the aspect ratio:
-        sub_img = sub_img.resize((int(sub_img.width * sfactor), int(sub_img.height * sfactor)))
+            # compute the scaling factor:
+            sfactor = min(tgt_size / sub_img.width, tgt_size / sub_img.height)
+
+            # Resize the image sub_img to the "tgt_size" value keeping the aspect ratio:
+            sub_img = sub_img.resize((int(sub_img.width * sfactor), int(sub_img.height * sfactor)))
 
         return sub_img
 
@@ -531,6 +532,50 @@ class ThumbGen(NVPComponent):
         if anchor == "dbr":
             return xpos - sww + hpad, ypos + vpad - shh
 
+    def resize_layer(self, layer, new_width, new_height, mode, bg_color):
+        """Resize an image layer with different modes"""
+        new_width = int(new_width)
+        new_height = int(new_height)
+
+        if layer.width == new_width and layer.height == new_height:
+            # Nothing to resize here:
+            return layer
+
+        new_size = (new_width, new_height)
+        if mode == "stretch":
+            # Just stretch the image:
+            return layer.resize(new_size)
+
+        if mode == "fit" or mode == "fill":
+            # We should fit the image on the given area:
+            img = Image.new("RGBA", new_size, tuple(bg_color))
+
+            # Compute the ratios by which we should reduce the initial image
+            # to get to the desired dimensions:
+            wratio = new_width / layer.width
+            hratio = new_height / layer.height
+
+            # We should use the smallest reduction factor to ensure both dimensions can
+            # fit in the destination image:
+            if mode == "fit":
+                ratio = hratio if wratio > hratio else wratio
+            else:
+                ratio = hratio if wratio < hratio else wratio
+
+            nsize = (int(ratio * layer.width), int(ratio * layer.height))
+
+            layer = layer.resize(nsize)
+
+            # Now we copy the layer at the center of our image:
+            pos = ((img.width - layer.width) // 2, (img.height - layer.height) // 2)
+            img.paste(layer, pos, mask=layer)
+
+            return img
+
+        self.throw("Cannot handle resize mode %s", mode)
+
+        return None
+
     def add_element(self, img, desc):
         """Add a single element to the image"""
         if "src" in desc:
@@ -559,6 +604,15 @@ class ThumbGen(NVPComponent):
         if "angle" in desc:
             layer = layer.rotate(desc["angle"], expand=True)
 
+        if "size" in desc:
+            new_width = self.to_px_size(desc["size"][0], img.width)
+            new_height = self.to_px_size(desc["size"][1], img.height)
+
+            mode = desc.get("resize_mode", "fit")
+            bg_color = desc.get("bg_color", [0, 0, 0, 0])
+
+            layer = self.resize_layer(layer, new_width, new_height, mode, bg_color)
+
         # Compute center position:
         sww = layer.width
         shh = layer.height
@@ -567,25 +621,9 @@ class ThumbGen(NVPComponent):
 
         xpos = self.to_px_size(desc["pos"][0], width)
         ypos = self.to_px_size(desc["pos"][1], height)
+
         hpad = self.to_px_size(desc.get("hpad", 0), sww)
         vpad = self.to_px_size(desc.get("vpad", 0), shh)
-
-        # xpos = desc["pos"][0]
-        # if isinstance(xpos, str) and xpos.endswith("px"):
-        #     xpos = int(xpos[:-2])
-        # else:
-        #     xpos = int(xpos * width)
-
-        # ypos = desc["pos"][1]
-        # if isinstance(ypos, str) and ypos.endswith("px"):
-        #     ypos = int(ypos[:-2])
-        # else:
-        #     ypos = int(ypos * height)
-
-        # if xpos < 0:
-        #     xpos = width + xpos
-        # if ypos < 0:
-        #     ypos = height + ypos
 
         xpos, ypos = self.apply_anchor_offset(anchor, xpos, ypos, sww, shh, hpad, vpad)
 
