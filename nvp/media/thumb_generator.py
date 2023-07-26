@@ -4,7 +4,8 @@ This component is used to generate youtube thumbnails from a given description i
 
 import logging
 import os
-import drawsvg as draw
+
+from io import BytesIO
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -12,6 +13,7 @@ from scipy.ndimage import distance_transform_edt
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
+import nvp.media.svg_generators as svg
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,10 @@ class ThumbGen(NVPComponent):
         # Storage for the currently loaded element templates:
         self.templates = {}
         self.parameters = {}
+
+        # List of available layer generators:
+        self.generators = {"arrow": svg.generate_arrow}
+        self.generators = {"curved_arrow": svg.generate_curved_arrow}
 
     def process_cmd_path(self, cmd):
         """Re-implementation of process_cmd_path"""
@@ -396,17 +402,7 @@ class ThumbGen(NVPComponent):
 
     def to_px_size(self, value, ref_size):
         """convert a string to a pixel count"""
-        if isinstance(value, str) and value.endswith("px"):
-            val = float(value[:-2])
-        elif isinstance(value, str) and value.endswith("%"):
-            val = float(value[:-1]) * ref_size / 100.0
-        else:
-            val = float(value) * ref_size
-
-        if val < 0.0:
-            val = ref_size + val
-
-        return int(val)
+        return svg.to_px_size(value, ref_size)
 
     def add_text_layer(self, img, desc):
         """Add a text layer"""
@@ -578,12 +574,23 @@ class ThumbGen(NVPComponent):
 
     def add_element(self, img, desc):
         """Add a single element to the image"""
-        if "src" in desc:
+
+        anchor = desc.get("anchor", "tl")
+        if "type" in desc:
+            ltype = desc["type"]
+            # We should have a generator for this type:
+            self.check(ltype in self.generators, "No generator available for %s", ltype)
+            drw = self.generators[ltype](desc, img)
+
+            data = drw.rasterize().png_data
+            layer = Image.open(BytesIO(data))
+
+        elif "src" in desc:
             layer = self.add_image_layer(img, desc)
             anchor = desc.get("anchor", "cc")
         elif "text" in desc:
             layer = self.add_text_layer(img, desc)
-            anchor = desc.get("anchor", "tl")
+
         else:
             self.throw("Unknown layer type: %s", desc)
 
