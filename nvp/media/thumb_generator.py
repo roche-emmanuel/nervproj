@@ -611,6 +611,36 @@ class ThumbGen(NVPComponent):
 
         return desc
 
+    def inject_parameters(self, desc, params=None):
+        """Inject the parameters in an element description"""
+        if params is None:
+            params = {}
+            # Inject the common parameters:
+            params.update(self.parameters)
+
+            # Inject the desc itself as it may contain parameter overrides too:
+            if isinstance(desc, dict):
+                params.update(desc)
+
+        if isinstance(desc, dict):
+            for key, val in desc.items():
+                desc[key] = self.inject_parameters(val, params)
+
+        if isinstance(desc, list):
+            desc = [self.inject_parameters(el) for el in desc]
+
+        if isinstance(desc, str):
+            while "$" in desc:
+                for pname, pval in params.items():
+                    src = f"${{{pname}}}"
+                    if desc == src:
+                        # Replace the source string potentially changing the type:
+                        return pval
+                    elif src in desc:
+                        desc = desc.replace(src, pval)
+
+        return desc
+
     def add_elements(self, img_arr, elems):
         """Add "sub-images" on our background image"""
         img = Image.fromarray((img_arr * 255.0).astype(np.uint8))
@@ -619,6 +649,9 @@ class ThumbGen(NVPComponent):
 
             # For each element, we check if we have a base:
             desc = self.inject_base(desc)
+
+            # Next we should inject the parameters in this desc:
+            desc = self.inject_parameters(desc)
             img = self.add_element(img, desc)
 
         return np.array(img).astype(np.float32) / 255.0
@@ -859,6 +892,10 @@ class ThumbGen(NVPComponent):
 
         # write an output file in the output dir:
         out_file = self.get_path(out_dir, f"{tagname}.png")
+
+        # Inject the thumbnail specific parameters:
+        if "params" in desc:
+            self.parameters.update(desc["params"])
 
         # Check if we have a background image:
         if "background" in desc:
