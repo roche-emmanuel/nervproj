@@ -593,11 +593,32 @@ class ThumbGen(NVPComponent):
 
         return img
 
+    def inject_base(self, desc):
+        """Check if there is a base in our description and inject it in that case"""
+
+        if "base" not in desc:
+            return desc
+
+        # remove the base element from the desc now:
+        bname = desc.pop("base")
+
+        # get the template with that name
+        tpl = self.inject_base(self.templates[bname])
+
+        for key, val in tpl.items():
+            if key not in desc:
+                desc[key] = val
+
+        return desc
+
     def add_elements(self, img_arr, elems):
         """Add "sub-images" on our background image"""
         img = Image.fromarray((img_arr * 255.0).astype(np.uint8))
 
         for desc in elems:
+
+            # For each element, we check if we have a base:
+            desc = self.inject_base(desc)
             img = self.add_element(img, desc)
 
         return np.array(img).astype(np.float32) / 255.0
