@@ -25,6 +25,10 @@ class ThumbGen(NVPComponent):
         """Component constructor"""
         NVPComponent.__init__(self, ctx)
 
+        # Storage for the currently loaded element templates:
+        self.templates = {}
+        self.parameters = {}
+
     def process_cmd_path(self, cmd):
         """Re-implementation of process_cmd_path"""
 
@@ -36,6 +40,12 @@ class ThumbGen(NVPComponent):
 
             # Get the desc dir:
             desc_dir = os.environ["NV_YT_DESC_DIR"]
+
+            # Load the common templates/parameters:
+            common_file = self.get_path(desc_dir, "common.yml")
+            if self.file_exists(common_file):
+                logger.info("Loading common templates...")
+                self.load_templates(common_file)
 
             # get the prefix:
             prefix = tagname[:3]
@@ -93,6 +103,29 @@ class ThumbGen(NVPComponent):
                 )
 
         return False
+
+    def load_templates(self, tpl_file):
+        """Load the templates from a given file"""
+        if not self.file_exists(tpl_file):
+            logger.warning("Missing template file %s", tpl_file)
+
+        cfg = self.read_yaml(tpl_file)
+
+        # override any parameter:
+        params = cfg.get("parameters", {})
+        for key, val in params.items():
+            self.parameters[key] = val
+
+        # override/extend any templates:
+        tpls = cfg.get("templates", {})
+
+        for key, tpl in tpls.items():
+            if key not in self.templates:
+                self.templates[key] = tpl
+            else:
+                basetpl = self.templates[key]
+                for ename, entry in tpl.items():
+                    basetpl[ename] = entry
 
     def drawsvg_test(self):
         """Test function for drawsvg"""
@@ -797,7 +830,7 @@ class ThumbGen(NVPComponent):
         width = 1280
         height = 720
 
-        logger.info("Input desc: %s", desc)
+        # logger.info("Input desc: %s", desc)
 
         # Get the input/output dir:
         out_dir = self.get_path(self.get_cwd(), "outputs")
