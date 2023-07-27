@@ -6,6 +6,7 @@ import logging
 import os
 
 from io import BytesIO
+import drawsvg as draw
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
