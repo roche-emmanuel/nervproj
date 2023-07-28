@@ -33,8 +33,7 @@ class ThumbGen(NVPComponent):
         self.parameters = {}
 
         # List of available layer generators:
-        self.generators = {"arrow": svg.generate_arrow}
-        self.generators = {"curved_arrow": svg.generate_curved_arrow}
+        self.generators = {"arrow": svg.generate_arrow, "curved_arrow": svg.generate_curved_arrow}
 
     def process_cmd_path(self, cmd):
         """Re-implementation of process_cmd_path"""
