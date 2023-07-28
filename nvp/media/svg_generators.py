@@ -135,3 +135,66 @@ def generate_curved_arrow(desc, img):
     drw.append(p)
 
     return drw
+
+
+def generate_highlight_lines(desc, img):
+    """Generate an SVG highlight lines for a given element"""
+
+    # Retrieve the parameters
+    scale = desc["scale"]
+    size = desc["svg_size"]
+
+    width = to_px_size(size[0], img.width) * scale
+    height = to_px_size(size[1], img.height) * scale
+    ratio = desc["ratio"]
+
+    sw = desc["stroke_width"] * scale
+    scol = desc["stroke_color"]
+
+    padx = desc["padding_x"]
+    pady = desc["padding_y"]
+    x_steps = int(desc["num_x_steps"])
+    y_steps = int(desc["num_y_steps"])
+
+    # logger.info("highlight SVG size: %s x %s", width, height)
+
+    drw = draw.Drawing(width, height, origin=(0, 0))
+
+    ray_len = min(width, height) * ratio
+
+    start_points = []
+
+    dx = (width - 2 * padx) / (x_steps - 1)
+    dy = (height - 2 * pady) / (y_steps - 1)
+
+    for i in range(x_steps):
+        start_points.append((padx + dx * i, pady))
+        start_points.append((padx + dx * i, height - pady))
+
+    for i in range(y_steps):
+        start_points.append((padx, pady + dy * i))
+        start_points.append((width - padx, pady + dy * i))
+
+    p = draw.Path(stroke_width=sw, stroke=scol)
+
+    for pt in start_points:
+        # Compute a moving center location:
+        if width > height:
+            # interpolate in the xaxis:
+            factor = pt[0] / width
+            center = (height / 2.0 + (width - height) * factor, height / 2)
+        else:
+            factor = pt[1] / height
+            center = (width / 2.0, width / 2 + (height - width) * factor)
+
+        vec = [center[0] - pt[0], center[1] - pt[1]]
+        dirlen = math.sqrt(vec[0] * vec[0] + vec[1] * vec[1])
+        vec[0] *= ray_len / dirlen
+        vec[1] *= ray_len / dirlen
+
+        # logger.info("Drawing point from %s to %s", pt, epoint)
+        p.M(pt[0], pt[1]).L(pt[0] + vec[0], pt[1] + vec[1])
+
+    drw.append(p)
+
+    return drw
