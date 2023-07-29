@@ -55,7 +55,7 @@ class ThumbGen(NVPComponent):
             common_file = self.get_path(desc_dir, "common.yml")
             if self.file_exists(common_file):
                 logger.info("Loading common templates...")
-                self.load_templates(common_file)
+                self.load_templates_from_file(common_file)
 
             # get the prefix:
             prefix = tagname[:3]
@@ -114,7 +114,18 @@ class ThumbGen(NVPComponent):
 
         return False
 
-    def load_templates(self, tpl_file):
+    def register_templates(self, tpls):
+        """Register a list of templates"""
+
+        for key, tpl in tpls.items():
+            if key not in self.templates:
+                self.templates[key] = tpl
+            else:
+                basetpl = self.templates[key]
+                for ename, entry in tpl.items():
+                    basetpl[ename] = entry
+
+    def load_templates_from_file(self, tpl_file):
         """Load the templates from a given file"""
         if not self.file_exists(tpl_file):
             logger.warning("Missing template file %s", tpl_file)
@@ -128,14 +139,7 @@ class ThumbGen(NVPComponent):
 
         # override/extend any templates:
         tpls = cfg.get("templates", {})
-
-        for key, tpl in tpls.items():
-            if key not in self.templates:
-                self.templates[key] = tpl
-            else:
-                basetpl = self.templates[key]
-                for ename, entry in tpl.items():
-                    basetpl[ename] = entry
+        self.register_templates(tpls)
 
     def drawsvg_test(self):
         """Test function for drawsvg"""
@@ -352,7 +356,13 @@ class ThumbGen(NVPComponent):
     def apply_outline(self, sub_img, contour_size, contour_color):
         """Apply the outline"""
 
-        sub_arr = np.array(sub_img)
+        content = np.array(sub_img)
+        shape = content.shape
+        sub_arr = np.zeros((shape[0] + 2 * contour_size, shape[1] + 2 * contour_size, shape[2]), dtype=np.uint8)
+
+        # Paste the content:
+        sub_arr[contour_size:-contour_size, contour_size:-contour_size, :] = content
+
         mask = sub_arr[:, :, 3]
         col = [np.float32(el) / 255.0 for el in contour_color]
 
@@ -377,6 +387,15 @@ class ThumbGen(NVPComponent):
         sub_arr = (res * 255.0).astype(np.uint8)
 
         return Image.fromarray(sub_arr)
+
+    def saturate_alpha(self, sub_img, alpha_threshold):
+        """Apply the alpha channel"""
+
+        img_arr = np.array(sub_img)
+        idx = img_arr[:, :, 3] >= alpha_threshold
+        img_arr[idx, 3] = 255
+
+        return Image.fromarray(img_arr)
 
     def add_image_layer(self, img, desc):
         """Add a sub image"""
@@ -603,6 +622,9 @@ class ThumbGen(NVPComponent):
 
         if "brightness" in desc:
             layer = self.adjust_brightness(layer, desc["brightness"])
+
+        if "saturate_alpha_threshold" in desc:
+            layer = self.saturate_alpha(layer, desc["saturate_alpha_threshold"])
 
         if desc.get("mirror", False):
             layer = self.mirror_image_horiz(layer)
@@ -945,6 +967,10 @@ class ThumbGen(NVPComponent):
         # Inject the thumbnail specific parameters:
         if "params" in desc:
             self.parameters.update(desc["params"])
+
+        # Inject the templates if any:
+        if "templates" in desc:
+            self.register_templates(desc["templates"])
 
         # Check if we have a background image:
         if "background" in desc:
