@@ -634,9 +634,6 @@ class ThumbGen(NVPComponent):
             contour_color = desc["outline_color"]
             layer = self.apply_outline(layer, contour_size, contour_color)
 
-        if "angle" in desc:
-            layer = layer.rotate(desc["angle"], expand=True)
-
         if "size" in desc:
             new_width = self.to_px_size(desc["size"][0], img.width)
             new_height = self.to_px_size(desc["size"][1], img.height)
@@ -645,6 +642,9 @@ class ThumbGen(NVPComponent):
             bg_color = desc.get("bg_color", [0, 0, 0, 0])
 
             layer = self.resize_layer(layer, new_width, new_height, mode, bg_color)
+
+        if "angle" in desc:
+            layer = layer.rotate(desc["angle"], expand=True)
 
         # Compute center position:
         sww = layer.width
