@@ -10,7 +10,7 @@ import drawsvg as draw
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
-from scipy.ndimage import distance_transform_edt
+from scipy.ndimage import distance_transform_edt, gaussian_filter
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -196,12 +196,12 @@ class ThumbGen(NVPComponent):
 
         return True
 
-    def compute_distance_to_foreground(self, img):
+    def compute_distance_to_foreground(self, img, thres=200):
         """Compute the euclidian distance to the 1 elements assuming that 1 is for the forreground"""
         arr = np.array(img)
 
         binary_arr = np.zeros_like(arr)
-        binary_arr[arr < 200] = 1
+        binary_arr[arr < thres] = 1
 
         # arr.astype(np.bool_).astype(np.uint8)
 
@@ -353,6 +353,64 @@ class ThumbGen(NVPComponent):
     def mirror_image_horiz(self, img):
         """Mirror an image horizontally"""
         return img.transpose(Image.FLIP_LEFT_RIGHT)
+
+    def apply_glow(self, sub_img, gdesc):
+        """Apply the outline"""
+
+        out_size = gdesc["out_size"]
+        in_size = gdesc["in_size"]
+        color = gdesc["color"]
+
+        content = np.array(sub_img)
+        shape = content.shape
+        sub_arr = np.zeros((shape[0] + 2 * out_size, shape[1] + 2 * out_size, shape[2]), dtype=np.uint8)
+
+        # Paste the content:
+        sub_arr[out_size:-out_size, out_size:-out_size, :] = content
+
+        mask = sub_arr[:, :, 3]
+        col = [np.float32(el) / 255.0 for el in color]
+
+        # Compute the distance to foreground:
+        thres = 180
+        dist = self.compute_distance_to_foreground(mask, thres)
+
+        # Compute the inner distance as negative values:
+        inv_mask = 255 - mask
+        dist_in = self.compute_distance_to_foreground(inv_mask, thres)
+
+        out_idx = mask < thres
+        dist[out_idx] = 1.0 - np.clip(dist[out_idx], 0.0, out_size) / out_size
+
+        in_idx = mask >= thres
+        dist[in_idx] = 1.0 - np.clip(dist_in[in_idx], 0.0, in_size) / in_size
+
+        # Apply the blur effect:
+
+        blur_radius = gdesc.get("blur_radius", 0)
+        if blur_radius > 0:
+            dist = gaussian_filter(dist, sigma=blur_radius)
+
+        # Rescale to get in range [0,1]
+        amin = np.min(dist)
+        amax = np.max(dist)
+        dist = (dist - amin) / (amax - amin)
+
+        img_arr = sub_arr.astype(np.float32) / 255.0
+
+        # Prepare the result image:
+        res = np.copy(img_arr)
+
+        for i in range(4):
+            # Fill with the contour color:
+            res[:, :, i] = col[i]
+
+            # Add the glow effect:
+            res[:, :, i] = img_arr[:, :, i] * (1.0 - dist) + res[:, :, i] * dist
+
+        sub_arr = (res * 255.0).astype(np.uint8)
+
+        return Image.fromarray(sub_arr)
 
     def apply_outline(self, sub_img, contour_size, contour_color):
         """Apply the outline"""
@@ -630,10 +688,14 @@ class ThumbGen(NVPComponent):
         if desc.get("mirror", False):
             layer = self.mirror_image_horiz(layer)
 
-        if "outline_size" in desc:
+        if desc.get("outline_size", 0) > 0:
             contour_size = desc["outline_size"]
             contour_color = desc["outline_color"]
             layer = self.apply_outline(layer, contour_size, contour_color)
+
+        if "glow" in desc:
+            glow = desc["glow"]
+            layer = self.apply_glow(layer, glow)
 
         if "size" in desc:
             new_width = self.to_px_size(desc["size"][0], img.width)
