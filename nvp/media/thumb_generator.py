@@ -37,6 +37,7 @@ class ThumbGen(NVPComponent):
             "arrow": svg.generate_arrow,
             "curved_arrow": svg.generate_curved_arrow,
             "highlight_lines": svg.generate_highlight_lines,
+            "crossed": svg.generate_crossed,
         }
 
     def process_cmd_path(self, cmd):

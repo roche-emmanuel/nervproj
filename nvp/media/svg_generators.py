@@ -198,3 +198,38 @@ def generate_highlight_lines(desc, img):
     drw.append(p)
 
     return drw
+
+
+def generate_crossed(desc, img):
+    """Generate an SVG crossed lines for a given element"""
+
+    # Retrieve the parameters
+    scale = desc["scale"]
+    size = desc["svg_size"]
+
+    lw = desc["line_width"] * scale
+    lcol = desc["line_color"]
+    sw = desc["stroke_width"] * scale
+    scol = desc["stroke_color"]
+
+    padx = desc["padding_x"]
+    pady = desc["padding_y"]
+
+    width = to_px_size(size[0], img.width) * scale
+    height = to_px_size(size[1], img.height) * scale
+
+    # logger.info("highlight SVG size: %s x %s", width, height)
+
+    drw = draw.Drawing(width, height, origin=(0, 0))
+
+    p = draw.Path(stroke_width=2 * sw + lw, stroke=scol, stroke_linecap="round")
+    p.M(padx, pady).L(width - padx, height - pady)
+    p.M(padx, height - pady).L(width - padx, pady)
+    drw.append(p)
+
+    p = draw.Path(stroke_width=lw, stroke=lcol, stroke_linecap="round")
+    p.M(padx, pady).L(width - padx, height - pady)
+    p.M(padx, height - pady).L(width - padx, pady)
+    drw.append(p)
+
+    return drw
