@@ -1074,7 +1074,9 @@ class ThumbGen(NVPComponent):
 
         # save the image:
         # img = Image.fromarray(arr)
-        img = Image.fromarray((arr * 255.0).astype(np.uint8))
+        arr = (arr * 255.0).astype(np.uint8)
+        img = self.saturate_alpha(arr, 0)
+        # img = Image.fromarray(arr)
 
         logger.info("Writing thumbnail: %s", out_file)
         img.save(out_file, "PNG")
