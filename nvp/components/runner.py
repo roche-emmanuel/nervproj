@@ -300,6 +300,12 @@ class ScriptRunner(NVPComponent):
         key = f"{self.platform}_env_vars"
         env_dict = desc[key] if key in desc else desc.get("env_vars", None)
 
+        # check if we have a system specific env_var list and use it instead in that case:
+        pname = self.get_hostname()
+        key = f"{pname}.env_vars"
+        if key in desc:
+            env_dict = desc[key]
+
         if env_dict is not None:
             for key, val in env_dict.items():
 
