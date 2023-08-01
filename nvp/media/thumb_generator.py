@@ -373,23 +373,37 @@ class ThumbGen(NVPComponent):
 
         # Compute the distance to foreground:
         thres = 180
-        dist = self.compute_distance_to_foreground(mask, thres)
+        out_idx = mask < thres
+        in_idx = mask >= thres
 
         # Compute the inner distance as negative values:
         inv_mask = 255 - mask
+
+        dist = self.compute_distance_to_foreground(mask, thres)
         dist_in = self.compute_distance_to_foreground(inv_mask, thres)
 
-        out_idx = mask < thres
-        dist[out_idx] = 1.0 - np.clip(dist[out_idx], 0.0, out_size) / out_size
+        dist[in_idx] = 1.0
+        dist_in[out_idx] = 1.0
 
-        in_idx = mask >= thres
-        dist[in_idx] = 1.0 - np.clip(dist_in[in_idx], 0.0, in_size) / in_size
+        if out_size > 0:
+            dist[out_idx] = 1.0 - np.clip(dist[out_idx], 0.0, out_size) / out_size
+        else:
+            dist[out_idx] = 0.0
+
+        if in_size > 0:
+            dist_in[in_idx] = 1.0 - np.clip(dist_in[in_idx], 0.0, in_size) / in_size
+        else:
+            dist_in[in_idx] = 0.0
 
         # Apply the blur effect:
-
         blur_radius = gdesc.get("blur_radius", 0)
         if blur_radius > 0:
-            dist = gaussian_filter(dist, sigma=blur_radius)
+            if out_size > 0:
+                dist = gaussian_filter(dist, sigma=blur_radius)
+            if in_size > 0:
+                dist_in = gaussian_filter(dist_in, sigma=blur_radius)
+
+        dist[in_idx] = dist_in[in_idx]
 
         # Rescale to get in range [0,1]
         amin = np.min(dist)
@@ -411,6 +425,20 @@ class ThumbGen(NVPComponent):
         sub_arr = (res * 255.0).astype(np.uint8)
 
         return Image.fromarray(sub_arr)
+
+    def apply_blur(self, sub_img, radius):
+        """Apply a blur effect on a given layer"""
+        content = np.array(sub_img)
+
+        red = content[:, :, 0].astype(np.float32) / 255.0
+        green = content[:, :, 1].astype(np.float32) / 255.0
+        blue = content[:, :, 2].astype(np.float32) / 255.0
+
+        content[:, :, 0] = (gaussian_filter(red, sigma=radius) * 255.0).astype(np.uint8)
+        content[:, :, 1] = (gaussian_filter(green, sigma=radius) * 255.0).astype(np.uint8)
+        content[:, :, 2] = (gaussian_filter(blue, sigma=radius) * 255.0).astype(np.uint8)
+
+        return Image.fromarray(content)
 
     def apply_outline(self, sub_img, contour_size, contour_color):
         """Apply the outline"""
@@ -692,6 +720,10 @@ class ThumbGen(NVPComponent):
             contour_size = desc["outline_size"]
             contour_color = desc["outline_color"]
             layer = self.apply_outline(layer, contour_size, contour_color)
+
+        if desc.get("blur_radius", 0) > 0:
+            radius = desc["blur_radius"]
+            layer = self.apply_blur(layer, radius)
 
         if "glow" in desc:
             glow = desc["glow"]

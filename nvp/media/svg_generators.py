@@ -137,6 +137,32 @@ def generate_curved_arrow(desc, img):
     return drw
 
 
+def fix_distance(x, y, cx, cy, r):
+    """Fix the distance of a point to a center point"""
+    dist = math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy))
+
+    return [cx + (x - cx) * r / dist, cy + (y - cy) * r / dist]
+
+
+def apply_border_radius(x, y, w, h, r):
+    """Apply the border radius effect"""
+
+    # Ensure r is within the bounds of the rectangle's dimensions
+    r = min(r, min(w, h) / 2)
+
+    # Check which corner the point lies in and adjust the coordinates accordingly
+    if x < r and y < r:
+        x, y = fix_distance(x, y, r, r, r)
+    elif x > w - r and y < r:
+        x, y = fix_distance(x, y, w - r, r, r)
+    elif x < r and y > h - r:
+        x, y = fix_distance(x, y, r, h - r, r)
+    elif x > w - r and y > h - r:
+        x, y = fix_distance(x, y, w - r, h - r, r)
+
+    return x, y
+
+
 def generate_highlight_lines(desc, img):
     """Generate an SVG highlight lines for a given element"""
 
@@ -151,6 +177,7 @@ def generate_highlight_lines(desc, img):
     sw = desc["stroke_width"] * scale
     scol = desc["stroke_color"]
 
+    radius = desc["radius"]
     padx = desc["padding_x"]
     pady = desc["padding_y"]
     x_steps = int(desc["num_x_steps"])
@@ -164,18 +191,26 @@ def generate_highlight_lines(desc, img):
 
     start_points = []
 
-    dx = (width - 2 * padx) / (x_steps - 1)
-    dy = (height - 2 * pady) / (y_steps - 1)
+    ww = width - 2 * padx
+    hh = height - 2 * pady
+    dx = (ww) / (x_steps - 1)
+    dy = (hh) / (y_steps - 1)
 
     for i in range(x_steps):
-        start_points.append((padx + dx * i, pady))
-        start_points.append((padx + dx * i, height - pady))
+        x, y = apply_border_radius(dx * i, 0, ww, hh, radius)
+        start_points.append((padx + x, pady + y))
+        x, y = apply_border_radius(dx * i, hh, ww, hh, radius)
+        start_points.append((padx + x, pady + y))
+        # start_points.append((padx + x, height - pady - y))
 
     for i in range(y_steps):
-        start_points.append((padx, pady + dy * i))
-        start_points.append((width - padx, pady + dy * i))
+        x, y = apply_border_radius(0, dy * i, ww, hh, radius)
+        start_points.append((padx + x, pady + y))
+        x, y = apply_border_radius(ww, dy * i, ww, hh, radius)
+        start_points.append((padx + x, pady + y))
+        # start_points.append((width - padx - x, pady + y))
 
-    p = draw.Path(stroke_width=sw, stroke=scol)
+    p = draw.Path(stroke_width=sw, stroke=scol, stroke_linecap="round")
 
     for pt in start_points:
         # Compute a moving center location:
