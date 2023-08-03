@@ -543,11 +543,11 @@ class ThumbGen(NVPComponent):
             tot_height += line_spacing * (nlines - 1)
         tot_height = int(tot_height)
 
-        outline_width = desc.get("outline_width", 5)
+        stroke_width = desc.get("stroke_width", 5)
 
-        # We also need to take into account the outline_width for the total size of the sub image:
-        tot_height += int(2 * outline_width)
-        max_width += int(outline_width)
+        # We also need to take into account the stroke_width for the total size of the sub image:
+        tot_height += int(2 * stroke_width)
+        max_width += int(stroke_width)
 
         # Also check if we should take into account a rect padding:
         hpad = self.to_px_size(desc.get("hpad", 0), max_width)
@@ -556,21 +556,26 @@ class ThumbGen(NVPComponent):
         max_width += int(2 * hpad)
         tot_height += int(2 * vpad)
 
-        outline_color = desc.get("outline_color", (255, 0, 0, 255))
+        if "stroke_color" in desc:
+            stroke_color = desc.get("stroke_color", (255, 0, 0, 255))
+        else:
+            # Use the outline color by default:
+            stroke_color = desc.get("outline_color", (255, 0, 0, 255))
+
         text_color = desc.get("color", (255, 255, 255, 255))
         text_halign = desc.get("halign", "left")
         rect_color = desc.get("rect_color", (0, 0, 0, 0))
         shadow = desc.get("shadow_offset", [0, 0])
         xoff = int(shadow[0])
         yoff = int(shadow[1])
-        shadow_color = desc.get("shadow_color", (0, 0, 0, 128))
+        shadow_color = tuple(desc.get("shadow_color", (0, 0, 0, 128)))
 
         if isinstance(rect_color, list):
             rect_color = tuple(rect_color)
         if isinstance(text_color, list):
             text_color = tuple(text_color)
-        if isinstance(outline_color, list):
-            outline_color = tuple(outline_color)
+        if isinstance(stroke_color, list):
+            stroke_color = tuple(stroke_color)
 
         sub_img = Image.new("RGBA", (max_width, tot_height))
         draw = ImageDraw.Draw(sub_img)
@@ -579,15 +584,15 @@ class ThumbGen(NVPComponent):
 
         if desc.get("hide_text", False) is False:
             anchor = "lt"
-            # x = outline_width
+            # x = stroke_width
             x = hpad
-            y = vpad + outline_width
+            y = vpad + stroke_width
 
             if text_halign == "center":
                 x = sub_img.width // 2
                 anchor = "mt"
             if text_halign == "right":
-                x = sub_img.width - hpad - outline_width
+                x = sub_img.width - hpad - stroke_width
                 anchor = "rt"
 
             for idx, line in enumerate(lines):
@@ -608,8 +613,8 @@ class ThumbGen(NVPComponent):
                     line,
                     font=font,
                     fill=text_color,
-                    stroke_width=outline_width,
-                    stroke_fill=outline_color,
+                    stroke_width=stroke_width,
+                    stroke_fill=stroke_color,
                     anchor=anchor,
                 )
                 y += text_heights[idx] + line_spacing
@@ -621,6 +626,10 @@ class ThumbGen(NVPComponent):
         if anchor == "cc":
             return xpos - sww // 2, ypos - shh // 2
 
+        if anchor == "dtc":
+            return xpos - sww // 2, ypos - vpad
+        if anchor == "dbc":
+            return xpos - sww // 2, ypos - shh
         if anchor == "tl":
             return xpos, ypos
         if anchor == "dtl":
@@ -759,6 +768,18 @@ class ThumbGen(NVPComponent):
 
         return img
 
+    def inject_entries(self, desc, key, nval):
+        """Inject any missing value recursively in a dict"""
+        if key not in desc:
+            desc[key] = nval
+            return
+
+        cur_val = desc[key]
+        if isinstance(cur_val, dict) and isinstance(nval, dict):
+            # We can try to merge both dicts:
+            for subkey, subval in nval.items():
+                self.inject_entries(cur_val, subkey, subval)
+
     def inject_base(self, desc):
         """Check if there is a base in our description and inject it in that case"""
 
@@ -766,14 +787,17 @@ class ThumbGen(NVPComponent):
             return desc
 
         # remove the base element from the desc now:
-        bname = desc.pop("base")
+        # bname could be a list of names, so we split on comas:
+        bnames = desc.pop("base").split(",")
 
-        # get the template with that name
-        tpl = self.inject_base(self.templates[bname])
+        for bname in bnames:
+            bname = bname.strip()
 
-        for key, val in tpl.items():
-            if key not in desc:
-                desc[key] = val
+            # get the template with that name
+            tpl = self.inject_base(self.templates[bname])
+
+            for key, val in tpl.items():
+                self.inject_entries(desc, key, val)
 
         return desc
 
