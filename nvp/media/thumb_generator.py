@@ -361,12 +361,13 @@ class ThumbGen(NVPComponent):
         in_size = gdesc["in_size"]
         color = gdesc["color"]
 
+        ext_size = out_size + 10
         content = np.array(sub_img)
         shape = content.shape
-        sub_arr = np.zeros((shape[0] + 2 * out_size, shape[1] + 2 * out_size, shape[2]), dtype=np.uint8)
+        sub_arr = np.zeros((shape[0] + 2 * ext_size, shape[1] + 2 * ext_size, shape[2]), dtype=np.uint8)
 
         # Paste the content:
-        sub_arr[out_size:-out_size, out_size:-out_size, :] = content
+        sub_arr[ext_size:-ext_size, ext_size:-ext_size, :] = content
 
         mask = sub_arr[:, :, 3]
         col = [np.float32(el) / 255.0 for el in color]
