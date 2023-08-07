@@ -411,6 +411,9 @@ class ThumbGen(NVPComponent):
         amax = np.max(dist)
         dist = (dist - amin) / (amax - amin)
 
+        power = gdesc.get("power", 1.0)
+        dist = np.power(dist, power)
+
         img_arr = sub_arr.astype(np.float32) / 255.0
 
         # Prepare the result image:
