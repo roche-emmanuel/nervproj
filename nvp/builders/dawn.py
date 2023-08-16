@@ -143,6 +143,8 @@ class DawnBuilder(NVPBuilder):
         # self.run_ninja(sub_dir)
         self.exec_ninja(sub_dir)
 
+        self.set_install_context(sub_dir, prefix)
+
         self.install_files("src/dawn", r"\.a$", "lib", "library", recurse=True)
         self.install_files("src/tint", r"\.a$", "lib", "library", recurse=True)
         absl_libs = self.install_files("third_party", r"absl_.*\.a$", "lib", "library", recurse=True)
