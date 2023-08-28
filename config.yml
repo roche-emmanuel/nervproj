@@ -723,6 +723,7 @@ custom_python_envs:
       - rembg[gpu]
       - scipy
       - drawsvg[all]
+      - hachoir
     additional_modules:
       cairo.dll: http://files.nervtech.org/nvp_packages/modules/cairo.dll
 

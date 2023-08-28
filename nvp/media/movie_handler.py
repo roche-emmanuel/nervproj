@@ -1,11 +1,14 @@
 """MovieHandler handling component"""
 import logging
 import os
-
+import re
 import ffmpeg
 
 # from moviepy.editor import *
 import moviepy.editor as mpe
+
+from hachoir.parser import createParser
+from hachoir.metadata import extractMetadata
 
 # from moviepy.audio.AudioClip import CompositeAudioClip
 from nvp.core.tools import ToolsManager
@@ -81,18 +84,82 @@ class MovieHandler(NVPComponent):
 
         return False
 
+    def get_creation_date(self, fullpath):
+        """Get the creation date from a binary file or None"""
+
+        parser = createParser(fullpath)
+        if not parser:
+            logger.error("Unable to parse the file %s", fullpath)
+            return None
+
+        metadata = extractMetadata(parser)
+        if metadata is None:
+            logger.warning("No metadata found in %s", fullpath)
+            return None
+
+        date_str = None
+        for line in metadata.exportPlaintext():
+            # logger.info(line)
+            if line.startswith("- Creation date: "):
+                date_str = line.replace("- Creation date: ", "")
+                break
+
+        parser.close()
+
+        return date_str
+
     def add_video_dates(self, input_dir):
         """Add the video date for each video file"""
 
         # Collect all the files recursively:
         all_files = self.get_all_files(input_dir, recursive=True)
         exts = [".mov"]
+
+        date_pattern = r"(\d{8})_(\d{6})"
+
         for fname in all_files:
             ext = self.get_path_extension(fname).lower()
+
+            fullpath = self.get_path(input_dir, fname)
+
+            # Check if the file already contains the date:
+            folder = self.get_parent_folder(fullpath)
+            filename = self.get_filename(fullpath)
+
+            dmatch = re.search(date_pattern, filename)
+            if dmatch is not None:
+                date_str = dmatch.group(1)
+                time_str = dmatch.group(2)
+
+                # Get the new date format:
+                new_date = f"{date_str[0:4]}_{date_str[4:6]}_{date_str[6:8]}_{time_str}"
+
+                new_fname = filename.replace(dmatch.group(0), new_date)
+                logger.info("Renaming to %s", new_fname)
+                dest_file = self.get_path(folder, new_fname)
+                self.rename_file(fullpath, dest_file)
+
+                continue
+
             if ext not in exts:
                 continue
 
-            logger.info("Should get date for %s", fname)
+            # logger.info("Processing file %s:", fname)
+            date_str = self.get_creation_date(fullpath)
+
+            if date_str is not None:
+                # date_str = date_str.replace("-", "").replace(" ", "_").replace(":", "")
+                date_str = date_str.translate(str.maketrans(" -", "__", ":"))
+
+                # If this date string is not already in the filename, we prepend it:
+                filename = self.get_filename(fullpath)
+                if date_str not in filename:
+                    folder = self.get_parent_folder(fullpath)
+                    sep = "_" if filename[0] != "_" else ""
+
+                    new_name = self.get_path(folder, date_str + sep + filename)
+                    logger.info("Renaming to: %s", new_name)
+                    self.rename_file(fullpath, new_name)
 
     def extract_audio(self, input_file):
         """Extract the audio from a given video file"""
