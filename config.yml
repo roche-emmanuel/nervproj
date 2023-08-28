@@ -562,6 +562,13 @@ scripts:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/movie_handler.py extract-audio
     python_path: ["${NVP_ROOT_DIR}"]
 
+  add-vid-dates:
+    notify: false
+    help: Add the video dates to the filenames.
+    custom_python_env: media_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/movie_handler.py add-video-dates
+    python_path: ["${NVP_ROOT_DIR}"]
+
   norm-sound:
     notify: false
     help: Normalize the sound stream in a video video file

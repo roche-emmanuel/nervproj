@@ -31,6 +31,12 @@ class MovieHandler(NVPComponent):
             self.classify_movies()
             return True
 
+        if cmd == "add-video-dates":
+            cwd = self.get_cwd()
+
+            self.add_video_dates(cwd)
+            return True
+
         if cmd == "compose":
             file = self.get_param("input_file")
             afile = self.get_param("add_audio")
@@ -74,6 +80,19 @@ class MovieHandler(NVPComponent):
             return self.norm_sound(file, out_file, gain)
 
         return False
+
+    def add_video_dates(self, input_dir):
+        """Add the video date for each video file"""
+
+        # Collect all the files recursively:
+        all_files = self.get_all_files(input_dir, recursive=True)
+        exts = [".mov"]
+        for fname in all_files:
+            ext = self.get_path_extension(fname).lower()
+            if ext not in exts:
+                continue
+
+            logger.info("Should get date for %s", fname)
 
     def extract_audio(self, input_file):
         """Extract the audio from a given video file"""
@@ -473,5 +492,7 @@ if __name__ == "__main__":
 
     psr = context.build_parser("extract-audio")
     psr.add_str("-i", "--input", dest="input_file")("input video file to normalize")
+
+    psr = context.build_parser("add-video-dates")
 
     comp.run()
