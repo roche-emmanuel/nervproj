@@ -5,6 +5,7 @@ import sys
 import time
 from datetime import datetime
 
+import zipfile
 import tarfile
 import requests
 import urllib3
@@ -499,6 +500,15 @@ class ToolsManager(NVPComponent):
         if package_name.endswith(".tar.xz"):
             # Generate a tar.xz:
             cmd = ["tar", "cJf", dest_file, "-C", self.get_parent_folder(src_path), self.get_filename(src_path)]
+        elif package_name.endswith(".zip"):
+            zip_file = self.get_path(dest_folder, package_name)
+            src_dir = self.get_parent_folder(src_path)
+            with zipfile.ZipFile(zip_file, "w", zipfile.ZIP_DEFLATED) as zipf:
+                for root, _, files in os.walk(src_dir):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        relative_path = os.path.relpath(file_path, src_dir)
+                        zipf.write(file_path, relative_path)
         else:
             # Generate a 7zip package:
             cmd = [
