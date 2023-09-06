@@ -435,7 +435,14 @@ class CVBuilder(CVBuilderBase):
     def write_education(self, tbl=None):
         """Write the education section"""
 
-        if tbl is None:
+        settings = self.desc["settings"]
+
+        if settings.get("break_on_education", False):
+            tbl = table.Table(stylename="MainTableWithBreakStyle")
+            self.doc.text.addElement(tbl)
+            tbl.addElement(table.TableColumn(stylename="MainTableCol0Style"))
+            tbl.addElement(table.TableColumn(stylename="MainTableCol1Style"))
+        elif tbl is None:
             tbl = self.create_main_table()
 
         # Add another row
@@ -459,7 +466,14 @@ class CVBuilder(CVBuilderBase):
     def write_additional_skills(self, tbl=None):
         """Write the additional skills section"""
 
-        if tbl is None:
+        settings = self.desc["settings"]
+
+        if settings.get("break_on_other_skills", False):
+            tbl = table.Table(stylename="MainTableWithBreakStyle")
+            self.doc.text.addElement(tbl)
+            tbl.addElement(table.TableColumn(stylename="MainTableCol0Style"))
+            tbl.addElement(table.TableColumn(stylename="MainTableCol1Style"))
+        elif tbl is None:
             tbl = self.create_main_table()
 
         # Add another row
@@ -587,8 +601,7 @@ class CVBuilder(CVBuilderBase):
             tbl.addElement(table.TableColumn(stylename="MainTableCol0Style"))
             tbl.addElement(table.TableColumn(stylename="MainTableCol1Style"))
         elif tbl is None:
-            if tbl is None:
-                tbl = self.create_main_table()
+            tbl = self.create_main_table()
 
         parent_tbl = tbl
 
