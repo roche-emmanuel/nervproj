@@ -34,8 +34,10 @@ windows_tools:
     version: 1.10.2
   - name: cmake
     sub_path: bin/cmake.exe
-    urls: https://github.com/Kitware/CMake/releases/download/v3.22.3/cmake-3.22.3-windows-x86_64.zip
-    version: 3.22.3
+    # urls: https://github.com/Kitware/CMake/releases/download/v3.22.3/cmake-3.22.3-windows-x86_64.zip
+    # version: 3.22.3
+    urls: http://files.nervtech.org/nvp_packages/tools/cmake-3.27.6-windows.7z
+    version: 3.27.6
   - name: git
     sub_path: bin/git.exe
     urls: https://github.com/git-for-windows/git/releases/download/v2.35.1.windows.2/PortableGit-2.35.1.2-64-bit.7z.exe
@@ -110,8 +112,10 @@ linux_tools:
     version: 1.10.2
   - name: cmake
     sub_path: bin/cmake
-    urls: https://github.com/Kitware/CMake/releases/download/v3.22.3/cmake-3.22.3-linux-x86_64.tar.gz
-    version: 3.22.3
+    # urls: https://github.com/Kitware/CMake/releases/download/v3.22.3/cmake-3.22.3-linux-x86_64.tar.gz
+    # version: 3.22.3
+    urls: http://files.nervtech.org/nvp_packages/tools/cmake-3.27.6-linux.tar.xz
+    version: 3.27.6
   - name: git
     path: git
   - name: par2
