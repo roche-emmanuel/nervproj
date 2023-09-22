@@ -728,6 +728,7 @@ custom_python_envs:
       - scipy
       - drawsvg[all]
       - hachoir
+      - pyPDF2
     additional_modules:
       cairo.dll: http://files.nervtech.org/nvp_packages/modules/cairo.dll
 
