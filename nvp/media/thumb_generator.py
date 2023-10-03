@@ -640,6 +640,8 @@ class ThumbGen(NVPComponent):
             return xpos - hpad, ypos - vpad
         if anchor == "tr":
             return xpos - sww, ypos
+        if anchor == "tc":
+            return xpos - sww // 2, ypos
         if anchor == "dtr":
             return xpos - sww + hpad, ypos - vpad
         if anchor == "bl":
