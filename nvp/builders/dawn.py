@@ -45,6 +45,8 @@ class DawnBuilder(NVPBuilder):
         # Force adding ninja path on top:
         ninja_dir = self.tools.get_tool_dir("ninja")
         self.env["PATH"] = ninja_dir + ";" + self.env["PATH"]
+        # python_dir = self.tools.get_tool_dir("python")
+        # self.env["PATH"] = python_dir + ";" + ninja_dir + ";" + self.env["PATH"]
 
         # Need the following define on windows to avoid an issue:
         # cf. https://chromium.googlesource.com/chromium/src/+/HEAD/docs/windows_build_instructions.md
@@ -67,6 +69,7 @@ class DawnBuilder(NVPBuilder):
             "release_build",
             f"-DPYTHON_EXECUTABLE={py_path}",
             f"-DPython_EXECUTABLE={py_path}",
+            f"-DPython3_EXECUTABLE={py_path}",
             "-DDAWN_ENABLE_PIC=ON",
         ]
 
