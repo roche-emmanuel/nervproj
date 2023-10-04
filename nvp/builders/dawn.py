@@ -87,6 +87,12 @@ class DawnBuilder(NVPBuilder):
         self.install_files("third_party", r"SPIRV-Tools.*\.lib$", "lib", "library", recurse=True)
         self.install_files("gen/include/dawn", r"\.h$", "include/dawn", "header", recurse=True)
         self.install_files("include", r"\.h$", "include", "header", src_dir=build_dir, flatten=False, recurse=True)
+        self.install_files(
+            "src/dawn", r"\.h$", "include/internals/dawn", "dawn_header", src_dir=build_dir, flatten=False, recurse=True
+        )
+        self.install_files(
+            "src/tint", r"\.h$", "include/internals/tint", "tint_header", src_dir=build_dir, flatten=False, recurse=True
+        )
         self.install_files(".", r"\.exe$", "bin", "app", excluded=["CMake", "unittests"], recurse=True)
 
         # Write the list of absl libs to file:
