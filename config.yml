@@ -311,12 +311,14 @@ libraries:
     version: 3.3.8
     url: https://github.com/glfw/glfw/releases/download/3.3.8/glfw-3.3.8.zip
   - name: dawn
-    # version: git-20230509
+    # version: git
+    # git: https://dawn.googlesource.com/dawn
+    version: git-20230509
     # windows_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20230509-windows.7z
     # linux_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20230509-linux.tar.xz
-    # version: git
-    git: https://dawn.googlesource.com/dawn
-    version: git-20231004
+    # version: git-20231004
+    # windows_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20231004-windows.7z
+    # linux_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20231004-linux.tar.xz
   - name: cglm
     version: git-0.9.0
     git: https://github.com/recp/cglm.git
