@@ -142,6 +142,7 @@ class DawnBuilder(NVPBuilder):
             "release_build",
             f"-DPYTHON_EXECUTABLE={py_path}",
             f"-DPython_EXECUTABLE={py_path}",
+            f"-DPython3_EXECUTABLE={py_path}",
             "-DDAWN_ENABLE_PIC=ON",
         ]
 
@@ -166,6 +167,12 @@ class DawnBuilder(NVPBuilder):
         self.install_files(".", "HelloTriangle$", "bin", "app", recurse=True)
         self.install_files(".", "meter$", "bin", "app", recurse=True)
         self.install_files(".", "Boids$", "bin", "app", recurse=True)
+        self.install_files(
+            "src/dawn", r"\.h$", "include/internals/dawn", "dawn_header", src_dir=build_dir, flatten=False, recurse=True
+        )
+        self.install_files(
+            "src/tint", r"\.h$", "include/internals/tint", "tint_header", src_dir=build_dir, flatten=False, recurse=True
+        )
 
         # Write the list of absl libs to file:
         absl_libs = [self.get_filename(elem) for elem in absl_libs]
