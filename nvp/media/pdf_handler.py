@@ -26,6 +26,34 @@ class PDFHandler(NVPComponent):
 
             self.merge_pages(files)
             return True
+        if cmd == "compress-pdfs":
+            files = self.get_param("input_files").split(",")
+            inplace = self.get_param("in_place")
+            for fname in files:
+                self.compress_pdf(fname, inplace)
+            return True
+
+    def compress_pdf(self, input_pdf, inplace):
+        """Compress a PDF file"""
+
+        pdf_file = open(input_pdf, "rb")
+        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        pdf_writer = PyPDF2.PdfWriter()
+
+        # Add all pages to the PDF writer
+        for _, page in enumerate(pdf_reader.pages):
+            page.compress_content_streams()
+            pdf_writer.add_page(page)
+
+        pdf_file.close()
+
+        # Save the compressed PDF to the output file
+        output_pdf = self.set_path_extension(input_pdf, "_comp.pdf")
+        if inplace is True:
+            output_pdf = input_pdf
+
+        with open(output_pdf, "wb") as output_file:
+            pdf_writer.write(output_file)
 
     def merge_pages(self, files):
         """Merge the PDF files"""
@@ -62,5 +90,8 @@ if __name__ == "__main__":
 
     psr = context.build_parser("interleave-pdfs")
     psr.add_str("-i", "--inputs", dest="input_files")("input files to merge")
+    psr = context.build_parser("compress-pdfs")
+    psr.add_str("-i", "--inputs", dest="input_files")("input files to compress")
+    psr.add_flag("-p", "--inplace", dest="in_place")("Inplace compression")
 
     comp.run()
