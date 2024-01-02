@@ -1,4 +1,5 @@
 """MovieHandler handling component"""
+import concurrent.futures
 import logging
 import os
 import re
@@ -127,15 +128,17 @@ class MovieHandler(NVPComponent):
 
     def process_webcam_view(self, input_file):
         """Method called to process a webcam view in a given video file"""
-        logger.info("Should center face in file %s", input_file)
+        logger.info("Processing webcam view file %s", input_file)
+        output_path = self.set_path_extension(input_file, "_centered.mp4")
 
         video_clip = VideoFileClip(input_file)
 
-        # Process each frame of the video
-        processed_clip = video_clip.fl_image(self.process_frame)
+        frames = [frame for frame in video_clip.iter_frames()]
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            processed_frames = list(executor.map(self.process_frame, frames))
 
         # Save the processed video
-        output_path = self.set_path_extension(input_file, "_centered.mp4")
+        processed_clip = VideoFileClip(input_file).fl(processed_frames)
         processed_clip.write_videofile(output_path, audio=True)
 
         logger.info("Processing done.")
