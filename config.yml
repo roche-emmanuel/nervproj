@@ -738,6 +738,8 @@ custom_python_envs:
       - drawsvg[all]
       - hachoir
       - pyPDF2
+      - mtcnn
+      - tensorflow[and-cuda]
     additional_modules:
       cairo.dll: http://files.nervtech.org/nvp_packages/modules/cairo.dll
 

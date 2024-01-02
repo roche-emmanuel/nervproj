@@ -3,12 +3,15 @@ import logging
 import os
 import re
 
+import cv2
 import ffmpeg
 
 # from moviepy.editor import *
 import moviepy.editor as mpe
 from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
+from moviepy.editor import VideoFileClip
+from mtcnn import MTCNN
 
 # from moviepy.audio.AudioClip import CompositeAudioClip
 from nvp.core.tools import ToolsManager
@@ -89,10 +92,53 @@ class MovieHandler(NVPComponent):
 
         return False
 
+    def detect_faces(self, frame):
+        """Helper method to detect a face"""
+        detector = MTCNN()
+        faces = detector.detect_faces(frame)
+
+        if faces:
+            # Return only the first detected face
+            return faces[0]["box"]
+        else:
+            return None
+
+    def process_frame(self, frame):
+        """Function to process each frame of the video"""
+        face_coordinates = self.detect_faces(frame)
+
+        if face_coordinates is not None:
+            x, y, w, h = face_coordinates
+            center_x, center_y = x + w // 2, y + h // 2
+
+            # Define the region of interest (ROI) around the detected face
+            roi_start_x = max(center_x - w // 2, 0)
+            roi_start_y = max(center_y - h // 2, 0)
+            roi_end_x = min(center_x + w // 2, frame.shape[1])
+            roi_end_y = min(center_y + h // 2, frame.shape[0])
+
+            # Crop and resize the video around the detected face
+            cropped_frame = frame[roi_start_y:roi_end_y, roi_start_x:roi_end_x]
+            resized_frame = cv2.resize(cropped_frame, (frame.shape[1], frame.shape[0]))
+
+            return resized_frame
+        else:
+            return frame
+
     def process_webcam_view(self, input_file):
         """Method called to process a webcam view in a given video file"""
         logger.info("Should center face in file %s", input_file)
 
+        video_clip = VideoFileClip(input_file)
+
+        # Process each frame of the video
+        processed_clip = video_clip.fl_image(self.process_frame)
+
+        # Save the processed video
+        output_path = self.set_path_extension(input_file, "_centered.mp4")
+        processed_clip.write_videofile(output_path, audio=True)
+
+        logger.info("Processing done.")
         return True
 
     def get_creation_date(self, fullpath):
