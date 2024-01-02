@@ -19,6 +19,7 @@ from mtcnn import MTCNN
 
 # from moviepy.audio.AudioClip import CompositeAudioClip
 from nvp.core.tools import ToolsManager
+from nvp.core.windowed_mean import WindowedMean
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
 
@@ -55,6 +56,7 @@ class MovieHandler(NVPComponent):
         self.face_cy = None
         self.target_face_cx = None
         self.target_face_cy = None
+        self.face_window_len = None
         self.frame_size = None
         self.face_detector = None
         self.detect_face_func = None
@@ -141,7 +143,7 @@ class MovieHandler(NVPComponent):
         logger.info("Processing frame %d", self.frame_index)
 
         # Check if we should detect the face or not:
-        if self.frame_index % 60 == 0:
+        if self.frame_index % self.face_window_len == 0:
             face_coordinates = self.detect_faces(frame)
 
             if face_coordinates is not None:
@@ -153,19 +155,19 @@ class MovieHandler(NVPComponent):
 
                 # Init the face coords if needed:
                 if self.face_cx is None:
-                    self.face_cx = center_x
+                    self.face_cx = WindowedMean(self.face_window_len)
                 if self.face_cy is None:
-                    self.face_cy = center_y
+                    self.face_cy = WindowedMean(self.face_window_len)
 
         if self.target_face_cx is not None:
-            self.face_cx += (self.target_face_cx - self.face_cx) * 0.1
-            self.face_cy += (self.target_face_cy - self.face_cy) * 0.1
+            self.face_cx.add_value(self.target_face_cx)
+            self.face_cy.add_value(self.target_face_cy)
 
         # Define the region of interest (ROI) around the detected face
         hsize = (self.frame_size * 3) // 2
 
-        fcx = self.face_cx or frame.shape[1] // 2
-        fcy = self.face_cy or frame.shape[0] // 2
+        fcx = self.face_cx.get_mean() or frame.shape[1] // 2
+        fcy = self.face_cy.get_mean() or frame.shape[0] // 2
 
         cx = min(max(fcx, hsize), frame.shape[1] - hsize)
         cy = min(max(fcy, hsize), frame.shape[0] - hsize)
@@ -188,6 +190,7 @@ class MovieHandler(NVPComponent):
         logger.info("Processing webcam view file %s", input_file)
         output_path = self.set_path_extension(input_file, "_centered.mp4")
 
+        self.face_window_len = 60
         self.frame_index = 0
         self.frame_size = 256
 
