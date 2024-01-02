@@ -541,6 +541,12 @@ scripts:
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/media/movie_handler.py compose
     python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
 
+  handle-camview:
+    notify: false
+    custom_python_env: media_env
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/media/movie_handler.py process-webcam-view
+    python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
+
   concat-media:
     notify: false
     help: Concatenate multiple media files together.

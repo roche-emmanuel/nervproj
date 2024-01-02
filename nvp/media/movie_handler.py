@@ -2,13 +2,13 @@
 import logging
 import os
 import re
+
 import ffmpeg
 
 # from moviepy.editor import *
 import moviepy.editor as mpe
-
-from hachoir.parser import createParser
 from hachoir.metadata import extractMetadata
+from hachoir.parser import createParser
 
 # from moviepy.audio.AudioClip import CompositeAudioClip
 from nvp.core.tools import ToolsManager
@@ -33,6 +33,11 @@ class MovieHandler(NVPComponent):
         if cmd == "classify-movies":
             self.classify_movies()
             return True
+
+        if cmd == "process-webcam-view":
+            file = self.get_param("input_file")
+
+            return self.process_webcam_view(file)
 
         if cmd == "add-video-dates":
             cwd = self.get_cwd()
@@ -83,6 +88,12 @@ class MovieHandler(NVPComponent):
             return self.norm_sound(file, out_file, gain)
 
         return False
+
+    def process_webcam_view(self, input_file):
+        """Method called to process a webcam view in a given video file"""
+        logger.info("Should center face in file %s", input_file)
+
+        return True
 
     def get_creation_date(self, fullpath):
         """Get the creation date from a binary file or None"""
@@ -471,7 +482,6 @@ class MovieHandler(NVPComponent):
 
         movie_exts = [".mkv", ".avi", ".mp4", ".flv"]
         for fname in all_files:
-
             parts = os.path.splitext(fname)
             ext = parts[1]
             if ext in movie_exts:
@@ -561,5 +571,8 @@ if __name__ == "__main__":
     psr.add_str("-i", "--input", dest="input_file")("input video file to normalize")
 
     psr = context.build_parser("add-video-dates")
+
+    psr = context.build_parser("process-webcam-view")
+    psr.add_str("-i", "--input", dest="input_file")("Input file where to process the webcam view")
 
     comp.run()
