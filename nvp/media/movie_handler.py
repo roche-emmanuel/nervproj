@@ -1,8 +1,11 @@
 """MovieHandler handling component"""
 import concurrent.futures
+import io
 import logging
 import os
 import re
+import sys
+from functools import wraps
 
 import cv2
 import ffmpeg
@@ -22,6 +25,23 @@ from nvp.nvp_context import NVPContext
 logger = logging.getLogger(__name__)
 
 
+# https://stackoverflow.com/questions/75231091/deepface-dont-print-logs-from-mtcnn-backend
+def capture_output(func):
+    """Wrapper to capture print output."""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        old_stdout = sys.stdout
+        new_stdout = io.StringIO()
+        sys.stdout = new_stdout
+        try:
+            return func(*args, **kwargs)
+        finally:
+            sys.stdout = old_stdout
+
+    return wrapper
+
+
 class MovieHandler(NVPComponent):
     """MovieHandler component class"""
 
@@ -30,6 +50,14 @@ class MovieHandler(NVPComponent):
         NVPComponent.__init__(self, ctx)
 
         self.config = ctx.get_config()["movie_handler"]
+        self.frame_index = 0
+        self.face_cx = None
+        self.face_cy = None
+        self.target_face_cx = None
+        self.target_face_cy = None
+        self.frame_size = None
+        self.face_detector = None
+        self.detect_face_func = None
 
     def process_cmd_path(self, cmd):
         """Re-implementation of process_cmd_path"""
@@ -95,8 +123,12 @@ class MovieHandler(NVPComponent):
 
     def detect_faces(self, frame):
         """Helper method to detect a face"""
-        detector = MTCNN()
-        faces = detector.detect_faces(frame)
+        if self.face_detector is None:
+            logger.info("Initializing MTCNN detector...")
+            self.face_detector = MTCNN()
+            self.detect_face_func = capture_output(self.face_detector.detect_faces)
+
+        faces = self.detect_face_func(frame)
 
         if faces:
             # Return only the first detected face
@@ -106,39 +138,65 @@ class MovieHandler(NVPComponent):
 
     def process_frame(self, frame):
         """Function to process each frame of the video"""
-        face_coordinates = self.detect_faces(frame)
+        logger.info("Processing frame %d", self.frame_index)
 
-        if face_coordinates is not None:
-            x, y, w, h = face_coordinates
-            center_x, center_y = x + w // 2, y + h // 2
+        # Check if we should detect the face or not:
+        if self.frame_index % 60 == 0:
+            face_coordinates = self.detect_faces(frame)
 
-            # Define the region of interest (ROI) around the detected face
-            roi_start_x = max(center_x - w // 2, 0)
-            roi_start_y = max(center_y - h // 2, 0)
-            roi_end_x = min(center_x + w // 2, frame.shape[1])
-            roi_end_y = min(center_y + h // 2, frame.shape[0])
+            if face_coordinates is not None:
+                x, y, w, h = face_coordinates
+                center_x, center_y = x + w // 2, y + h // 2
 
-            # Crop and resize the video around the detected face
-            cropped_frame = frame[roi_start_y:roi_end_y, roi_start_x:roi_end_x]
-            resized_frame = cv2.resize(cropped_frame, (frame.shape[1], frame.shape[0]))
+                self.target_face_cx = center_x
+                self.target_face_cy = center_y
 
-            return resized_frame
-        else:
-            return frame
+                # Init the face coords if needed:
+                if self.face_cx is None:
+                    self.face_cx = center_x
+                if self.face_cy is None:
+                    self.face_cy = center_y
+
+        if self.target_face_cx is not None:
+            self.face_cx += (self.target_face_cx - self.face_cx) * 0.1
+            self.face_cy += (self.target_face_cy - self.face_cy) * 0.1
+
+        # Define the region of interest (ROI) around the detected face
+        hsize = (self.frame_size * 3) // 2
+
+        fcx = self.face_cx or frame.shape[1] // 2
+        fcy = self.face_cy or frame.shape[0] // 2
+
+        cx = min(max(fcx, hsize), frame.shape[1] - hsize)
+        cy = min(max(fcy, hsize), frame.shape[0] - hsize)
+
+        roi_start_x = int(cx - hsize)
+        roi_start_y = int(cy - hsize)
+        roi_end_x = int(cx + hsize)
+        roi_end_y = int(cy + hsize)
+
+        # Crop and resize the video around the detected face
+        cropped_frame = frame[roi_start_y:roi_end_y, roi_start_x:roi_end_x]
+        resized_frame = cv2.resize(cropped_frame, (self.frame_size, self.frame_size))
+
+        self.frame_index += 1
+
+        return resized_frame
 
     def process_webcam_view(self, input_file):
         """Method called to process a webcam view in a given video file"""
         logger.info("Processing webcam view file %s", input_file)
         output_path = self.set_path_extension(input_file, "_centered.mp4")
 
+        self.frame_index = 0
+        self.frame_size = 256
+
         video_clip = VideoFileClip(input_file)
 
-        frames = [frame for frame in video_clip.iter_frames()]
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            processed_frames = list(executor.map(self.process_frame, frames))
+        # Process each frame of the video
+        processed_clip = video_clip.fl_image(self.process_frame)
 
         # Save the processed video
-        processed_clip = VideoFileClip(input_file).fl(processed_frames)
         processed_clip.write_videofile(output_path, audio=True)
 
         logger.info("Processing done.")
