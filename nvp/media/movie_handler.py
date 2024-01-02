@@ -12,10 +12,12 @@ import ffmpeg
 
 # from moviepy.editor import *
 import moviepy.editor as mpe
+
+# from mtcnn import MTCNN
+from facenet_pytorch import MTCNN
 from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
 from moviepy.editor import VideoFileClip
-from mtcnn import MTCNN
 
 # from moviepy.audio.AudioClip import CompositeAudioClip
 from nvp.core.tools import ToolsManager
@@ -127,14 +129,23 @@ class MovieHandler(NVPComponent):
         """Helper method to detect a face"""
         if self.face_detector is None:
             logger.info("Initializing MTCNN detector...")
-            self.face_detector = MTCNN()
-            self.detect_face_func = capture_output(self.face_detector.detect_faces)
+            self.face_detector = MTCNN(
+                device="cuda",
+                select_largest=False,
+                post_process=False,
+            )
+            # self.detect_face_func = capture_output(self.face_detector.detect_faces)
+            # self.detect_face_func = capture_output(self.face_detector.detect)
+            self.detect_face_func = self.face_detector.detect
 
-        faces = self.detect_face_func(frame)
+        boxes, _ = self.detect_face_func(frame)
+        # faces = self.detect_face_func(frame)
 
-        if faces:
-            # Return only the first detected face
-            return faces[0]["box"]
+        # if faces:
+        #     # Return only the first detected face
+        #     return faces[0]["box"]
+        if boxes is not None:
+            return boxes[0]
         else:
             return None
 
@@ -147,8 +158,10 @@ class MovieHandler(NVPComponent):
             face_coordinates = self.detect_faces(frame)
 
             if face_coordinates is not None:
-                x, y, w, h = face_coordinates
-                center_x, center_y = x + w // 2, y + h // 2
+                # x, y, w, h = face_coordinates
+                left, top, right, bottom = face_coordinates
+                # center_x, center_y = x + w // 2, y + h // 2
+                center_x, center_y = (left + right) / 2.0, (top + bottom) / 2.0
 
                 self.target_face_cx = center_x
                 self.target_face_cy = center_y

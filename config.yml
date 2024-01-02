@@ -740,6 +740,12 @@ custom_python_envs:
       - pyPDF2
       - mtcnn
       - tensorflow[and-cuda]
+      - --extra-index-url https://download.pytorch.org/whl/cu118
+      - torch==2.1.2
+      - torchvision
+      - torchaudio
+      - facenet_pytorch
+
     additional_modules:
       cairo.dll: http://files.nervtech.org/nvp_packages/modules/cairo.dll
 
