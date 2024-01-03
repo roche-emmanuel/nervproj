@@ -67,8 +67,11 @@ class MovieHandler(NVPComponent):
         self.frame_indices = None
         self.face_pos_x = None
         self.face_pos_y = None
+        self.face_sizes = None
         self.interp_fcx_func = None
         self.interp_fcy_func = None
+        self.interp_fsize_func = None
+        self.current_fsize = None
 
     def process_cmd_path(self, cmd):
         """Re-implementation of process_cmd_path"""
@@ -162,14 +165,21 @@ class MovieHandler(NVPComponent):
             logger.info("Processing frame %d", self.frame_index)
 
         # Perform interpolation to get the face x/y position:
-        fcx = self.interp_fcx_func(self.frame_index)
-        fcy = self.interp_fcy_func(self.frame_index)
+        cx = self.interp_fcx_func(self.frame_index)
+        cy = self.interp_fcy_func(self.frame_index)
+        fsize = self.interp_fsize_func(self.frame_index)
+        # logger.info("source frame size: %f", fsize)
 
         # Define the region of interest (ROI) around the detected face
-        hsize = (self.frame_size * 3) // 2
+        # hsize = (self.frame_size * 3) // 2
 
-        cx = min(max(fcx, hsize), frame.shape[1] - hsize)
-        cy = min(max(fcy, hsize), frame.shape[0] - hsize)
+        self.current_fsize += (fsize - self.current_fsize) * 0.003
+
+        hsize = self.current_fsize * 3.0 / 2.0
+        hsize = min(hsize, cx, cy, frame.shape[1] - cx, frame.shape[0] - cy)
+
+        # cx = min(max(fcx, hsize), frame.shape[1] - hsize)
+        # cy = min(max(fcy, hsize), frame.shape[0] - hsize)
 
         roi_start_x = int(cx - hsize)
         roi_start_y = int(cy - hsize)
@@ -195,10 +205,13 @@ class MovieHandler(NVPComponent):
                 left, top, right, bottom = face_coordinates
                 # center_x, center_y = x + w // 2, y + h // 2
                 center_x, center_y = (left + right) / 2.0, (top + bottom) / 2.0
+                size = max(abs(right - left), abs(top - bottom))
+                # logger.info("Detected frame size: %d", size)
 
                 self.frame_indices.append(self.frame_index)
                 self.face_pos_x.append(center_x)
                 self.face_pos_y.append(center_y)
+                self.face_sizes.append(size)
 
         self.frame_index += 1
 
@@ -209,7 +222,7 @@ class MovieHandler(NVPComponent):
         logger.info("Processing webcam view file %s", input_file)
         output_path = self.set_path_extension(input_file, "_centered.mp4")
 
-        self.face_window_len = 60
+        self.face_window_len = 90
         self.frame_index = 0
         self.frame_size = 256
 
@@ -219,6 +232,7 @@ class MovieHandler(NVPComponent):
         self.frame_indices = []
         self.face_pos_x = []
         self.face_pos_y = []
+        self.face_sizes = []
 
         logger.info("Collecting face positions...")
         nframes = int(video_clip.duration * video_clip.fps)
@@ -234,6 +248,9 @@ class MovieHandler(NVPComponent):
         self.frame_indices.append(nframes + 1)
         self.face_pos_x.append(self.face_pos_x[-1])
         self.face_pos_y.append(self.face_pos_y[-1])
+        self.face_sizes.append(self.face_sizes[-1])
+
+        self.current_fsize = self.face_sizes[0]
 
         logger.info("Done collecting %d face positions", len(self.frame_indices))
 
@@ -246,6 +263,7 @@ class MovieHandler(NVPComponent):
 
         self.interp_fcx_func = interp1d(np.array(self.frame_indices), np.array(self.face_pos_x), kind=imode)
         self.interp_fcy_func = interp1d(np.array(self.frame_indices), np.array(self.face_pos_y), kind=imode)
+        self.interp_fsize_func = interp1d(np.array(self.frame_indices), np.array(self.face_sizes), kind=imode)
 
         processed_clip = video_clip.fl_image(self.process_frame)
 
