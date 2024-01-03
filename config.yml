@@ -739,6 +739,7 @@ custom_python_envs:
       - hachoir
       - pyPDF2
       - mtcnn
+      - scipy
       - tensorflow[and-cuda]
       - --extra-index-url https://download.pytorch.org/whl/cu118
       - torch==2.1.2

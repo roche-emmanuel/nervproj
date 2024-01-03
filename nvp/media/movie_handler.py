@@ -12,12 +12,14 @@ import ffmpeg
 
 # from moviepy.editor import *
 import moviepy.editor as mpe
+import numpy as np
 
 # from mtcnn import MTCNN
 from facenet_pytorch import MTCNN
 from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
 from moviepy.editor import VideoFileClip
+from scipy.interpolate import interp1d
 
 # from moviepy.audio.AudioClip import CompositeAudioClip
 from nvp.core.tools import ToolsManager
@@ -62,6 +64,11 @@ class MovieHandler(NVPComponent):
         self.frame_size = None
         self.face_detector = None
         self.detect_face_func = None
+        self.frame_indices = None
+        self.face_pos_x = None
+        self.face_pos_y = None
+        self.interp_fcx_func = None
+        self.interp_fcy_func = None
 
     def process_cmd_path(self, cmd):
         """Re-implementation of process_cmd_path"""
@@ -151,36 +158,15 @@ class MovieHandler(NVPComponent):
 
     def process_frame(self, frame):
         """Function to process each frame of the video"""
-        logger.info("Processing frame %d", self.frame_index)
-
-        # Check if we should detect the face or not:
         if self.frame_index % self.face_window_len == 0:
-            face_coordinates = self.detect_faces(frame)
+            logger.info("Processing frame %d", self.frame_index)
 
-            if face_coordinates is not None:
-                # x, y, w, h = face_coordinates
-                left, top, right, bottom = face_coordinates
-                # center_x, center_y = x + w // 2, y + h // 2
-                center_x, center_y = (left + right) / 2.0, (top + bottom) / 2.0
-
-                self.target_face_cx = center_x
-                self.target_face_cy = center_y
-
-                # Init the face coords if needed:
-                if self.face_cx is None:
-                    self.face_cx = WindowedMean(self.face_window_len)
-                if self.face_cy is None:
-                    self.face_cy = WindowedMean(self.face_window_len)
-
-        if self.target_face_cx is not None:
-            self.face_cx.add_value(self.target_face_cx)
-            self.face_cy.add_value(self.target_face_cy)
+        # Perform interpolation to get the face x/y position:
+        fcx = self.interp_fcx_func(self.frame_index)
+        fcy = self.interp_fcy_func(self.frame_index)
 
         # Define the region of interest (ROI) around the detected face
         hsize = (self.frame_size * 3) // 2
-
-        fcx = self.face_cx.get_mean() or frame.shape[1] // 2
-        fcy = self.face_cy.get_mean() or frame.shape[0] // 2
 
         cx = min(max(fcx, hsize), frame.shape[1] - hsize)
         cy = min(max(fcy, hsize), frame.shape[0] - hsize)
@@ -198,6 +184,26 @@ class MovieHandler(NVPComponent):
 
         return resized_frame
 
+    def collect_face_position(self, frame, nframes):
+        """Collect the face position for a given frame"""
+        if self.frame_index % self.face_window_len == 0:
+            logger.info("Collecting face at frame %d/%d", self.frame_index, nframes)
+            face_coordinates = self.detect_faces(frame)
+
+            if face_coordinates is not None:
+                # x, y, w, h = face_coordinates
+                left, top, right, bottom = face_coordinates
+                # center_x, center_y = x + w // 2, y + h // 2
+                center_x, center_y = (left + right) / 2.0, (top + bottom) / 2.0
+
+                self.frame_indices.append(self.frame_index)
+                self.face_pos_x.append(center_x)
+                self.face_pos_y.append(center_y)
+
+        self.frame_index += 1
+
+        return frame
+
     def process_webcam_view(self, input_file):
         """Method called to process a webcam view in a given video file"""
         logger.info("Processing webcam view file %s", input_file)
@@ -209,7 +215,38 @@ class MovieHandler(NVPComponent):
 
         video_clip = VideoFileClip(input_file)
 
-        # Process each frame of the video
+        # First we collect all the required center positions for a given frame index:
+        self.frame_indices = []
+        self.face_pos_x = []
+        self.face_pos_y = []
+
+        logger.info("Collecting face positions...")
+        nframes = int(video_clip.duration * video_clip.fps)
+        # for frame in video_clip.iter_frames(fps=video_clip.fps):
+
+        for fidx in range(0, nframes, self.face_window_len):
+            self.frame_index = fidx
+            frame = video_clip.get_frame(fidx / video_clip.fps)
+
+            self.collect_face_position(frame, nframes)
+
+        # Add a final position:
+        self.frame_indices.append(nframes + 1)
+        self.face_pos_x.append(self.face_pos_x[-1])
+        self.face_pos_y.append(self.face_pos_y[-1])
+
+        logger.info("Done collecting %d face positions", len(self.frame_indices))
+
+        # Process each frame of the video:
+        self.frame_index = 0
+
+        # Create an interpolation function
+        # imode = "cubic"
+        imode = "linear"
+
+        self.interp_fcx_func = interp1d(np.array(self.frame_indices), np.array(self.face_pos_x), kind=imode)
+        self.interp_fcy_func = interp1d(np.array(self.frame_indices), np.array(self.face_pos_y), kind=imode)
+
         processed_clip = video_clip.fl_image(self.process_frame)
 
         # Save the processed video
