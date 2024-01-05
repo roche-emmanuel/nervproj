@@ -224,7 +224,7 @@ class MovieHandler(NVPComponent):
 
         self.face_window_len = 90
         self.frame_index = 0
-        self.frame_size = 256
+        self.frame_size = 512
 
         video_clip = VideoFileClip(input_file)
 
