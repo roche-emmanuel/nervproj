@@ -193,16 +193,14 @@ if __name__ == "__main__":
     # Add our component:
     comp = context.register_component("nodejs", NodeJsManager(context))
 
-    context.define_subparsers("main", ["setup", "remove"])
+    psr = context.build_parser("setup")
+    psr.add_str("env_name")("Name of the environment to setup")
+    psr.add_str("--dir", dest="env_dir")("Environments root dir")
+    psr.add_flag("--update-npm", dest="update_npm")("Request the update of npm")
+    psr.add_flag("--renew", dest="renew_env")("Renew the environment completely")
 
-    psr = context.get_parser("main.setup")
-    psr.add_argument("env_name", type=str, help="Name of the environment to setup")
-    psr.add_argument("--dir", dest="env_dir", type=str, help="Environments root dir")
-    psr.add_argument("--update-npm", dest="update_npm", action="store_true", help="Request the update of npm")
-    psr.add_argument("--renew", dest="renew_env", action="store_true", help="Renew the environment completely")
-
-    psr = context.get_parser("main.remove")
-    psr.add_argument("env_name", type=str, help="Name of the environment to remove")
-    psr.add_argument("--dir", dest="env_dir", type=str, help="Environments root dir")
+    psr = context.build_parser("remove")
+    psr.add_str("env_name")("Name of the environment to remove")
+    psr.add_str("--dir", dest="env_dir")("Environments root dir")
 
     comp.run()
