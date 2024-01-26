@@ -368,6 +368,9 @@ libraries:
   - name: cairo
     version: 1.17.2
     url: https://www.cairographics.org/snapshots/cairo-1.17.2.tar.xz
+  - name: glew
+    version: 2.1.0
+    git: https://github.com/nigels-com/glew.git
 
 # list of available projects:
 projects: []
