@@ -374,6 +374,8 @@ libraries:
   - name: freeglut
     version: 3.4.0
     url: https://github.com/freeglut/freeglut/releases/download/v3.4.0/freeglut-3.4.0.tar.gz
+  - name: AntTweakBar
+    version: 1.16
 
 # list of available projects:
 projects: []
