@@ -371,6 +371,9 @@ libraries:
   - name: glew
     version: 2.1.0
     git: https://github.com/nigels-com/glew.git
+  - name: freeglut
+    version: 3.4.0
+    url: https://github.com/freeglut/freeglut/releases/download/v3.4.0/freeglut-3.4.0.tar.gz
 
 # list of available projects:
 projects: []
