@@ -370,6 +370,8 @@ libraries:
     url: https://www.cairographics.org/snapshots/cairo-1.17.2.tar.xz
   - name: glew
     version: 2.1.0
+    # version: 1.13.0
+    # version: 1.5.6
     git: https://github.com/nigels-com/glew.git
   - name: freeglut
     version: 3.4.0
