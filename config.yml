@@ -376,6 +376,10 @@ libraries:
     url: https://github.com/freeglut/freeglut/releases/download/v3.4.0/freeglut-3.4.0.tar.gz
   - name: AntTweakBar
     version: 1.16
+  - name: pthreads
+    version: 3.0
+    # git: https://github.com/GerHobbelt/pthread-win32.git
+    # git: https://github.com/championbarca/Pthread-Win32.git
 
 # list of available projects:
 projects: []
