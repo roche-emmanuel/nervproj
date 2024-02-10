@@ -1,4 +1,5 @@
 """NVP base object class"""
+
 import collections
 import configparser
 import json
@@ -409,11 +410,11 @@ class NVPObject(object):
         with open(fname, mode) as file:
             file.write(content)
 
-    def write_text_file(self, content, *parts, mode="w", newline=None):
+    def write_text_file(self, content, *parts, mode="w", newline=None, encoding="utf-8"):
         """Write content of file"""
 
         fname = self.get_path(*parts)
-        with open(fname, mode, encoding="utf-8", newline=newline) as file:
+        with open(fname, mode, encoding=encoding, newline=newline) as file:
             file.write(content)
 
     def url_encode_path(self, file_path):
@@ -431,10 +432,10 @@ class NVPObject(object):
             logger.error("Content is: %s", self.pretty_print(content))
             raise err
 
-    def write_json(self, data, *parts, indent=2):
+    def write_json(self, data, *parts, indent=2, encoding="utf-8"):
         """Write a structure as JSON file"""
         content = jstyleson.dumps(data, indent=indent)
-        self.write_text_file(content, *parts)
+        self.write_text_file(content, *parts, encoding=encoding)
 
     def read_yaml(self, *parts) -> dict:
         """Read a YAML file as dict"""
