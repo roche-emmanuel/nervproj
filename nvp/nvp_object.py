@@ -448,13 +448,13 @@ class NVPObject(object):
             logger.error("Error parsing yaml file %s: %s", fname, str(err))
             raise err
 
-    def write_yaml(self, data: dict, *parts):
+    def write_yaml(self, data: dict, *parts, sort_keys=True):
         """Save a dict as YAML file"""
         fname = self.get_path(*parts)
         try:
             os.makedirs(os.path.dirname(fname), exist_ok=True)
             with open(fname, "w+", encoding="utf-8") as file:
-                yaml.dump(data, file)
+                yaml.dump(data, file, sort_keys=sort_keys)
         except yaml.YAMLError as err:
             logger.error("Error writing yaml file %s: %s", fname, str(err))
             raise err
