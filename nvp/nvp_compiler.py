@@ -1,4 +1,5 @@
 """This module contains a definition of a compiler class for NVP"""
+
 # from __future__ import print_function
 import logging
 import os
@@ -130,7 +131,7 @@ class NVPCompiler(NVPObject):
         self.version_major = int(parts[0])
         self.version_minor = int(parts[1])
         self.version_release = int(parts[2]) if len(parts) >= 3 else 0
-        logger.info("Found %s-%s", self.type, self.version)
+        logger.debug("Found %s-%s", self.type, self.version)
 
     def get_type(self):
         """Return this compiler type"""
@@ -342,12 +343,12 @@ class NVPCompiler(NVPObject):
                 # msvc_env["CXX"] = self.get_cxx_path()
 
             # else:
-                # Add the include paths:
-                # self.append_compileflag(f"-I{self.root_dir}/include/c++/v1", env)
-                # self.append_compileflag(f"-I{self.root_dir}/lib/clang/{self.version}/include", env)
-                # self.append_compileflag(f"-I{self.root_dir}/lib/clang/{self.version}/include/openmp_wrappers", env)
+            # Add the include paths:
+            # self.append_compileflag(f"-I{self.root_dir}/include/c++/v1", env)
+            # self.append_compileflag(f"-I{self.root_dir}/lib/clang/{self.version}/include", env)
+            # self.append_compileflag(f"-I{self.root_dir}/lib/clang/{self.version}/include/openmp_wrappers", env)
 
-                # logger.info("clang compiler env: %s", env)
+            # logger.info("clang compiler env: %s", env)
             self.comp_env = env
 
         assert self.comp_env is not None, "Cannot init compiler environment"
