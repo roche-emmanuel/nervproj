@@ -382,6 +382,10 @@ libraries:
     version: 3.0
     # git: https://github.com/GerHobbelt/pthread-win32.git
     # git: https://github.com/championbarca/Pthread-Win32.git
+  - name: openexr
+    version: 3.2.2
+    url: https://github.com/AcademySoftwareFoundation/openexr/archive/refs/tags/v3.2.2.tar.gz
+    # git: https://github.com/AcademySoftwareFoundation/openexr
 
 # list of available projects:
 projects: []
