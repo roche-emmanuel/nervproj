@@ -1,4 +1,5 @@
 """MovieHandler handling component"""
+
 import concurrent.futures
 import io
 import logging
@@ -121,6 +122,11 @@ class MovieHandler(NVPComponent):
             file = self.get_param("input_file")
             duration = self.get_param("duration")
             return self.split_media(file, duration)
+
+        if cmd == "rescale-media":
+            file = self.get_param("input_file")
+            scale = self.get_param("scale")
+            return self.rescale_media(file, scale)
 
         if cmd == "extract-audio":
             file = self.get_param("input_file")
@@ -431,6 +437,38 @@ class MovieHandler(NVPComponent):
         logger.debug("Done cutting media file.")
         return True
 
+    def rescale_media(self, file, scale_str):
+        """Concantenate a list of media files"""
+        logger.info("Scaling media file %s to %s", file, scale_str)
+
+        folder = self.get_parent_folder(file)
+        fname = self.get_filename(file)
+        ext = self.get_path_extension(file)
+        oname = self.set_path_extension(fname, f"_scaled{ext}")
+
+        tools: ToolsManager = self.get_component("tools")
+        ffmpeg_path = tools.get_tool_path("ffmpeg")
+
+        cmd = [
+            ffmpeg_path,
+            "-threads",
+            "8",
+            "-i",
+            file,
+            "-vf",
+            f"scale={scale_str}",
+            "-c:a",
+            "copy",
+            oname,
+        ]
+
+        # We now execute that command:
+        logger.debug("Executing command: %s", cmd)
+        res, rcode, outs = self.execute(cmd)
+
+        logger.debug("Done scaling media file.")
+        return True
+
     def split_media(self, file, duration):
         """Concantenate a list of media files"""
         logger.info("Splitting media file %s with segments of %s", file, duration)
@@ -739,6 +777,10 @@ if __name__ == "__main__":
     psr = context.build_parser("split-media")
     psr.add_str("-i", "--input", dest="input_file")("input video file to split")
     psr.add_str("-d", "--duration", dest="duration")("Duration to keep")
+
+    psr = context.build_parser("rescale-media")
+    psr.add_str("-i", "--input", dest="input_file")("input video file to scale")
+    psr.add_str("-s", "--scale", dest="scale")("output size to use in format: 1920:1080")
 
     psr = context.build_parser("norm-sound")
     psr.add_str("-i", "--input", dest="input_file")("input video file to normalize")
