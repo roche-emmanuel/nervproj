@@ -1,4 +1,5 @@
 """CMakeManager module"""
+
 import logging
 import math
 import time
@@ -530,6 +531,15 @@ class CMakeManager(NVPComponent):
 
         return self.cmake_projects
 
+    def get_platform(self):
+        """Retrieve the platform for this build"""
+        platform = self.platform
+        bman = self.get_component("builder")
+        if bman.get_compiler().is_emcc():
+            platform = "emscripten"
+
+        return platform
+
     def build_projects(self, proj_names, install_dir, rebuild=False):
         """Build/install the list of projects"""
 
@@ -631,6 +641,11 @@ class CMakeManager(NVPComponent):
         # check if we have dependencies:
         deps = desc.get("dependencies", {})
 
+        # Also add the dependencies specific to this platform:
+        platform = self.get_platform()
+        platform_deps = desc.get(f"{platform}_dependencies", {})
+        deps.update(platform_deps)
+
         tool = self.get_component("tools")
 
         for var_name, tgt in deps.items():
@@ -693,9 +708,7 @@ class CMakeManager(NVPComponent):
         outfile.close()
 
         # Install the dependency modules:
-        platform = self.platform
-        if bman.get_compiler().is_emcc():
-            platform = "emscripten"
+        platform = self.get_platform()
         self.install_dep_modules(proj_name, install_dir, platform)
 
         elapsed = time.time() - start_tick
