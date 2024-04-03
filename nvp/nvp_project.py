@@ -82,29 +82,27 @@ class NVPProject(NVPObject):
                 scfg["parent_root_dir"] = proj_path
 
                 # Ensure we have the project_root_dir set in that config:
-                # Update: Not applicable
-                # if "project_root_dir" in scfg:
-                #     sub_root_dir = scfg.get("project_root_dir", proj_path)
+                if "project_root_dir" in scfg:
+                    sub_root_dir = scfg.get("project_root_dir", proj_path)
 
-                #     # Replace the placeholder as needed:
-                #     hlocs = {"${PARENT_ROOT_DIR}": proj_path}
-                #     sub_root_dir = self.fill_placeholders(sub_root_dir, hlocs)
-                #     scfg["project_root_dir"] = sub_root_dir
+                    # Replace the placeholder as needed:
+                    hlocs = {"${PARENT_ROOT_DIR}": proj_path}
+                    sub_root_dir = self.fill_placeholders(sub_root_dir, hlocs)
+                    scfg["project_root_dir"] = sub_root_dir
 
                 if "names" not in scfg:
                     # Add the names from the parent project:
                     scfg["names"] = self.config["names"]
 
                 # if we had no project root dir in the config then we can build one using the provided project names:
-                # Update: Not applicable:
-                # if "project_root_dir" not in scfg:
-                #     proj_dir = self.find_project_folder(scfg["names"][0])
-                #     if proj_dir is None:
-                #         # Use our parent project path as fallback:
-                #         proj_dir = proj_path
+                if "project_root_dir" not in scfg:
+                    proj_dir = self.find_project_folder(scfg["names"][0])
+                    if proj_dir is None:
+                        # Use our parent project path as fallback:
+                        proj_dir = proj_path
 
-                #     # Assign parent path as root path:
-                #     scfg["project_root_dir"] = proj_dir
+                    # Assign parent path as root path:
+                    scfg["project_root_dir"] = proj_dir
 
                 scfg["is_sub_project"] = True
 
