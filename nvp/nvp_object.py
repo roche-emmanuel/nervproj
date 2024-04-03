@@ -491,7 +491,7 @@ class NVPObject(object):
         """Copy a source folder to a destination folder."""
         shutil.copytree(src_folder, dst_folder)
 
-    def copy_file(self, src_file, dst_file, force=False):
+    def copy_file(self, src_file, dst_file, force=False, progress_threhold=5 * 1024 * 1024):
         """copy a source file to a destination file, overriding
         destination if force==True"""
 
@@ -504,9 +504,89 @@ class NVPObject(object):
                 self.remove_file(dst_file)
             else:
                 return False
-
-        shutil.copyfile(src_file, dst_file)
+        if progress_threhold >= 0 and self.get_file_size(src_file) > progress_threhold:
+            self.copy_file_with_progress(src_file, dst_file)
+        else:
+            shutil.copyfile(src_file, dst_file)
         return True
+
+    def get_time_string(self, seconds):
+        """Convert number of seconds into time string"""
+        if seconds is None:
+            return "???"
+
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        hours, minutes, seconds = int(hours), int(minutes), int(seconds)
+        if hours > 0:
+            return f"{hours}h{minutes:02d}m{seconds:02d}s"
+        if minutes > 0:
+            return f"{minutes}m{seconds:02d}s"
+        return f"{seconds}s"
+
+    def copy_file_with_progress(self, src_file, dst_file, prefix="", chunk_size=1024 * 1024, max_speed=0):
+        """Copy a file with progress report"""
+
+        if not self.file_exists(src_file):
+            return False
+
+        total_size = self.get_file_size(src_file)
+        bytes_copied = 0
+        max_len = 0
+
+        start_time = time.time()
+        with open(src_file, "rb") as fsrc, open(dst_file, "wb") as fdst:
+            while True:
+                data = fsrc.read(chunk_size)
+                if not data:
+                    sys.stdout.write("\r" + (" " * max_len) + "\r")
+                    sys.stdout.flush()
+                    break
+
+                nbytes = len(data)
+
+                cur_time = time.time()
+                # elapsed = cur_time - last_time
+                elapsed = cur_time - start_time
+                # last_time = cur_time
+                if elapsed > 0.0:
+                    # cur speed in kbytes/secs
+                    # cur_speed = nbytes / (1024 * elapsed)
+                    # mean_speed += (cur_speed - mean_speed) * speed_adapt
+                    # Mean_speed in bytes/secs:
+                    mean_speed = bytes_copied / elapsed
+
+                bytes_copied += nbytes
+
+                # Compute the estimated remaining time:
+                remaining_size = total_size - bytes_copied
+                remaining_time = remaining_size / mean_speed if mean_speed > 0 else None
+                time_str = self.get_time_string(remaining_time)
+
+                fdst.write(data)
+                frac = bytes_copied / total_size
+                done = int(50 * frac)
+                msg = f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {bytes_copied}/{total_size} {frac*100:.3f}% @ {mean_speed/(1024.0*1024.0):.0f}MB/s ETA: {time_str}"
+                max_len = max(max_len, len(msg) + 1)
+                sys.stdout.write(msg)
+                sys.stdout.flush()
+
+                if max_speed > 0:
+                    # Max_speed will be in bytes/secs:
+                    # We should take a speed limit into consideration here:
+
+                    # we downloaded dlsize in elapsed seconds
+                    # and we have the limit of max_speed bytes per seconds.
+                    # Compute how long we should take to download dlsize in seconds:
+                    dl_dur = bytes_copied / max_speed
+                    if elapsed < dl_dur:
+                        # We took less time than the requirement so far, so we should speed
+                        # for the remaining time:
+                        time.sleep(dl_dur - elapsed)
+                        # last_time = time.time()
+        return True
+        # sys.stdout.write("\n")
+        # sys.stdout.flush()
 
     def remove_file_extension(self, filename):
         "Remove extensio from a filename, also taking care of tar.XX formats"
