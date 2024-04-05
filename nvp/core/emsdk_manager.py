@@ -1,4 +1,5 @@
 """EMSDK manager component"""
+
 import logging
 import os
 
@@ -28,6 +29,10 @@ class EmsdkManager(NVPComponent):
         if cmd == "install":
             target = self.get_param("target")
             self.execute_emsdk(["install", target])
+            return True
+
+        if cmd == "update":
+            self.execute_emsdk(["update"])
             return True
 
         if cmd == "activate":
@@ -149,6 +154,8 @@ if __name__ == "__main__":
 
     # Add our component:
     comp = context.register_component("emsdk", EmsdkManager(context))
+
+    psr = context.build_parser("update")
 
     psr = context.build_parser("install")
     psr.add_str("target", nargs="?", default="latest")("Installation target")
