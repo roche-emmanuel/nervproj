@@ -265,7 +265,8 @@ libraries:
   #   url: hg@https://hg.mozilla.org/projects/nss
   - name: QT6
     version: 6.4.2
-    windows_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.zip
+    # windows_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.zip
+    windows_url: http://files.nervtech.org/nvp_packages/sources/qt-everywhere-src-6.4.2.zip
     linux_url: http://files.nervtech.org/nvp_packages/sources/qt-everywhere-src-6.4.2.tar.xz
     # linux_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.tar.xz
   - name: openssl
