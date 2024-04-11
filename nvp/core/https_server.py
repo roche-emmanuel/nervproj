@@ -1,4 +1,5 @@
 """HTTPS server component"""
+
 import http.server
 import logging
 import os
@@ -31,9 +32,10 @@ class HttpsServer(NVPComponent):
             root_dir = self.get_param("root_dir")
             port = self.get_param("port")
             index_file = self.get_param("index_file")
+            use_chrome = self.get_param("use_chrome")
             if index_file is None:
                 index_file = self.get_filename(root_dir) + ".html"
-            self.serve_directory(root_dir, port, index_file)
+            self.serve_directory(root_dir, port, index_file, use_chrome=use_chrome)
             return True
 
         return False
@@ -61,7 +63,7 @@ class HttpsServer(NVPComponent):
         key_file = self.get_path(cert_dir, "nervtech.local_key.crt")
         return pem_file, key_file
 
-    def serve_directory(self, root_dir, port, index_file):
+    def serve_directory(self, root_dir, port, index_file, use_chrome=False):
         """Serve a given directory"""
         logger.info("Serving directory %s...", root_dir)
         os.chdir(root_dir)  # change the current working directory to the folder to serve
@@ -129,9 +131,22 @@ class HttpsServer(NVPComponent):
         # webbrowser.open(url)
         # browser_path = webbrowser.get()
         # logger.info("Default webbrowser path: %s", browser_path.name)
-        firefox_path = os.getenv("FIREFOX_PATH")
-        if firefox_path is not None:
-            cmd = [firefox_path, url]
+        browser_var = "FIREFOX_PATH" if not use_chrome else "CHROME_PATH"
+        browser_path = os.getenv(browser_var)
+
+        # if use_chrome:
+        #     # Just start the webpage and the server without monitoring the process:
+        #     # cmd = [browser_path, "--new-window", "--incognito", url]
+        #     cmd = [browser_path, url]
+        #     logger.info("Running command: %s", cmd)
+        #     self.execute(cmd, shell=True)
+        #     browser_path = None
+
+        if browser_path is not None:
+            cmd = [browser_path, url]
+            if use_chrome:
+                cmd = [browser_path, "--user-data-dir=D:/Temp/test", "--new-window", "--incognito", url]
+            logger.info("Running command: %s", cmd)
 
             def run_server():
                 """Run the server"""
@@ -170,5 +185,6 @@ if __name__ == "__main__":
     psr.add_str("--dir", dest="root_dir")("Root directory to serve")
     psr.add_int("--port", dest="port", default=444)("Port where to serve the directory")
     psr.add_str("--index", dest="index_file")("Default index file to serve")
+    psr.add_flag("--chrome", dest="use_chrome")("Specify that we should use chrome as browser")
 
     comp.run()
