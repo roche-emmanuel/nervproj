@@ -68,7 +68,7 @@ else()
 endif()
 
 # prepare the source folder:
-set(SRC_DIR ${PROJECT_SOURCE_DIR}/modules)
+set(SRC_DIR ${PROJECT_SOURCE_DIR}/sources)
 
 if(%PROJ_PREFIX_UPPER%_STATIC_BUILD)
   message(STATUS "Building static %PROJ_NAME% libraries.")
@@ -77,7 +77,7 @@ else()
 endif()
 
 # Add the modules folder
-add_subdirectory(modules)
+add_subdirectory(sources)
 
 # Add the test folder
 add_subdirectory(tests)

@@ -139,7 +139,7 @@ class CMakeManager(NVPComponent):
 
         template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
 
-        dest_file = self.get_path(proj_dir, "modules", mod_dir, "src", file_name)
+        dest_file = self.get_path(proj_dir, "sources", mod_dir, "src", file_name)
         bname = self.remove_file_extension(self.get_filename(file_name))
 
         tpl_file = self.get_path(template_dir, "header_file.h.tpl")
@@ -161,7 +161,7 @@ class CMakeManager(NVPComponent):
 
         template_dir = self.get_path(self.ctx.get_root_dir(), "assets", "templates")
 
-        dest_file = self.get_path(proj_dir, "modules", mod_dir, "src", f"{class_name}.h")
+        dest_file = self.get_path(proj_dir, "sources", mod_dir, "src", f"{class_name}.h")
 
         if rewrite and self.file_exists(dest_file):
             self.remove_file(dest_file)
@@ -200,7 +200,7 @@ class CMakeManager(NVPComponent):
 
         self.write_project_file_content(hlocs, dest_file, header_tpl)
 
-        dest_file = self.get_path(proj_dir, "modules", mod_dir, "src", f"{class_name}.cpp")
+        dest_file = self.get_path(proj_dir, "sources", mod_dir, "src", f"{class_name}.cpp")
         if rewrite and self.file_exists(dest_file):
             self.remove_file(dest_file)
 
@@ -279,6 +279,8 @@ class CMakeManager(NVPComponent):
 
         if ref_settings is None or settings != ref_settings:
             logger.info("Wrtting updated vscode settings in %s", settings_file)
+            folder = self.get_parent_folder(settings_file)
+            self.make_folder(folder)
             self.write_json(settings, settings_file)
         else:
             logger.info("No change in %s", settings_file)
@@ -319,7 +321,7 @@ class CMakeManager(NVPComponent):
         self.write_project_file(hlocs, dest_file, tpl_file)
 
         # Create the source/tests folder:
-        src_dir = self.get_path(proj_dir, "modules")
+        src_dir = self.get_path(proj_dir, "sources")
         self.make_folder(src_dir)
 
         dest_file = self.get_path(src_dir, "CMakeLists.txt")
@@ -385,7 +387,7 @@ class CMakeManager(NVPComponent):
 
         # Create the source library folder if needed:
         lib_name = desc["name"]
-        lib_dir = self.get_path(proj_dir, "modules", f"{prefix}{lib_name}")
+        lib_dir = self.get_path(proj_dir, "sources", f"{prefix}{lib_name}")
         self.make_folder(lib_dir)
 
         hlocs = {
@@ -397,7 +399,7 @@ class CMakeManager(NVPComponent):
         }
 
         # Should add the module to the main CmakeLists.txt file:
-        cmake_file = self.get_path(proj_dir, "modules", "CMakeLists.txt")
+        cmake_file = self.get_path(proj_dir, "sources", "CMakeLists.txt")
         new_line = f"add_subdirectory({prefix}{lib_name})"
         self.append_unique_line(cmake_file, new_line)
 
@@ -455,13 +457,13 @@ class CMakeManager(NVPComponent):
 
         # Create the source library folder if needed:
         app_name = desc["name"]
-        app_dir = self.get_path(proj_dir, "modules", app_name)
+        app_dir = self.get_path(proj_dir, "sources", app_name)
         self.make_folder(app_dir)
 
         hlocs = {"%PROJ_PREFIX_UPPER%": prefix.upper(), "%PROJ_PREFIX%": prefix, "%TARGET_NAME%": app_name}
 
         # Should add the module to the main CmakeLists.txt file:
-        cmake_file = self.get_path(proj_dir, "modules", "CMakeLists.txt")
+        cmake_file = self.get_path(proj_dir, "sources", "CMakeLists.txt")
         new_line = f"add_subdirectory({app_name})"
         self.append_unique_line(cmake_file, new_line)
 
