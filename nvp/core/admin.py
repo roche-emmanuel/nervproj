@@ -1,4 +1,5 @@
 """Collection of admin utility functions"""
+
 import glob
 import logging
 import os
@@ -216,16 +217,16 @@ class AdminManager(NVPComponent):
 
             ext = ".exe" if self.is_windows else ""
 
-            config[
-                "python.defaultInterpreterPath"
-            ] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/python{ext}"
+            config["python.defaultInterpreterPath"] = (
+                f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/python{ext}"
+            )
 
             config["python.linting.enabled"] = True
 
             config["python.linting.flake8Enabled"] = True
-            config[
-                "python.linting.flake8Path"
-            ] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/flake8{ext}"
+            config["python.linting.flake8Path"] = (
+                f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/flake8{ext}"
+            )
             config["python.linting.flake8Args"] = [
                 "--max-line-length=120",
                 "--ignore=E203,W503",
@@ -233,9 +234,9 @@ class AdminManager(NVPComponent):
             ]
 
             config["python.linting.pylintEnabled"] = True
-            config[
-                "python.linting.pylintPath"
-            ] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/pylint{ext}"
+            config["python.linting.pylintPath"] = (
+                f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/pylint{ext}"
+            )
             config["python.linting.pylintArgs"] = [
                 "--max-line-length=120",
                 "--good-names=i,j,k,ex,Run,_,x,y,z,w,t,dt",
@@ -243,19 +244,19 @@ class AdminManager(NVPComponent):
             ]
 
             config["//python.formatting.provider"] = "autopep8"
-            config[
-                "//python.formatting.autopep8Path"
-            ] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/autopep8{ext}"
+            config["//python.formatting.autopep8Path"] = (
+                f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/autopep8{ext}"
+            )
             config["//python.formatting.autopep8Args"] = ["--max-line-length=120", "--experimental"]
             config["python.formatting.provider"] = "black"
-            config[
-                "python.formatting.blackPath"
-            ] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/black{ext}"
+            config["python.formatting.blackPath"] = (
+                f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/black{ext}"
+            )
             config["python.formatting.blackArgs"] = ["--line-length", "120"]
 
-            config[
-                "python.sortImports.path"
-            ] = f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/isort{ext}"
+            config["python.sortImports.path"] = (
+                f"${{workspaceFolder}}/tools/{self.platform}/python-{cur_py_vers}/Scripts/isort{ext}"
+            )
             config["python.sortImports.args"] = ["--profile", "black"]
             config["[python]"] = {"editor.codeActionsOnSave": {"source.organizeImports": True}}
 
@@ -459,6 +460,12 @@ class AdminManager(NVPComponent):
             self.generate_certificate(out_name, common_name, root_cert)
             return True
 
+        if cmd == "json-to-yaml":
+            input_file = self.get_param("input_file")
+            sort_keys = self.get_param("sort_keys")
+            self.json_to_yaml(input_file, sort_keys)
+            return True
+
         return False
 
     def generate_certificate(self, cname, common_name, root_cert=None):
@@ -537,6 +544,14 @@ class AdminManager(NVPComponent):
 
         logger.info("Done create PAR2 archives.")
 
+    def json_to_yaml(self, input_file, sort_keys):
+        """Convert a json file to yaml"""
+
+        dst_file = self.set_path_extension(input_file, ".yml")
+        content = self.read_json(input_file)
+        self.write_yaml(content, dst_file, sort_keys=sort_keys)
+        logger.info("Saved %s as %s", input_file, dst_file)
+
 
 if __name__ == "__main__":
     # Create the context:
@@ -565,4 +580,7 @@ if __name__ == "__main__":
         "Specify the root certificate to use, otherwise create a root certificate"
     )
 
+    psr = context.build_parser("json-to-yaml")
+    psr.add_str("input_file")("Input file to process")
+    psr.add_flag("-s", "--sort-keys", dest="sort_keys")("Sort the keys when writing the file")
     comp.run()

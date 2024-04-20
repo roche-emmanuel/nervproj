@@ -400,10 +400,14 @@ project_paths:
 # Paths where to search for the user config file:
 user_config_urls:
   - ${HOME}/.nvp/config.yml
-  - D:\Seafile\Perso\Admin\nervproj.config.json
-  - D:\Documents\Perso\Admin\nervproj.config.json
-  - /home/kenshin/seafile/Perso/Admin/nervproj.config.json
-  - /home/kenshin/Seafile/Perso/Admin/nervproj.config.json
+  - D:\Seafile\Perso\Admin\nervproj.config.yml
+  - D:\Documents\Perso\Admin\nervproj.config.yml
+  - /home/kenshin/seafile/Perso/Admin/nervproj.config.yml
+  - /home/kenshin/Seafile/Perso/Admin/nervproj.config.yml
+  # - D:\Seafile\Perso\Admin\nervproj.config.json
+  # - D:\Documents\Perso\Admin\nervproj.config.json
+  # - /home/kenshin/seafile/Perso/Admin/nervproj.config.json
+  # - /home/kenshin/Seafile/Perso/Admin/nervproj.config.json
 
 # Repository url for the NervProj project itself:
 repository_url: git@github.com:roche-emmanuel/nervproj.git
@@ -726,6 +730,12 @@ scripts:
   brotli:
     notify: false
     cmd: ${NVP_ROOT_DIR}/libraries/windows_msvc/brotli-git-1.0.9/bin/brotli.exe
+
+  to-yaml:
+    notify: false
+    custom_python_env: default_env
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/core/admin.py json-to-yaml
+    python_path: ["${NVP_ROOT_DIR}"]
 
 # Notify in case of script error:
 notify_script_errors: true

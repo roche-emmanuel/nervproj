@@ -351,9 +351,7 @@ class NVPObject(object):
         # shutil.move(src_path, dest_path)
         os.rename(src_path, dest_path)
 
-    def rename_folder(
-        self, src_path, dest_path, create_parent=False, remove_existing=False
-    ):
+    def rename_folder(self, src_path, dest_path, create_parent=False, remove_existing=False):
         """Rename a folder"""
         if src_path == dest_path:
             return
@@ -415,9 +413,7 @@ class NVPObject(object):
         with open(fname, mode) as file:
             file.write(content)
 
-    def write_text_file(
-        self, content, *parts, mode="w", newline=None, encoding="utf-8"
-    ):
+    def write_text_file(self, content, *parts, mode="w", newline=None, encoding="utf-8"):
         """Write content of file"""
 
         fname = self.get_path(*parts)
@@ -459,7 +455,9 @@ class NVPObject(object):
         """Save a dict as YAML file"""
         fname = self.get_path(*parts)
         try:
-            os.makedirs(os.path.dirname(fname), exist_ok=True)
+            pdir = os.path.dirname(fname)
+            if pdir != "":
+                os.makedirs(pdir, exist_ok=True)
             with open(fname, "w+", encoding="utf-8") as file:
                 yaml.dump(data, file, sort_keys=sort_keys)
         except yaml.YAMLError as err:
@@ -498,9 +496,7 @@ class NVPObject(object):
         """Copy a source folder to a destination folder."""
         shutil.copytree(src_folder, dst_folder)
 
-    def copy_file(
-        self, src_file, dst_file, force=False, progress_threhold=5 * 1024 * 1024
-    ):
+    def copy_file(self, src_file, dst_file, force=False, progress_threhold=5 * 1024 * 1024):
         """copy a source file to a destination file, overriding
         destination if force==True"""
 
@@ -533,9 +529,7 @@ class NVPObject(object):
             return f"{minutes}m{seconds:02d}s"
         return f"{seconds}s"
 
-    def copy_file_with_progress(
-        self, src_file, dst_file, prefix="", chunk_size=1024 * 1024, max_speed=0
-    ):
+    def copy_file_with_progress(self, src_file, dst_file, prefix="", chunk_size=1024 * 1024, max_speed=0):
         """Copy a file with progress report"""
 
         if not self.file_exists(src_file):
@@ -652,9 +646,7 @@ class NVPObject(object):
         """Retrieve the canonical home directory on windows."""
         home_drive = os.getenv("HOMEDRIVE")
         home_path = os.getenv("HOMEPATH")
-        assert (
-            home_drive is not None and home_path is not None
-        ), "Invalid windows home drive or path"
+        assert home_drive is not None and home_path is not None, "Invalid windows home drive or path"
         return home_drive + home_path
 
     def execute(self, cmd, **kwargs):
@@ -677,9 +669,7 @@ class NVPObject(object):
             stderr = None if verbose else subprocess.DEVNULL
             try:
                 # logger.info("Check_call for %s...", cmd)
-                subprocess.check_call(
-                    cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env
-                )
+                subprocess.check_call(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env)
                 return True, 0, None
             except subprocess.CalledProcessError as err:
                 outputs = str(err).splitlines()
@@ -724,9 +714,7 @@ class NVPObject(object):
 
         # logger.info("Executing command: %s", cmd)
         try:
-            proc = subprocess.Popen(
-                cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, bufsize=0
-            )
+            proc = subprocess.Popen(cmd, stdout=stdout, stderr=stderr, cwd=cwd, env=env, bufsize=0)
             if verbose:
                 # cf. https://stackoverflow.com/questions/4374455/how-to-set-sys-stdout-encoding-in-python-3
                 sys.stdout.reconfigure(encoding="utf-8")
@@ -744,9 +732,7 @@ class NVPObject(object):
                                 # line = line.decode("cp1252")
                                 line = line.decode("cp850")
                             except UnicodeDecodeError:
-                                logger.error(
-                                    "Unicode error on subprocess output line: %s", line
-                                )
+                                logger.error("Unicode error on subprocess output line: %s", line)
                                 continue
 
                         # Should not be needed here since we are not sending the '\n' character anyway:
@@ -822,9 +808,7 @@ class NVPObject(object):
             return res
         else:
             return [
-                f
-                for f in os.listdir(folder)
-                if (os.path.isfile(os.path.join(folder, f)) and p.search(f) is not None)
+                f for f in os.listdir(folder) if (os.path.isfile(os.path.join(folder, f)) and p.search(f) is not None)
             ]
 
     def get_all_folders(self, folder, exp=".*", recursive=False):
@@ -849,9 +833,7 @@ class NVPObject(object):
             return res
         else:
             return [
-                f
-                for f in os.listdir(folder)
-                if (os.path.isdir(os.path.join(folder, f)) and p.search(f) is not None)
+                f for f in os.listdir(folder) if (os.path.isdir(os.path.join(folder, f)) and p.search(f) is not None)
             ]
 
     def prepend_env_list(self, paths, env, key="PATH"):
@@ -919,11 +901,7 @@ class NVPObject(object):
         if allow_unicode:
             value = unicodedata.normalize("NFKC", value)
         else:
-            value = (
-                unicodedata.normalize("NFKD", value)
-                .encode("ascii", "ignore")
-                .decode("ascii")
-            )
+            value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
         value = re.sub(r"[^\w\s-]", "", value.lower())
         return re.sub(r"[-\s]+", "-", value).strip("-_")
 
@@ -945,9 +923,7 @@ class NVPObject(object):
         while max_retries == 0 or count < max_retries:
             try:
                 logger.debug("Sending request...")
-                resp = requests.get(
-                    url, timeout=timeout, params=params, headers=headers
-                )
+                resp = requests.get(url, timeout=timeout, params=params, headers=headers)
 
                 if resp is None:
                     count += 1
@@ -1061,10 +1037,7 @@ class NVPObject(object):
 
         # If content is a dict, then we process each element in the dict:
         if isinstance(content, dict):
-            return {
-                key: self.fill_placeholders(elem, hlocs)
-                for key, elem in content.items()
-            }
+            return {key: self.fill_placeholders(elem, hlocs) for key, elem in content.items()}
 
         # Ignore non-strings:
         if not isinstance(content, str):
