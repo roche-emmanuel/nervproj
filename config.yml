@@ -760,6 +760,7 @@ custom_python_envs:
     inherit: default_env
     packages:
       - moviepy
+      - pydub
       - Pillow
       - ffmpeg-python
       - opencv-python
