@@ -837,13 +837,23 @@ custom_python_envs:
       - torch
       - torchvision
       - torchaudio
+      - faster-whisper
+      - ctranslate2==3.24.0 #specifying this version to stay on cuda 11
+      - moviepy
+      - ffmpeg-python
 
-      # - numba
-      # - numpy
-      # - torch
-      # - tqdm
-      # - more-itertools
-      # - tiktoken==0.3.3
+  # faster_whisper_env:
+  #   inherit: default_env
+  #   packages:
+  #     - faster-whisper
+  #     - ctranslate2==3.24.0
+
+  # - numba
+  # - numpy
+  # - torch
+  # - tqdm
+  # - more-itertools
+  # - tiktoken==0.3.3
 
   cv_env:
     inherit: default_env

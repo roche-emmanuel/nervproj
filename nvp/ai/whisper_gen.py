@@ -8,6 +8,7 @@ import time
 
 import torch
 import whisper
+from faster_whisper import WhisperModel
 
 from nvp.core.tools import ToolsManager
 from nvp.nvp_component import NVPComponent
@@ -35,7 +36,8 @@ class WhisperGen(NVPComponent):
             if file == "all":
                 return self.process_all_files(model, nwords)
 
-            return self.convert_audio_to_text(file, model, nwords)
+            # return self.convert_audio_to_text(file, model, nwords)
+            return self.convert_audio_to_text_fast(file)
 
         if cmd == "split_text":
             file = self.get_param("input_file")
@@ -60,7 +62,115 @@ class WhisperGen(NVPComponent):
                 continue
 
             # Otherwise we process this file:
-            self.convert_audio_to_text(fname, model, nwords)
+            # self.convert_audio_to_text(fname, model, nwords)
+            self.convert_audio_to_text_fast(fname)
+
+        return True
+
+    def convert_audio_to_text_fast(self, file):
+        """Translate an audio file to text with faster_whisper"""
+        # cf. https://github.com/SYSTRAN/faster-whisper
+        # cf. https://github.com/occ-ai/video-transcript-helper/blob/main/transcribe_from_video_whisper.py
+
+        # logger.info("Converting video to audio...")
+        # execute the command to extract the audio from the input video file
+        # the output will be a wav file with the same name as the input video file
+        # the output wav file will be saved in the same directory as the input video file
+        # tools = self.get_component("tools")
+        # ffmpeg = tools.get_tool_path("ffmpeg")
+
+        # # We add support here for lens correction:
+        # cmd = [
+        #     ffmpeg,
+        #     "-threads",
+        #     "8",
+        #     "-i",
+        #     file,
+        #     "-vn",
+        #     "-ac",
+        #     "1",
+        #     "-ar",
+        #     "16000",
+        #     "-loglevel",
+        #     "quiet",
+        #     "-copyts",
+        #     "-y",
+        #     file + ".wav",
+        # ]
+
+        # logger.info("Executing command: %s", cmd)
+        # res, rcode, outs = self.execute(cmd)
+
+        # if not res:
+        #     logger.error("audio extract failed with return code %d:\n%s", rcode, outs)
+        #     return False
+
+        model_size = "large-v3"
+
+        # Run on GPU with FP16
+        start_time = time.time()
+        model = WhisperModel(model_size, device="cuda", compute_type="float16")
+        # model = WhisperModel(model_size, device="cuda", compute_type="float32")
+
+        # hack the model to produce filler words by adding them as an input prompt
+        segments, info = model.transcribe(
+            file,
+            initial_prompt="So uhm, yeaah. Uh, um. Uhh, Umm. Like, Okay, ehm, uuuh.",
+            word_timestamps=True,
+            suppress_blank=False,
+            vad_filter=True,
+            vad_parameters=dict(min_silence_duration_ms=2000, speech_pad_ms=600, window_size_samples=1536),
+        )
+
+        logger.info("Detected language '%s' with probability %f", info.language, info.language_probability)
+
+        logger.info("Trancribing...")
+        segments = list(segments)
+        elapsed = time.time() - start_time
+
+        # for segment in segments:
+        # logger.info("[%.2fs -> %.2fs] %s", segment.start, segment.end, segment.text)
+        txt = "".join([segment.text + " " for segment in segments])
+        self.write_text_file(txt, file + ".txt")
+        logger.info("Done converting auto to text in %.2f secs", elapsed)
+        logger.info("Generated output: %s", txt)
+
+        # Also write the words timestamps now:
+        word_list = []
+
+        punctuations = ",.?!:"
+
+        # split punctuation from words into new items
+        for segment in segments:
+            for word in segment.words:
+                wordStr = word.word.strip()
+                if wordStr[-1] in punctuations:
+                    wordStr = wordStr[:-1]
+
+                if len(wordStr) < 1:
+                    continue
+
+                word_list.append(
+                    {
+                        "word": wordStr,
+                        "start": word.start,
+                        "end": word.end,
+                        "probability": word.probability,
+                    }
+                )
+
+        # get the shortest words:
+        # dur_list = sorted(word_list, key=lambda entry: entry["end"] - entry["start"])[:20]
+
+        # durs = {}
+        # for e in dur_list:
+        #     durs[e["word"]] = e["end"] - e["start"]
+
+        # logger.info("Word shortest durations: %s", durs)
+
+        # Write this word list as json file:
+        out_file = self.set_path_extension(file, ".json")
+        self.write_json(word_list, out_file)
 
         return True
 
