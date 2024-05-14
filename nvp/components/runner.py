@@ -1,4 +1,5 @@
 """Collection of admin utility functions"""
+
 import copy
 import logging
 import os
@@ -222,6 +223,7 @@ class ScriptRunner(NVPComponent):
         # Note the project root dir below might still be None:
         hlocs["${PROJECT_ROOT_DIR}"] = proj.get_root_dir() if proj is not None else self.ctx.get_root_dir()
         hlocs["${NVP_ROOT_DIR}"] = self.ctx.get_root_dir()
+        hlocs["${SCRIPT_NAME}"] = script_name
 
         # check if we should use python in this command:
         tools = self.get_component("tools")
