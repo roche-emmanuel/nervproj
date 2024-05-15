@@ -224,6 +224,7 @@ class ScriptRunner(NVPComponent):
         hlocs["${PROJECT_ROOT_DIR}"] = proj.get_root_dir() if proj is not None else self.ctx.get_root_dir()
         hlocs["${NVP_ROOT_DIR}"] = self.ctx.get_root_dir()
         hlocs["${SCRIPT_NAME}"] = script_name
+        hlocs["${EXE_SUFFIX}"] = ".exe" if self.platform == "windows" else ""
 
         # check if we should use python in this command:
         tools = self.get_component("tools")
