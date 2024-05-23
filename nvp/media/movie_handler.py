@@ -130,7 +130,8 @@ class MovieHandler(NVPComponent):
 
         if cmd == "extract-audio":
             file = self.get_param("input_file")
-            return self.extract_audio(file)
+            fmt = self.get_param("format")
+            return self.extract_audio(file, fmt)
 
         if cmd == "norm-sound":
             file = self.get_param("input_file")
@@ -356,26 +357,18 @@ class MovieHandler(NVPComponent):
                     logger.info("Renaming to: %s", new_name)
                     self.rename_file(fullpath, new_name)
 
-    def extract_audio(self, input_file):
+    def extract_audio(self, input_file, fmt):
         """Extract the audio from a given video file"""
         tools: ToolsManager = self.get_component("tools")
         ffmpeg_path = tools.get_tool_path("ffmpeg")
 
         # Example command: ffmpeg -i input_video.mp4 -vn -acodec libmp3lame -q:a 2 output_audio.mp3
+        cmd = [ffmpeg_path, "-threads", "8", "-i", input_file, "-vn"]
 
-        cmd = [
-            ffmpeg_path,
-            "-threads",
-            "8",
-            "-i",
-            input_file,
-            "-vn",
-            "-acodec",
-            "libmp3lame",
-            "-q:a",
-            "2",
-            input_file + ".mp3",
-        ]
+        if fmt == "wav":
+            cmd += ["-acodec", "pcm_s16le", "-ar", "44100", input_file + ".wav"]
+        else:
+            cmd += ["-acodec", "libmp3lame", "-q:a", "2", input_file + ".mp3"]
 
         logger.info("Executing command: %s", cmd)
         res, rcode, outs = self.execute(cmd)
@@ -789,6 +782,7 @@ if __name__ == "__main__":
 
     psr = context.build_parser("extract-audio")
     psr.add_str("-i", "--input", dest="input_file")("input video file to normalize")
+    psr.add_str("-f", "--format", dest="format", default="mp3")("Format to use for the output can be mp3 or wav")
 
     psr = context.build_parser("add-video-dates")
 

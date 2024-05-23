@@ -246,6 +246,7 @@ class ScriptRunner(NVPComponent):
 
             py_path = self.get_path(pyenv_dir, pdesc["sub_path"])
 
+            hlocs["${PYTHON_DIR}"] = self.get_parent_folder(py_path)
             additional_paths.append(self.get_parent_folder(py_path))
         else:
             # use the default python path:
