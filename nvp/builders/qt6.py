@@ -12,6 +12,7 @@ def register_builder(bman: BuildManager):
     """Register the build function"""
 
     bman.register_builder("QT6", QT6Builder(bman))
+    bman.register_builder("QT6_7", QT6Builder(bman))
 
 
 # Note: on windows we really need to build from some disk "root location"
