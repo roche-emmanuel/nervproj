@@ -1,6 +1,7 @@
 """MovieHandler handling component"""
 
 import concurrent.futures
+import glob
 import io
 import logging
 import os
@@ -131,7 +132,16 @@ class MovieHandler(NVPComponent):
         if cmd == "extract-audio":
             file = self.get_param("input_file")
             fmt = self.get_param("format")
-            return self.extract_audio(file, fmt)
+
+            if "*" in file:
+                files = glob.glob(file)
+                logger.info("Will extract audio from %d files: %s", len(files), files)
+                for file in files:
+                    if not self.extract_audio(file, fmt):
+                        return False
+                return True
+            else:
+                return self.extract_audio(file, fmt)
 
         if cmd == "norm-sound":
             file = self.get_param("input_file")
