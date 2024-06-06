@@ -39,6 +39,27 @@ class NVPCheckError(Exception):
     """Basic class representing an NVP exception."""
 
 
+class ProgressFileWrapper:
+    """A file-like object that wraps a file and a callback for progress reporting."""
+
+    def __init__(self, callback):
+        # self.file = file
+        self.callback = callback
+
+    def write(self, data):
+        """write method"""
+        # logger.info("Writing data...")
+        if isinstance(data, bytes):
+            data = data.decode("utf-8")
+        self.callback(data)
+        # self.file.write(data)
+
+    def close(self):
+        """close method"""
+        self.callback(None)
+        # self.file.close()
+
+
 def onerror(func, path, _exc_info):
     """
     Error handler for ``shutil.rmtree``.
@@ -593,6 +614,152 @@ class NVPObject(object):
         return True
         # sys.stdout.write("\n")
         # sys.stdout.flush()
+
+    def get_download_callback(self, dst_file, total_size, prefix="", max_speed=0):
+        """Write data to a file with progress report This will return a
+        callback which should receive the data as argument.
+        Calling the callback with None will clear the output line"""
+
+        cbdata = {"bytes_copied": 0, "max_len": 0, "mean_speed": 0.0}
+
+        start_time = time.time()
+
+        def callback(data):
+
+            if not data:
+                sys.stdout.write("\r" + (" " * cbdata["max_len"]) + "\r")
+                sys.stdout.flush()
+                sys.stdout.write("\r")
+                sys.stdout.flush()
+                return
+
+            nbytes = len(data)
+
+            cur_time = time.time()
+            elapsed = cur_time - start_time
+
+            # last_time = cur_time
+            if elapsed > 0.0:
+                cbdata["mean_speed"] = cbdata["bytes_copied"] / elapsed
+
+            cbdata["bytes_copied"] += nbytes
+
+            # Compute the estimated remaining time:
+            remaining_size = total_size - cbdata["bytes_copied"]
+            remaining_time = remaining_size / cbdata["mean_speed"] if cbdata["mean_speed"] > 0 else None
+            time_str = self.get_time_string(remaining_time)
+
+            dst_file.write(data)
+            frac = cbdata["bytes_copied"] / total_size
+            done = int(50 * frac)
+            msg = f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {cbdata['bytes_copied']}/{total_size} "
+            msg += f"{frac*100:.3f}% @ {cbdata['mean_speed']/1024.0:.0f}KB/s ETA: {time_str}"
+
+            if len(msg) < cbdata["max_len"]:
+                msg += " " * (cbdata["max_len"] - len(msg))
+            else:
+                # cbdata["max_len"] = max(cbdata["max_len"], len(msg))
+                cbdata["max_len"] = len(msg)
+
+            sys.stdout.write(msg)
+            sys.stdout.flush()
+
+            if max_speed > 0:
+                # Max_speed will be in bytes/secs:
+                # We should take a speed limit into consideration here:
+
+                # we downloaded dlsize in elapsed seconds
+                # and we have the limit of max_speed bytes per seconds.
+                # Compute how long we should take to download dlsize in seconds:
+                dl_dur = cbdata["bytes_copied"] / max_speed
+                if elapsed < dl_dur:
+                    # We took less time than the requirement so far, so we should speed
+                    # for the remaining time:
+                    time.sleep(dl_dur - elapsed)
+                    # last_time = time.time()
+
+        return callback
+
+    def get_progress_callback(self, dst_file, total_steps, steps_cb=None, prefix="", max_speed=0):
+        """Write data to a file with progress report This will return a
+        callback which should receive the data as argument.
+        Calling the callback with None will clear the output line"""
+
+        cbdata = {"done_steps": 0, "max_len": 0, "mean_speed": 0.0, "last_time": 0.0}
+
+        start_time = time.time()
+
+        def callback(data):
+
+            # logger.info("In callback with data %s", data)
+            if not data:
+                sys.stdout.write("\r" + (" " * cbdata["max_len"]) + "\r")
+                sys.stdout.flush()
+                sys.stdout.write("\r")
+                sys.stdout.flush()
+                return
+
+            num_steps = len(data) if steps_cb is None else steps_cb(data)
+
+            # nbytes = len(data)
+
+            cur_time = time.time()
+            elapsed = cur_time - start_time
+
+            # last_time = cur_time
+            if elapsed > 0.0:
+                cbdata["mean_speed"] = cbdata["done_steps"] / elapsed
+
+            cbdata["done_steps"] += num_steps
+
+            # Compute the estimated remaining time:
+            remaining_steps = total_steps - cbdata["done_steps"]
+            remaining_time = remaining_steps / cbdata["mean_speed"] if cbdata["mean_speed"] > 0 else None
+            time_str = self.get_time_string(remaining_time)
+
+            if dst_file is not None:
+                dst_file.write(data)
+
+            if (cur_time - cbdata["last_time"]) > 0.2:
+                # Update the display:
+                cbdata["last_time"] = cur_time
+
+                frac = cbdata["done_steps"] / total_steps
+                done = int(50 * frac)
+                msg = f"\r{prefix}[{'=' * done}{' ' * (50-done)}] {cbdata['done_steps']}/{total_steps} "
+                msg += f"{frac*100:.3f}% @ {cbdata['mean_speed']:.0f} iter/s ETA: {time_str}"
+
+                if len(msg) < cbdata["max_len"]:
+                    msg += " " * (cbdata["max_len"] - len(msg))
+                else:
+                    # cbdata["max_len"] = max(cbdata["max_len"], len(msg))
+                    cbdata["max_len"] = len(msg)
+
+                sys.stdout.write(msg)
+                sys.stdout.flush()
+
+            if max_speed > 0:
+                # Max_speed will be in bytes/secs:
+                # We should take a speed limit into consideration here:
+
+                # we downloaded dlsize in elapsed seconds
+                # and we have the limit of max_speed bytes per seconds.
+                # Compute how long we should take to download dlsize in seconds:
+                dl_dur = cbdata["done_steps"] / max_speed
+                if elapsed < dl_dur:
+                    # We took less time than the requirement so far, so we should speed
+                    # for the remaining time:
+                    time.sleep(dl_dur - elapsed)
+                    # last_time = time.time()
+
+        return callback
+
+    def wrap_write_progress(self, dst_file, total_steps, steps_cb=None, prefix="", max_speed=0):
+        """Return a file wrapper to report write process"""
+
+        callback = self.get_progress_callback(dst_file, total_steps, steps_cb, prefix, max_speed)
+        # return ProgressFileWrapper(dst_file, callback)
+        return ProgressFileWrapper(callback)
 
     def remove_file_extension(self, filename):
         "Remove extensio from a filename, also taking care of tar.XX formats"
