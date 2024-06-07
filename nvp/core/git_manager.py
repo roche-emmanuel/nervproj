@@ -189,8 +189,9 @@ class GitManager(NVPComponent):
         if cmd == "pullall":
             # Pull all the known repositories:
             # We start with the NVP framework itself:
-            logger.info("Pulling NVP framework...")
-            self.git_pull(self.ctx.get_root_dir())
+            ppath = self.ctx.get_root_dir()
+            logger.info("Pulling NVP framework (%s)...", ppath)
+            self.git_pull(ppath)
 
             already_done = set()
 
@@ -204,7 +205,7 @@ class GitManager(NVPComponent):
                     and proj.auto_git_sync()
                     and ppath not in already_done
                 ):
-                    logger.info("Pulling %s...", proj.get_name())
+                    logger.info("Pulling %s (%s)...", proj.get_name(), ppath)
                     try:
                         self.git_pull(ppath)
                         already_done.add(ppath)
