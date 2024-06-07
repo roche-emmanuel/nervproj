@@ -123,7 +123,7 @@ class BuildManager(NVPComponent):
                 break
 
         assert self.compiler is not None, f"Cannot find compiler of type {comp_type}"
-        logger.info("Selecting compiler %s (in %s)", self.compiler.get_name(), self.compiler.get_root_dir())
+        logger.debug("Selecting compiler %s (in %s)", self.compiler.get_name(), self.compiler.get_root_dir())
 
         self.setup_paths()
 

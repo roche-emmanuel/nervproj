@@ -93,7 +93,7 @@ class NVPCompiler(NVPObject):
             self.root_dir = self.get_parent_folder(self.root_dir)  # Aux dir
             self.root_dir = self.get_parent_folder(self.root_dir)  # VC dir
             self.root_dir = self.get_parent_folder(self.root_dir)  # root dir
-            logger.info("MSVC root dir is: %s", self.root_dir)
+            logger.debug("MSVC root dir is: %s", self.root_dir)
 
             # example: D:\Softs\VisualStudio\VS2022\VC\Tools\MSVC\14.34.31933\bin\Hostx64\x64
             self.cxx_path = self.get_path(
