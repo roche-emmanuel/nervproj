@@ -1,4 +1,5 @@
 """Collection of admin utility functions"""
+
 # import re
 import configparser
 import logging
@@ -191,14 +192,22 @@ class GitManager(NVPComponent):
             logger.info("Pulling NVP framework...")
             self.git_pull(self.ctx.get_root_dir())
 
+            already_done = set()
+
             # Next we iterate on all the projects:
             for proj in self.ctx.get_projects():
                 ppath = proj.get_root_dir()
                 # Check if this is a valid git repo:
-                if ppath is not None and self.path_exists(ppath, ".git") and proj.auto_git_sync():
+                if (
+                    ppath is not None
+                    and self.path_exists(ppath, ".git")
+                    and proj.auto_git_sync()
+                    and ppath not in already_done
+                ):
                     logger.info("Pulling %s...", proj.get_name())
                     try:
                         self.git_pull(ppath)
+                        already_done.add(ppath)
                     except NVPCheckError:
                         logger.error("Could not pull repository %s", proj.get_name())
             return True
