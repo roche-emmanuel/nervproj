@@ -191,8 +191,11 @@ class NVPContext(NVPObject):
         return self.platform == "raspberry64"
 
     @staticmethod
-    def get():
+    def get(create=False):
         """Return instance of this class"""
+        if create and NVPContext.instance is None:
+            NVPContext()
+
         assert NVPContext.instance is not None, "NVPContext not created yet."
         return NVPContext.instance
 
