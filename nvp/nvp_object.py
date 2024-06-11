@@ -102,6 +102,17 @@ class NVPObject(object):
         """raise an exception"""
         raise NVPCheckError(fmt % args)
 
+    @staticmethod
+    def static_check(cond, fmt, *args):
+        """Check that a condition is true or raise an exception"""
+        if cond is not True:
+            raise NVPCheckError(fmt % args)
+
+    @staticmethod
+    def static_throw(fmt, *args):
+        """raise an exception"""
+        raise NVPCheckError(fmt % args)
+
     def safe_call(self, func, excepts, delay=2.0, retries=10, err_cb=None):
         """Execute a given code block safely, catching potential
         temporary errors and retrying as needed."""
