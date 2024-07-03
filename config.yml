@@ -246,7 +246,8 @@ libraries:
     version: 0.10.0
   - name: spdlog
     url: git@github.com:roche-emmanuel/spdlog.git
-    version: 1.10.0
+    # git: https://github.com/gabime/spdlog.git
+    version: git-03072024
   - name: fmt
     url: git@github.com:roche-emmanuel/fmt.git
     version: 9.1.1
