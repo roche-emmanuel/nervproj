@@ -473,3 +473,10 @@ class Mat4:
         else:
             raise ValueError("Invalid arguments provided to scale method")
         return m
+
+    @staticmethod
+    def perspective(fovy, aspect_ratio, z_near, z_far):
+        """Create a perspective projection matrix."""
+        m = Mat4()
+        m.make_perspective(fovy, aspect_ratio, z_near, z_far)
+        return m
