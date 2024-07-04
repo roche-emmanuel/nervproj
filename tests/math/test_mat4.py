@@ -90,3 +90,54 @@ class Tests(TestBase):
         result = mat * vec
         expected = Vec3(1, 0, 0)
         self.assertVec3AlmostEqual(result, expected)
+
+    def test_perspective(self):
+        """Test perspective setup"""
+
+        mat = Mat4()
+
+        # Set perspective projection
+        mat.make_perspective(math.radians(60.0), 16.0 / 9.0, 0.1, 100.0)
+
+        # Retrieve perspective parameters
+        fovy, aspect_ratio, zNear, zFar = mat.get_perspective()
+
+        eps = 1e-6
+        self.assertAlmostEqual(fovy, math.radians(60), delta=eps)
+        self.assertAlmostEqual(aspect_ratio, 16 / 9, delta=eps)
+        self.assertAlmostEqual(zNear, 0.1, delta=eps)
+        self.assertAlmostEqual(zFar, 100.0, delta=eps)
+
+    def test_invert(self):
+        """Test inverting matrix"""
+
+        for _ in range(10):
+
+            tx = Vec3(self.gen_float(-100, 100), self.gen_float(-100, 100), self.gen_float(-100, 100))
+            angle = self.gen_float(-100, 100)
+            axis = Vec3(self.gen_float(-100, 100), self.gen_float(-100, 100), self.gen_float(-100, 100))
+            scale = Vec3(self.gen_float(-100, 100), self.gen_float(-100, 100), self.gen_float(-100, 100))
+
+            m0 = Mat4.translate(tx)
+            m1 = Mat4.rotate(angle, axis)
+            m2 = Mat4.scale(scale)
+
+            m0inv = m0.inverse()
+
+            # logger.info("m0 is: %s", m0)
+            # logger.info("m0inv is: %s", m0inv)
+            assert (-tx).x == -tx.x
+
+            self.assertVec3AlmostEqual(m0inv.col(3).xyz(), -tx)
+
+            m = m0 * m1 * m2
+            minv = m.inverse()
+
+            minv2 = minv.inverse()
+
+            # logger.info("M is: %s", m)
+            # logger.info("Minv is: %s", minv)
+
+            # # self.assertVec4AlmostEqual(m0.col(0), Vec4(1, 2, 3, 4))
+
+            self.assertMat4AlmostEqual(m, minv2)

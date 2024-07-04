@@ -1,6 +1,8 @@
 """Base class used for all unit tests"""
 
 import logging
+import math
+import random
 from unittest import TestCase
 
 import numpy as np
@@ -32,6 +34,10 @@ class TestBase(TestCase):
         """Constructor"""
         TestCase.__init__(self, *args)
 
+    def gen_float(self, mini=0.0, maxi=1.0):
+        """Generate a random float value"""
+        return random.uniform(mini, maxi)
+
     def log(self, msg, *args):
         """Log a normal message"""
         logger.info(format_msg(msg, *args))
@@ -55,6 +61,13 @@ class TestBase(TestCase):
         self.assertAlmostEqual(v1.y, v2.y, delta=delta)
         self.assertAlmostEqual(v1.z, v2.z, delta=delta)
         self.assertAlmostEqual(v1.w, v2.w, delta=delta)
+
+    def assertMat4AlmostEqual(self, v1, v2, delta=1e-6):
+        """Test 2 mat4 are almost equal"""
+        self.assertVec4AlmostEqual(v1.col(0), v2.col(0), delta=delta)
+        self.assertVec4AlmostEqual(v1.col(1), v2.col(1), delta=delta)
+        self.assertVec4AlmostEqual(v1.col(2), v2.col(2), delta=delta)
+        self.assertVec4AlmostEqual(v1.col(3), v2.col(3), delta=delta)
 
     def lla_to_ecef(self, lla):
         """Convert latitude, longitude, and altitude to ECEF coordinates"""
@@ -107,3 +120,17 @@ class TestBase(TestCase):
         return Mat4(
             north.x, west.x, up.x, pos.x, north.y, west.y, up.y, pos.y, north.z, west.z, up.z, pos.z, 0.0, 0.0, 0.0, 1.0
         )
+
+    def hfov_to_vfov(self, hfov, aspect):
+        """Compute vertical FOV from horizontal fov, assuming the angles are in degrees"""
+        # tan(vfov/2) = tan(hfov/2) / aspect
+
+        vfov = 2.0 * math.atan(math.tan(math.radians(hfov) * 0.5) / aspect)
+        return math.degrees(vfov)
+
+    def vfov_to_hfov(self, vfov, aspect):
+        """Compute horizontal FOV from vertical fov, assuming the angles are in degrees"""
+        # tan(vfov/2) = tan(hfov/2) / aspect
+
+        hfov = 2.0 * math.atan(aspect * math.tan(math.radians(vfov) * 0.5))
+        return math.degrees(hfov)

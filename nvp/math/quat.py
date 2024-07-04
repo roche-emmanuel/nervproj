@@ -9,11 +9,16 @@ from nvp.math.vec4 import Vec4
 class Quat:
     """Quat class"""
 
-    def __init__(self, x: float = 0.0, y: float = 0.0, z: float = 0.0, w: float = 1.0):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.w = w
+    def __init__(self, *args):
+        if len(args) == 0:
+            self.x, self.y, self.z, self.w = 0.0, 0.0, 0.0, 1.0
+        elif len(args) == 4:
+            self.x, self.y, self.z, self.w = args
+        elif len(args) == 2 and isinstance(args[0], (float, int)) and isinstance(args[1], Vec3):
+            angle, vec = args
+            self._make_rotate_angle_vec(angle, vec)
+        else:
+            raise ValueError("Invalid arguments for Quat constructor")
 
     def __getitem__(self, i: int) -> float:
         if i == 0:
