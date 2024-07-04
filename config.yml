@@ -558,6 +558,14 @@ scripts:
     help: Test the bindings generated for the fastnoise2 library
     python_path:
       - ${NVP_ROOT_DIR}
+
+  test:
+    notify: false
+    cmd: ${PYTHON} -m pytest -s
+    cwd: ${NVP_ROOT_DIR}/tests
+    help: Run the unit tests
+    python_path:
+      - ${NVP_ROOT_DIR}
   tidy:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/libraries/windows_msvc/LLVM-14.0.6/bin/clang-tidy.exe
     help: Run clang-tidy command

@@ -6,7 +6,7 @@ import numpy as np
 from dist.bin import pyfn2
 
 
-class TestBindings():
+class TestBindings:
     """Test class pyfn2 bindings"""
 
     def test_sanity(self):
