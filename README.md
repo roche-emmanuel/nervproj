@@ -18,6 +18,12 @@ $ nvp -p nvh git clone D:/Projects/NervHome
 $ nvp -p nvh admin init
 ```
 
+- To checkout an arbitrary repository given by path into a specific path :
+
+```bash
+$ nvp git clone -u git@github.com:roche-emmanuel/sift.git D:/Projects/sift
+```
+
 ### Building libraries
 
 - Force rebuilding a given library:

@@ -149,10 +149,16 @@ class GitManager(NVPComponent):
         """Process a given command path"""
 
         if cmd == "clone":
-            pname = self.get_param("project")
-            proj = self.ctx.get_project(pname)
             dest_dir = self.get_param("dest_folder")
-            self.clone_project_repository(dest_dir, proj)
+
+            pname = self.get_param("project")
+            if pname is not None:
+                proj = self.ctx.get_project(pname)
+                self.clone_project_repository(dest_dir, proj)
+            else:
+                # We must have an url provided:
+                url = self.get_param("url")
+                self.clone_repository(url, dest_dir)
             return True
 
         if cmd == "commit":
@@ -367,6 +373,7 @@ if __name__ == "__main__":
     psr = context.build_parser("clone")
     psr.add_str("dest_folder", nargs="?", default=None)(help="Name of the folder where to checkout the project")
     psr.add_str("-p", "--project", dest="project")(help="The project that should be cloned.")
+    psr.add_str("-u", "--url", dest="url")(help="The url that should be cloned.")
 
     psr = context.build_parser("commit")
     psr.add_str("message")(help="Commit message")
