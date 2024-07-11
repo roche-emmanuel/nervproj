@@ -19,7 +19,7 @@ _nvp_run_cli_windows() {
 _nvp_run_cli_linux() {
     local python_version="3.10.2"
     
-    if [ "$1" == "build-python" ]; then
+    if [[ "$1" == "build-python" ]]; then
         local python_default_version=$python_version
         python_version=${2:-$python_default_version}
     fi
@@ -33,11 +33,11 @@ _nvp_run_cli_linux() {
     local platform="linux"
     local ssltarget="linux-x86_64"
 
-    if [ -f /sys/firmware/devicetree/base/model ] && grep -q "Raspberry" /sys/firmware/devicetree/base/model; then
+    if [[ -f /sys/firmware/devicetree/base/model ]] && grep -q "Raspberry" /sys/firmware/devicetree/base/model; then
         req_file="rasp_requirements.txt"
         # Should also check here if we are on aarch64 or armv7l
         local ARCH=$(uname -m)
-        if [ "${ARCH}" == "aarch64" ]; then
+        if [[ "${ARCH}" == "aarch64" ]]; then
             platform="raspberry64"
             ssltarget=linux-generic64
         else
@@ -64,7 +64,7 @@ _nvp_run_cli_linux() {
         build_required=yes
     fi
     
-    if [ "$1" == "build-python" ]; then
+    if [[ "$1" == "build-python" ]]; then
         # We don't remove the current python installation as it might already be in use.
         # rm -Rf $python_dir
         if [[ -e "$python_pkg" ]]; then
@@ -205,7 +205,7 @@ _nvp_run_cli_linux() {
             echo "Done generating python package."
 
             # Exit if we were only requesting to build python:
-            [ "$1" == "build-python" ] && exit 0
+            [[ "$1" == "build-python" ]] && exit 0
         fi
 
         # Once we have deployed the base python tool package we start with upgrading pip:
@@ -217,10 +217,10 @@ _nvp_run_cli_linux() {
         $python_path -m pip install --no-warn-script-location -r $root_dir/tools/${req_file}
     fi
 
-    if [ "$1" == "--install-py-reqs" ]; then
+    if [[ "$1" == "--install-py-reqs" ]]; then
         echo "Installing python requirements..."
         $python_path -m pip install --no-warn-script-location -r $root_dir/tools/${req_file}
-    elif [ "$1" == "--pre-commit" ]; then
+    elif [[ "$1" == "--pre-commit" ]]; then
         echo "black outputs:" >$root_dir/pre-commit.log
         $python_path -m black --line-length 120 $root_dir/$2 >>$root_dir/pre-commit.log 2>&1
         echo "isort outputs:" >>$root_dir/pre-commit.log
@@ -228,16 +228,16 @@ _nvp_run_cli_linux() {
         echo "flake8 outputs:" >>$root_dir/pre-commit.log
         $python_path -m flake8 --max-line-length=120 --ignore="E203,W503" $root_dir/$2 >>$root_dir/pre-commit.log 2>&1
         status=$?
-        if [ "$status" == "0" ]; then
+        if [[ "$status" == "0" ]]; then
             echo "OK"
         else
             echo "FAILED"
         fi
-    elif [ "$1" == "python" ]; then
+    elif [[ "$1" == "python" ]]; then
         # shift the args by one:
         shift
         $python_path "$@"
-    elif [ "$1" == "pip" ]; then
+    elif [[ "$1" == "pip" ]]; then
         # shift the args by one:
         shift
         $python_path -m pip "$@"
@@ -248,15 +248,15 @@ _nvp_run_cli_linux() {
 }
 
 nvp() {
-    if [ "$1" == "home" ]; then
+    if [[ "$1" == "home" ]]; then
         # check if we are requesting the home of a sub project:
-        if [ "$2" == "" ]; then
+        if [[ -z "$2" ]]; then
             # We simply go to the home of nervproj:
             cd "$ROOT_DIR"
         else
             # Find the home dir of the sub project:
             local home_dir=$(nvp get_dir -p $2)
-            if [ -d "$home_dir" ]; then
+            if [[ -d "$home_dir" ]]; then
                 cd $home_dir
             else
                 echo "Invalid result: $home_dir"
@@ -277,7 +277,7 @@ nvp() {
     fi
 }
 
-if [ "$#" != "0" ]; then
+if [[ "$#" != "0" ]]; then
     nvp "$@"
 else
     echo "NervProj manager loaded."
