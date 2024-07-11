@@ -2,6 +2,25 @@
 
 NervProj is a "Project management" layer that can be used to manage the workflow on other sub-projects
 
+## Initial setup:
+
+First checkout the repository:
+
+```bash
+# For project members:
+$ git clone git@github.com:roche-emmanuel/nervproj.git NervProj
+
+# For non-project members:
+$ git clone https://github.com/roche-emmanuel/nervproj.git NervProj
+```
+
+Next setup the CLI:
+
+```bash
+$ cd NervProj
+$ ./cli.sh admin install cli
+```
+
 ## Available commands
 
 ### Checking out repositories

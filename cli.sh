@@ -72,6 +72,34 @@ _nvp_run_cli_linux() {
 
             pushd $tmp_dir >/dev/null
 
+            # First we should build openssl statically only:
+            sslversion="3.0.14"
+            sslbuilddir=openssl-$sslversion
+            ssldir=ssl
+            sslfile=openssl-$sslversion.tar.gz
+            if [[ -d $sslbuilddir ]]; then
+                echo "Removing previous $sslbuilddir..."
+                rm -Rf $sslbuilddir
+            fi
+            if [[ -d $ssldir ]]; then
+                echo "Removing previous $ssldir..."
+                rm -Rf $ssldir
+            fi
+
+            if [[ -e $sslfile ]]; then
+                echo "Removing previous $sslfile..."
+                rm -Rf $sslfile
+            fi
+
+            sslurl=https://www.openssl.org/source/$sslfile
+            echo Building OpenSSL $sslversion...
+            wget $sslurl
+            tar -xvf $sslfile
+            cd openssl-$sslversion
+            ./Configure linux-x86_64 no-shared --prefix=$tmp_dir/ssl
+            make
+            make install
+
             # Remove any previous build folder:
             if [[ -d $pyfolder ]]; then
                 echo "Removing previous $pyfolder..."
@@ -99,7 +127,7 @@ _nvp_run_cli_linux() {
             # => Note tk-dev could be ignored as it is very large (+500MB)
             
             echo "Configuring python..."
-            ./configure --enable-optimizations --prefix=$python_dir.tmp CFLAGS=-fPIC CXXFLAGS=-fPIC
+            ./configure --enable-optimizations --with-openssl=$tmp_dir/ssl --prefix=$python_dir.tmp CFLAGS=-fPIC CXXFLAGS=-fPIC
             # --enable-loadable-sqlite-extensions --with-system-expat --with-system-ffi CPPFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib
 
             echo "Building python..."
