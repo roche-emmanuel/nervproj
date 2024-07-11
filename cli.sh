@@ -17,7 +17,8 @@ _nvp_run_cli_windows() {
 }
 
 _nvp_run_cli_linux() {
-    local python_version="3.10.2"
+    local python_default_version="3.10.2"
+    local python_version=${2:-$python_default_version}
 
     # On linux we should call the python cli directly:
     # Get the project root folder:
@@ -26,6 +27,7 @@ _nvp_run_cli_linux() {
 
     local req_file="requirements.txt"
     local platform="linux"
+    local ssltarget="linux-x86_64"
 
     if [ -f /sys/firmware/devicetree/base/model ] && grep -q "Raspberry" /sys/firmware/devicetree/base/model; then
         req_file="rasp_requirements.txt"
@@ -33,8 +35,10 @@ _nvp_run_cli_linux() {
         local ARCH=$(uname -m)
         if [ "${ARCH}" == "aarch64" ]; then
             platform="raspberry64"
+            ssltarget=linux-generic64
         else
             platform="raspberry"
+            ssltarget=linux-generic32
         fi
     fi
 
@@ -46,12 +50,34 @@ _nvp_run_cli_linux() {
     fi
 
     local python_dir=$tools_dir/python-$python_version
+    local tmp_dir=$root_dir/temp
+    local python_tmp_dir=$tmp_dir/out/python-$python_version
     local python_path=$python_dir/bin/python3
+    local python_pkg=$root_dir/tools/packages/python-$python_version-${platform}.tar.xz
 
+    local build_required=no
     if [[ ! -d $python_dir ]]; then
-        # Check if we already have the python.7z
-        local python_pkg=$root_dir/tools/packages/python-$python_version-${platform}.tar.xz
+        build_required=yes
+    fi
+    
+    if [ "$1" == "build-python" ]; then
+        # We don't remove the current python installation as it might already be in use.
+        # rm -Rf $python_dir
+        if [[ -e "$python_pkg" ]]; then
+            # We should rename this package to .bak
+            if [[ -e "$python_pkg.bak" ]]; then
+                echo Removing previous $python_pkg.bak file.
+                rm $python_pkg.bak
+            fi
+            mv $python_pkg $python_pkg.bak
+        fi
+        
+        # Force building python:
+        build_required=yes
+    fi
 
+    if [[ $build_required == "yes" ]]; then
+        # Check if we already have the python.7z
         if [[ -e "$python_pkg" ]]; then
             echo "Extracting $python_pkg..."
             # $unzip_path x -o"$tools_dir" "$python_pkg" > /dev/null
@@ -64,19 +90,22 @@ _nvp_run_cli_linux() {
             local tarfile="$pyfolder.tar.xz"
             local url="https://www.python.org/ftp/python/$python_version/$tarfile"
 
-            local tmp_dir=$root_dir/temp
-            if [[ ! -d $tmp_dir ]]; then
-                echo "Creating temp folder..."
-                mkdir $tmp_dir
+            if [[ -d $tmp_dir ]]; then
+                echo "Clearing temp folder $tmp_dir..."
+                rm -Rf $tmp_dir
             fi
 
-            pushd $tmp_dir >/dev/null
+            echo "Creating temp folder $tmp_dir..."
+            mkdir $tmp_dir
 
             # First we should build openssl statically only:
             sslversion="3.0.14"
-            sslbuilddir=openssl-$sslversion
-            ssldir=ssl
+            # sslversion="1.1.1w"
+            sslbuilddir=$tmp_dir/openssl-$sslversion
+            ssldir=$tmp_dir/ssl
             sslfile=openssl-$sslversion.tar.gz
+            
+            cd $tmp_dir
             if [[ -d $sslbuilddir ]]; then
                 echo "Removing previous $sslbuilddir..."
                 rm -Rf $sslbuilddir
@@ -95,10 +124,13 @@ _nvp_run_cli_linux() {
             echo Building OpenSSL $sslversion...
             wget $sslurl
             tar -xvf $sslfile
-            cd openssl-$sslversion
-            ./Configure linux-x86_64 no-shared --prefix=$tmp_dir/ssl
-            make
-            make install
+            cd $sslbuilddir
+            ./Configure $ssltarget no-shared --prefix=$ssldir
+            # ./Configure $ssltarget -static --prefix=$ssldir
+            make -j`nproc`
+            make install_sw
+
+            cd $tmp_dir
 
             # Remove any previous build folder:
             if [[ -d $pyfolder ]]; then
@@ -115,7 +147,7 @@ _nvp_run_cli_linux() {
             tar xvJf $tarfile
 
             # Enter into the python source folder:
-            pushd $pyfolder >/dev/null
+            cd $pyfolder
 
             # should ensure that the dependency packages are installed (?)
             # sudo apt-get install libbz2-dev liblzma-dev
@@ -127,48 +159,62 @@ _nvp_run_cli_linux() {
             # => Note tk-dev could be ignored as it is very large (+500MB)
             
             echo "Configuring python..."
-            ./configure --enable-optimizations --with-openssl=$tmp_dir/ssl --prefix=$python_dir.tmp CFLAGS=-fPIC CXXFLAGS=-fPIC
+            ./configure --enable-optimizations --with-openssl=$ssldir --prefix=$python_tmp_dir CFLAGS="-I$ssldir/include -fPIC" CXXFLAGS="-I$ssldir/include -fPIC" LDFLAGS="-L$ssldir/lib64 -ldl" 
             # --enable-loadable-sqlite-extensions --with-system-expat --with-system-ffi CPPFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib
 
             echo "Building python..."
-            make
+            make -j`nproc`
+            # make
 
             echo "Installing python..."
             make install
 
-            popd >/dev/null
-            popd >/dev/null
+            # echo "Running python tests..."
+            # make test
+
+            # And we create the package:
+            echo "Generating python tool package $python_version-${platform}.tar.xz..."
+            cd $tmp_dir/out
+            tar cJf python-$python_version-${platform}.tar.xz python-$python_version
+            mv python-$python_version-${platform}.tar.xz $root_dir/tools/packages/
 
             # Now we rename the destination folder:
-            mv $python_dir.tmp $python_dir
+            # But only if it doesn't exist yet:
+            if [[ -d $python_dir ]]; then
+                echo "Done generating python package."
+                echo "=> No installation performed since $python_dir already exists."
 
-            # And we create the 7z package:
-            echo "Generating python tool package..."
-            pushd $tools_dir >/dev/null
-            tar cJf python-$python_version-${platform}.tar.xz python-$python_version
-            mv python-$python_version-${platform}.tar.xz ../packages
-            popd >/dev/null
-            # $unzip_path a -t7z $python_pkg $python_dir -m0=lzma2 -mx=9 -aoa -mfb=64 -md=32m -ms=on -r
+                echo "Removing python build folder..."
+                cd $root_dir
+                rm -Rf $tmp_dir
+
+                exit 0
+            fi
+
+            mv $python_tmp_dir $python_dir
 
             # removing python build folder:
             echo "Removing python build folder..."
-            rm -Rf temp/$pyfolder*
+            cd $root_dir
+            rm -Rf $tmp_dir
 
             echo "Done generating python package."
         fi
 
         # Once we have deployed the base python tool package we start with upgrading pip:
         echo "Upgrading pip..."
-        $python_path -m pip install --upgrade pip --no-warn-script-location
+        $python_path -m pip install --no-warn-script-location --upgrade pip 
 
         # Finally we install the python requirements:
         echo "Installing python requirements..."
-        $python_path -m pip install -r $root_dir/tools/${req_file} --no-warn-script-location
+        $python_path -m pip install --no-warn-script-location -r $root_dir/tools/${req_file}
+
+        exit 0
     fi
 
     if [ "$1" == "--install-py-reqs" ]; then
         echo "Installing python requirements..."
-        $python_path -m pip install -r $root_dir/tools/${req_file} --no-warn-script-location
+        $python_path -m pip install --no-warn-script-location -r $root_dir/tools/${req_file}
     elif [ "$1" == "--pre-commit" ]; then
         echo "black outputs:" >$root_dir/pre-commit.log
         $python_path -m black --line-length 120 $root_dir/$2 >>$root_dir/pre-commit.log 2>&1
