@@ -17,8 +17,12 @@ _nvp_run_cli_windows() {
 }
 
 _nvp_run_cli_linux() {
-    local python_default_version="3.10.2"
-    local python_version=${2:-$python_default_version}
+    local python_version="3.10.2"
+    
+    if [ "$1" == "build-python" ]; then
+        local python_default_version=$python_version
+        python_version=${2:-$python_default_version}
+    fi
 
     # On linux we should call the python cli directly:
     # Get the project root folder:
