@@ -203,6 +203,9 @@ _nvp_run_cli_linux() {
             rm -Rf $tmp_dir
 
             echo "Done generating python package."
+
+            # Exit if we were only requesting to build python:
+            [ "$1" == "build-python" ] && exit 0
         fi
 
         # Once we have deployed the base python tool package we start with upgrading pip:
@@ -212,8 +215,6 @@ _nvp_run_cli_linux() {
         # Finally we install the python requirements:
         echo "Installing python requirements..."
         $python_path -m pip install --no-warn-script-location -r $root_dir/tools/${req_file}
-
-        exit 0
     fi
 
     if [ "$1" == "--install-py-reqs" ]; then
