@@ -169,9 +169,11 @@ class PyEnvManager(NVPComponent):
         env = os.environ.copy()
         env = self.prepend_env_list([git_dir], env, "PATH")
 
-        cmd = [py_path, "-m", "pip", "install", "-r", req_file, "--no-warn-script-location"]
+        cmd = [py_path, "-m", "pip", "install"]
         if upgrade:
             cmd.append("--upgrade")
+        cmd += ["-r", req_file, "--no-warn-script-location"]
+
         self.execute(cmd, env=env)
 
     def setup_py_env(self, env_name):
