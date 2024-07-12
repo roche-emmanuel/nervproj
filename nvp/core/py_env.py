@@ -252,7 +252,7 @@ class PyEnvManager(NVPComponent):
         packages = self.get_all_packages(desc, "packages")
         if len(packages) > 0:
             logger.info("Installing python packages...")
-            self.install_python_packages(py_path, packages, req_file)
+            self.install_python_packages(py_path, packages, req_file, False)
 
         # Also install the additional modules if any:
         mods = self.get_all_modules(desc)
