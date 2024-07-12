@@ -156,7 +156,7 @@ class PyEnvManager(NVPComponent):
         logger.info("Updating %s...", pkg_name)
         self.execute([py_path, "-m", "pip", "install", "--upgrade", pkg_name, "--no-warn-script-location"])
 
-    def install_python_packages(self, py_path, packages, req_file):
+    def install_python_packages(self, py_path, packages, req_file, upgrade):
         """Install python packages in a given environment"""
 
         content = "\n".join(packages)
@@ -169,7 +169,10 @@ class PyEnvManager(NVPComponent):
         env = os.environ.copy()
         env = self.prepend_env_list([git_dir], env, "PATH")
 
-        self.execute([py_path, "-m", "pip", "install", "-r", req_file, "--no-warn-script-location"], env=env)
+        cmd = [py_path, "-m", "pip", "install", "-r", req_file, "--no-warn-script-location"]
+        if upgrade:
+            cmd.append("--upgrade")
+        self.execute(cmd, env=env)
 
     def setup_py_env(self, env_name):
         """Setup a given python environment"""
@@ -242,7 +245,7 @@ class PyEnvManager(NVPComponent):
         packages = self.get_all_packages(desc, "pre_packages")
         if len(packages) > 0:
             logger.info("Installing python pre_packages...")
-            self.install_python_packages(py_path, packages, req_file)
+            self.install_python_packages(py_path, packages, req_file, True)
 
         packages = self.get_all_packages(desc, "packages")
         if len(packages) > 0:
