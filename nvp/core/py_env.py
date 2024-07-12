@@ -1,4 +1,5 @@
 """Collection of admin utility functions"""
+
 import logging
 import os
 
@@ -96,19 +97,19 @@ class PyEnvManager(NVPComponent):
             logger.info("Removing python environment at %s", dest_folder)
             self.remove_folder(dest_folder)
 
-    def get_all_packages(self, desc):
+    def get_all_packages(self, desc, key):
         """Retrieve all the python packages requested for a given environment desc"""
         pkgs = []
 
         if "inherit" in desc:
             parent_name = desc["inherit"]
             pdesc = self.get_py_env_desc(parent_name)
-            pkgs = self.get_all_packages(pdesc)
+            pkgs = self.get_all_packages(pdesc, key)
 
         # Add the packages from this desc:
         # Check first if we have platform specific packages:
-        key_name = f"{self.platform}_packages"
-        added = desc[key_name] if key_name in desc else desc["packages"]
+        key_name = f"{self.platform}_{key}"
+        added = desc[key_name] if key_name in desc else desc[key]
         for pkg in added:
             if pkg not in pkgs:
                 pkgs.append(pkg)
@@ -154,6 +155,21 @@ class PyEnvManager(NVPComponent):
 
         logger.info("Updating %s...", pkg_name)
         self.execute([py_path, "-m", "pip", "install", "--upgrade", pkg_name, "--no-warn-script-location"])
+
+    def install_python_packages(self, py_path, packages, req_file):
+        """Install python packages in a given environment"""
+
+        content = "\n".join(packages)
+        self.write_text_file(content, req_file)
+
+        # Should add git to the path here:
+        tools = self.get_component("tools")
+        git_path = tools.get_tool_path("git")
+        git_dir = self.get_parent_folder(git_path)
+        env = os.environ.copy()
+        env = self.prepend_env_list([git_dir], env, "PATH")
+
+        self.execute([py_path, "-m", "pip", "install", "-r", req_file, "--no-warn-script-location"], env=env)
 
     def setup_py_env(self, env_name):
         """Setup a given python environment"""
@@ -221,20 +237,17 @@ class PyEnvManager(NVPComponent):
         logger.info("Installing base packages...")
         self.execute([py_path, "-m", "pip", "install", "-r", req_file, "--no-warn-script-location"])
 
-        packages = self.get_all_packages(desc)
+        # ensure the base packages are installed first:
 
-        content = "\n".join(packages)
-        self.write_text_file(content, req_file)
+        packages = self.get_all_packages(desc, "pre_packages")
+        if len(packages) > 0:
+            logger.info("Installing python pre_packages...")
+            self.install_python_packages(py_path, packages, req_file)
 
-        logger.info("Installing python requirements...")
-
-        # Should add git to the path here:
-        git_path = tools.get_tool_path("git")
-        git_dir = self.get_parent_folder(git_path)
-        env = os.environ.copy()
-        env = self.prepend_env_list([git_dir], env, "PATH")
-
-        self.execute([py_path, "-m", "pip", "install", "-r", req_file, "--no-warn-script-location"], env=env)
+        packages = self.get_all_packages(desc, "packages")
+        if len(packages) > 0:
+            logger.info("Installing python packages...")
+            self.install_python_packages(py_path, packages, req_file)
 
         # Also install the additional modules if any:
         mods = self.get_all_modules(desc)
