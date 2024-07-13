@@ -295,7 +295,8 @@ libraries:
     version: 8.2.1
     url: https://github.com/OSGeo/PROJ/releases/download/8.2.1/proj-8.2.1.zip
   - name: libjpeg
-    version: 2.1.91
+    # version: 2.1.91
+    version: 3.0.3
     git: https://github.com/libjpeg-turbo/libjpeg-turbo.git
   - name: openjpeg
     version: 2.5.0

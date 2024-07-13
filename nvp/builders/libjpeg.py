@@ -19,9 +19,13 @@ class Builder(NVPBuilder):
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build on windows method"""
+
+        # Note: will not build with clang on windows for now.
         flags = []
         if self.compiler.is_emcc():
-            flags = ["-DBUILD_SHARED_LIBS=OFF"]
+            # flags = ["-DBUILD_SHARED_LIBS=OFF"]
+            # "-DWITH_TURBOJPEG=OFF"
+            flags = ["-DENABLE_SHARED=OFF", "-DREQUIRE_SIMD=OFF", "-DWITH_SIMD=OFF"]
 
         # Add NASM dir:
         nasm_dir = self.tools.get_tool_dir("nasm")
@@ -34,7 +38,7 @@ class Builder(NVPBuilder):
         """Build on linux method"""
         flags = []
         if self.compiler.is_emcc():
-            flags = ["-DBUILD_SHARED_LIBS=OFF"]
+            flags = ["-DENABLE_SHARED=OFF", "-DREQUIRE_SIMD=OFF", "-DWITH_SIMD=OFF"]
 
         self.run_cmake(build_dir, prefix, ".", flags=flags)
         self.run_ninja(build_dir)
