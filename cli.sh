@@ -20,8 +20,9 @@ _nvp_run_cli_linux() {
     local python_version="3.10.2"
     
     if [[ "$1" == "build-python" ]]; then
-        local python_default_version=$python_version
-        python_version=${2:-$python_default_version}
+        if [[ "$2" != "" ]]; then
+            python_version=$2
+        fi
         echo "Received request to build python $python_version"
     fi
 
