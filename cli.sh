@@ -22,6 +22,7 @@ _nvp_run_cli_linux() {
     if [[ "$1" == "build-python" ]]; then
         local python_default_version=$python_version
         python_version=${2:-$python_default_version}
+        echo "Received request to build python $python_version"
     fi
 
     # On linux we should call the python cli directly:
