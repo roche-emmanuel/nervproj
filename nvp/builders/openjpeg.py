@@ -28,9 +28,11 @@ class Builder(NVPBuilder):
 
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
-        flags = ["-DBUILD_SHARED_LIBS=OFF"]
-        # if self.compiler.is_emcc():
-        #     flags = ["-DBUILD_SHARED_LIBS=OFF"]
+        # Note: on linuw we can still build the shared version
+        # and that will be required anyway for the executables:
+        flags = []
+        if self.compiler.is_emcc():
+            flags = ["-DBUILD_SHARED_LIBS=OFF"]
 
         self.run_cmake(build_dir, prefix, ".", flags=flags)
         self.run_ninja(build_dir)
