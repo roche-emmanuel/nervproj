@@ -299,7 +299,8 @@ libraries:
     version: 3.0.3
     git: https://github.com/libjpeg-turbo/libjpeg-turbo.git
   - name: openjpeg
-    version: 2.5.0
+    # version: 2.5.0
+    version: 2.5.2
     url: git@github.com:roche-emmanuel/openjpeg.git
   - name: libpng
     version: 1.6.39
