@@ -163,8 +163,8 @@ _nvp_run_cli_linux() {
             # => Note tk-dev could be ignored as it is very large (+500MB)
             
             echo "Configuring python..."
-            ./configure --enable-optimizations --with-openssl=$ssldir --prefix=$python_tmp_dir CFLAGS="-I$ssldir/include -fPIC" CXXFLAGS="-I$ssldir/include -fPIC" LDFLAGS="-L$ssldir/lib64 -ldl" OPENSSL_LIBS="-lssl -lcrypto -ldl"
-            
+            ./configure --enable-optimizations --with-openssl=$ssldir --prefix=$python_tmp_dir CFLAGS="-I$ssldir/include -fPIC" CXXFLAGS="-I$ssldir/include -fPIC" LDFLAGS="-L$ssldir/lib64" LIBS="-ldl"
+
             # --enable-loadable-sqlite-extensions --with-system-expat --with-system-ffi CPPFLAGS=-I/usr/local/include LDFLAGS=-L/usr/local/lib
 
             echo "Building python..."
