@@ -162,8 +162,8 @@ _nvp_run_cli_linux() {
             # libssl-dev libbz2-dev libexpat1-dev liblzma-dev zlib1g-dev libffi-dev
             # => Note tk-dev could be ignored as it is very large (+500MB)
             
-            # Note: it seems we need to fix the configure file for python 3.14 to build with static openssl:
-            sed -i 's/LIBS="$LIBS $OPENSSL_LIBS"/LIBS="$OPENSSL_LIBS $LIBS"/' configure
+            # Note: it seems we need to fix the configure file for python 3.12 to build with static openssl:
+            sed -i 's/OPENSSL_LIBS="-lssl -lcrypto"/OPENSSL_LIBS="-l:libssl.a -l:libcrypto.a -ldl -lz"/' configure
 
             echo "Configuring python..."
             ./configure --enable-optimizations --with-openssl=$ssldir --prefix=$python_tmp_dir CFLAGS="-I$ssldir/include -fPIC" CXXFLAGS="-I$ssldir/include -fPIC" LDFLAGS="-L$ssldir/lib64" LIBS="-ldl"
@@ -196,7 +196,7 @@ _nvp_run_cli_linux() {
                 cd $root_dir
                 rm -Rf $tmp_dir
 
-                exit 0
+                return 0
             fi
 
             mv $python_tmp_dir $python_dir
@@ -209,7 +209,7 @@ _nvp_run_cli_linux() {
             echo "Done generating python package."
 
             # Exit if we were only requesting to build python:
-            [[ "$1" == "build-python" ]] && exit 0
+            [[ "$1" == "build-python" ]] && return 0
         fi
 
         # Once we have deployed the base python tool package we start with upgrading pip:
