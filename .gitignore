@@ -7,6 +7,7 @@ tools/linux/*
 tools/packages/python-3.7.9-windows.7z
 tools/packages/python-3.11.8-windows.7z
 tools/packages/python-3.11.8-linux.tar.xz
+tools/packages/python-3.12.4-linux.tar.xz
 
 # Ignore compiled python files:
 *.pyc
