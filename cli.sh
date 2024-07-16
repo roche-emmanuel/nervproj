@@ -162,6 +162,9 @@ _nvp_run_cli_linux() {
             # libssl-dev libbz2-dev libexpat1-dev liblzma-dev zlib1g-dev libffi-dev
             # => Note tk-dev could be ignored as it is very large (+500MB)
             
+            # Note: it seems we need to fix the configure file for python 3.14 to build with static openssl:
+            sed -i 's/LIBS="$LIBS $OPENSSL_LIBS"/LIBS="$OPENSSL_LIBS $LIBS"/' configure
+
             echo "Configuring python..."
             ./configure --enable-optimizations --with-openssl=$ssldir --prefix=$python_tmp_dir CFLAGS="-I$ssldir/include -fPIC" CXXFLAGS="-I$ssldir/include -fPIC" LDFLAGS="-L$ssldir/lib64" LIBS="-ldl"
 
