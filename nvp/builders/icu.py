@@ -36,12 +36,8 @@ class Builder(NVPBuilder):
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
 
-        flags = ["-DBUILD_SHARED_LIBS=OFF"]
-        # flags = ["-DSSE=ON", "-DSTATIC=ON"]
-        # if self.compiler.is_emcc():
-        #     flags = ["-DBUILD_SHARED_LIBS=OFF"]
-
         # The build dir should be changed to "source":
         build_dir = self.get_path(build_dir, "source")
-        self.run_cmake(build_dir, prefix, ".", flags=flags)
-        self.run_ninja(build_dir)
+
+        self.run_configure(build_dir, prefix, ["--enable-static", "--disable-shared"])
+        self.run_make(build_dir)
