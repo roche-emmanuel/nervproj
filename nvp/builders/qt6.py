@@ -379,8 +379,8 @@ class QT6Builder(NVPBuilder):
         self.compiler.append_lib("-l:libicuuc.a")
         self.compiler.append_lib("-l:libicudata.a")
 
-        num_threads = min(self.cpu_count() - 4, 32)
-
+        # Trying to set the number of threads to use (but not sure this is really working ?)
+        num_threads = max(min(self.cpu_count() - 4, 32), 1)
         self.env["CMAKE_BUILD_PARALLEL_LEVEL"] = f"{num_threads}"
 
         cmake_args = " ".join(
