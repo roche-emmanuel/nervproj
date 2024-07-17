@@ -197,6 +197,10 @@ class NVPObject(object):
             stt = os.stat(filename)
             os.chmod(filename, stt.st_mode | stat.S_IEXEC)
 
+    def cpu_count(self):
+        """Return number of available cpu threads"""
+        return os.cpu_count()
+
     def set_chmod(self, my_path, modes):
         """Set the access rights for a given path"""
         um = int(modes[0])
@@ -826,6 +830,28 @@ class NVPObject(object):
         home_path = os.getenv("HOMEPATH")
         assert home_drive is not None and home_path is not None, "Invalid windows home drive or path"
         return home_drive + home_path
+
+    def execute_command(self, command):
+        """
+        Execute a shell command and return its output, error message, and return code.
+
+        Args:
+            command (list): A list of command arguments, e.g., ['docker', 'images']
+
+        Returns:
+            tuple: A tuple containing three elements:
+                - stdout (str): The standard output of the command.
+                - stderr (str): The standard error of the command.
+                - returncode (int): The return code of the command.
+        """
+        try:
+            # Execute the command
+            result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+
+            # Return the output, error message, and return code
+            return result.stdout, result.stderr, result.returncode
+        except Exception as e:
+            return None, str(e), -1
 
     def execute(self, cmd, **kwargs):
         """Execute a command optionally displaying the outputs."""

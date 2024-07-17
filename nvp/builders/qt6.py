@@ -379,6 +379,10 @@ class QT6Builder(NVPBuilder):
         self.compiler.append_lib("-l:libicuuc.a")
         self.compiler.append_lib("-l:libicudata.a")
 
+        num_threads = min(self.cpu_count() - 4, 50)
+
+        self.env["CMAKE_BUILD_PARALLEL_LEVEL"] = f"{num_threads}"
+
         cmake_args = " ".join(
             [
                 "-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1",
