@@ -191,7 +191,7 @@ class NVPBuilder(NVPObject):
             cmd += flags
 
         # Check if this is the emcc compiler:
-        if self.compiler.is_emcc:
+        if self.compiler.is_emcc():
             # Use emconfigure in this case:
             ext = ".bat" if self.is_windows else ""
             folder = self.compiler.get_cxx_dir()
