@@ -218,6 +218,12 @@ class NVPCompiler(NVPObject):
         flags = env.get("LDFLAGS", "")
         env["LDFLAGS"] = f"{flags} {val}"
 
+    def append_lib(self, val, env=None):
+        """Append a value to the LIBS environment var"""
+        env = env or self.comp_env
+        flags = env.get("LIBS", "")
+        env["LIBS"] = f"{flags} {val}"
+
     def append_compileflag(self, val, env=None):
         """Append a value to both the cxxflags and cflags"""
         self.append_cxxflag(val, env)

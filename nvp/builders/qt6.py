@@ -203,9 +203,7 @@ class QT6Builder(NVPBuilder):
                 # but we patched that below.
                 # Note: if we use c++20, then we cannot compile qtconnectivity/qtspeech
                 # args = "-optimize-size -optimize-full -platform win32-msvc -c++std c++20 -skip qtconnectivity -skip qtspeech"
-                args = (
-                    "-optimize-full -platform win32-msvc -opensource -confirm-license"
-                )
+                args = "-optimize-full -platform win32-msvc -opensource -confirm-license"
 
             self.generate_qt_config(build_dir, prefix, args, cmake_args)
 
@@ -229,9 +227,7 @@ class QT6Builder(NVPBuilder):
                 "install_dir": build_dir,
             }
 
-            nodejs.setup_nodejs_env(
-                "qt6_env", env_dir=build_dir, desc=ndesc, update_npm=True
-            )
+            nodejs.setup_nodejs_env("qt6_env", env_dir=build_dir, desc=ndesc, update_npm=True)
 
             # let's run the configure.bat file:
             perl_dir = self.tools.get_tool_root_dir("perl")
@@ -285,15 +281,11 @@ class QT6Builder(NVPBuilder):
 
                 # cannot compile qdoc:
                 tgt_file = f"{build_dir}/qttools/src/CMakeLists.txt"
-                self.patch_file(
-                    tgt_file, "add_subdirectory(qdoc)", "#add_subdirectory(qdoc)"
-                )
+                self.patch_file(tgt_file, "add_subdirectory(qdoc)", "#add_subdirectory(qdoc)")
 
                 # nor lupdate:
                 tgt_file = f"{build_dir}/qttools/src/linguist/CMakeLists.txt"
-                self.patch_file(
-                    tgt_file, "add_subdirectory(lupdate)", "#add_subdirectory(lupdate)"
-                )
+                self.patch_file(tgt_file, "add_subdirectory(lupdate)", "#add_subdirectory(lupdate)")
 
                 # Disable usage of lld-link and using link.exe instead:
                 tgt_file = f"{build_dir}/qtwebengine/src/gn/CMakeLists.txt"
@@ -379,18 +371,23 @@ class QT6Builder(NVPBuilder):
         # Use our static icu library:
         icu_dir = self.man.get_library_root_dir("icu")
 
-        cmake_args = '-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -Wno-deprecated-builtins"'
+        # Append the entries to the env:
+        self.compiler.append_cxxflag(f"-I{icu_dir}/include")
+        self.compiler.append_cflag(f"-I{icu_dir}/include")
+        self.compiler.append_ldflag(f"-L{icu_dir}/lib")
+        self.compiler.append_lib("-l:libicui18n.a")
+        self.compiler.append_lib("-l:libicuuc.a")
+        self.compiler.append_lib("-l:libicudata.a")
+
+        cmake_args = (
+            '-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -Wno-deprecated-builtins"'
+        )
         args = [
             "-optimize-full",
             "-opensource",
             "-confirm-license",
             "-release",
             "-icu",
-            f"-I{icu_dir}/include",
-            f"-L{icu_dir}/lib",
-            "-l:libicui18n.a",
-            "-l:libicuuc.a",
-            "-l:libicudata.a",
             "-qt-doubleconversion",
             "-qt-pcre",
             "-qt-zlib",
@@ -430,21 +427,15 @@ class QT6Builder(NVPBuilder):
         # Should work with nodejs 18, see fix for node path below:
         # ndesc = {"nodejs_version": "12.22.9", "packages": [], "install_dir": build_dir}
 
-        nodejs.setup_nodejs_env(
-            "qt6_env", env_dir=build_dir, desc=ndesc, update_npm=True
-        )
+        nodejs.setup_nodejs_env("qt6_env", env_dir=build_dir, desc=ndesc, update_npm=True)
 
         gperf_dir = self.tools.get_tool_dir("gperf")
         bison_dir = self.tools.get_tool_dir("bison")
         flex_dir = self.tools.get_tool_dir("flex")
 
         # patch the node.py file to use our nodejs binary:
-        tgt_file = (
-            f"{build_dir}/qtwebengine/src/3rdparty/chromium/third_party/node/node.py"
-        )
-        self.patch_file(
-            tgt_file, "nodejs = which('nodejs')", f"nodejs = '{nodejs_dir}/node'"
-        )
+        tgt_file = f"{build_dir}/qtwebengine/src/3rdparty/chromium/third_party/node/node.py"
+        self.patch_file(tgt_file, "nodejs = which('nodejs')", f"nodejs = '{nodejs_dir}/node'")
 
         # nss_root_dir = self.man.get_library_root_dir("nss").replace("\\", "/")
         # nss_dir = self.get_path(nss_root_dir, "Release/bin")
