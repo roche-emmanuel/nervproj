@@ -379,9 +379,14 @@ class QT6Builder(NVPBuilder):
         self.compiler.append_lib("-l:libicuuc.a")
         self.compiler.append_lib("-l:libicudata.a")
 
-        cmake_args = (
-            '-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1 -DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -Wno-deprecated-builtins"'
+        cmake_args = " ".join(
+            [
+                "-DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1",
+                '-DCMAKE_CXX_FLAGS="-Wno-ignored-pragmas -Wno-deprecated-builtins"',
+                f"-DICU_ROOT={icu_dir}",
+            ]
         )
+
         args = [
             "-optimize-full",
             "-opensource",
