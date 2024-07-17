@@ -399,6 +399,10 @@ libraries:
     version: 3.2.2
     url: https://github.com/AcademySoftwareFoundation/openexr/archive/refs/tags/v3.2.2.tar.gz
     # git: https://github.com/AcademySoftwareFoundation/openexr
+  - name: icu
+    version: 66
+    # url: https://github.com/unicode-org/icu/releases/download/release-66-1/icu4c-66_1-src.tgz
+    url: http://files.nervtech.org/nvp_packages/sources/icu-66.7z
 
 # list of available projects:
 projects: []
