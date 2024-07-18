@@ -19,31 +19,34 @@ class Builder(NVPBuilder):
 
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build on windows method"""
+        # Create the cmake file:
+        cmake_content = """cmake_minimum_required(VERSION 3.10)
+project(bzip2 C)
 
-        self.throw("This builder is not working yet.")
+add_library(bz2 STATIC
+    blocksort.c
+    bzlib.c
+    compress.c
+    crctable.c
+    decompress.c
+    huffman.c
+    randtable.c
+)
 
-        # zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
-        # z_lib = "zlibstatic.lib" if self.is_windows else "libz.a"
-        # png_dir = self.man.get_library_root_dir("libpng").replace("\\", "/")
-        # png_lib = "libpng16_static.lib" if self.is_windows else "libpng16.a"
+target_include_directories(bz2 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-        flags = [
-            "-S",
-            ".",
-            "-B",
-            "release_build",
-            "-DBUILD_SHARED_LIBS=OFF",
-            # "-DFT_REQUIRE_ZLIB=TRUE",
-            # f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
-            # f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
-            # f"-DPNG_LIBRARY={png_dir}/lib/{png_lib}",
-            # f"-DPNG_PNG_INCLUDE_DIR={png_dir}/include",
-        ]
+# Installation instructions
+install(TARGETS bz2
+    ARCHIVE DESTINATION lib
+)
 
-        # if self.compiler.is_emcc():
+install(FILES bzlib.h
+    DESTINATION include
+)
+"""
+        self.write_text_file(cmake_content, self.get_path(build_dir, "CMakeLists.txt"))
 
-        # nasm_dir = self.tools.get_tool_dir("nasm")
-        # self.prepend_env_list([nasm_dir], self.env)
+        flags = ["-B", "release_build"]
 
         self.run_cmake(build_dir, prefix, ".", flags=flags)
         sub_dir = self.get_path(build_dir, "release_build")
@@ -52,9 +55,13 @@ class Builder(NVPBuilder):
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
 
-        flags = ["-S", ".", "-B", "release_build", "-DBUILD_SHARED_LIBS=OFF", "-DFT_REQUIRE_ZLIB=TRUE"]
-        # if self.compiler.is_emcc():
+        self.multi_patch_file(
+            self.get_path(build_dir, "Makefile"),
+            ("CFLAGS=-Wall -Winline -O2 -g $(BIGFILES)", "CFLAGS=-Wall -Winline -O2 -g $(BIGFILES) -fPIC"),
+        )
 
-        self.run_cmake(build_dir, prefix, ".", flags=flags)
-        sub_dir = self.get_path(build_dir, "release_build")
-        self.run_ninja(sub_dir)
+        self.exec_make(build_dir, ["libbz2.a"])
+
+        # We manually install the files:
+        self.install_files("include", r"bzlib\.h$", "include")
+        self.install_files("lib", r"libbz2\.a$", "lib")
