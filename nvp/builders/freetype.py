@@ -20,6 +20,8 @@ class Builder(NVPBuilder):
     def build_on_windows(self, build_dir, prefix, _desc):
         """Build on windows method"""
 
+        bz2_dir = self.man.get_library_root_dir("bzip2").replace("\\", "/")
+        bz2_lib = "libbz2.a" if self.compiler.is_emcc() else "bz2.lib"
         zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
         z_lib = "libz.a" if self.compiler.is_emcc() else "zlibstatic.lib"
         png_dir = self.man.get_library_root_dir("libpng").replace("\\", "/")
@@ -36,9 +38,12 @@ class Builder(NVPBuilder):
             "release_build",
             "-DBUILD_SHARED_LIBS=OFF",
             "-DFT_REQUIRE_ZLIB=TRUE",
+            "-DFT_REQUIRE_BZIP2=TRUE",
             "-DFT_REQUIRE_PNG=TRUE",
             "-DFT_REQUIRE_BROTLI=TRUE",
             "-DFT_REQUIRE_HARFBUZZ=TRUE",
+            f"-DBZIP2_LIBRARIES={bz2_dir}/lib/{bz2_lib}",
+            f"-DBZIP2_INCLUDE_DIR={bz2_dir}/include",
             f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
             f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
             f"-DPNG_LIBRARY={png_dir}/lib/{png_lib}",
@@ -61,6 +66,8 @@ class Builder(NVPBuilder):
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
 
+        bz2_dir = self.man.get_library_root_dir("bzip2").replace("\\", "/")
+        bz2_lib = "libbz2.a"
         zlib_dir = self.man.get_library_root_dir("zlib").replace("\\", "/")
         z_lib = "libz.a"
         png_dir = self.man.get_library_root_dir("libpng").replace("\\", "/")
@@ -77,9 +84,12 @@ class Builder(NVPBuilder):
             "release_build",
             "-DBUILD_SHARED_LIBS=OFF",
             "-DFT_REQUIRE_ZLIB=TRUE",
+            "-DFT_REQUIRE_BZIP2=TRUE",
             "-DFT_REQUIRE_PNG=TRUE",
             "-DFT_REQUIRE_BROTLI=TRUE",
             "-DFT_REQUIRE_HARFBUZZ=TRUE",
+            f"-DBZIP2_LIBRARIES={bz2_dir}/lib/{bz2_lib}",
+            f"-DBZIP2_INCLUDE_DIR={bz2_dir}/include",
             f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
             f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
             f"-DPNG_LIBRARY={png_dir}/lib/{png_lib}",
