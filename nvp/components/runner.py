@@ -225,6 +225,7 @@ class ScriptRunner(NVPComponent):
         hlocs["${NVP_ROOT_DIR}"] = self.ctx.get_root_dir()
         hlocs["${SCRIPT_NAME}"] = script_name
         hlocs["${EXE_SUFFIX}"] = ".exe" if self.platform == "windows" else ""
+        hlocs["${HOME}"] = str(Path.home()).replace("\\", "/")
 
         # check if we should use python in this command:
         tools = self.get_component("tools")
