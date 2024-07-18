@@ -63,5 +63,6 @@ install(FILES bzlib.h
         self.exec_make(build_dir, ["libbz2.a"])
 
         # We manually install the files:
+        self.make_folder(prefix)
         self.install_files("include", r"bzlib\.h$", "include")
         self.install_files("lib", r"libbz2\.a$", "lib")
