@@ -306,7 +306,7 @@ class ScriptRunner(NVPComponent):
         env_dict = desc[key] if key in desc else desc.get("env_vars", None)
 
         # check if we have a system specific env_var list and use it instead in that case:
-        pname = self.get_hostname()
+        pname = self.get_hostname().lower()
         key = f"{pname}.env_vars"
         if key in desc:
             env_dict = desc[key]
@@ -324,11 +324,15 @@ class ScriptRunner(NVPComponent):
             os.environ["PATH"] = self.fill_placeholders(val, hlocs) + sep + os.environ["PATH"]
             env["PATH"] = os.environ["PATH"]
 
-        if "env_paths" in desc:
-            val = desc["env_paths"].replace(";", sep)
-            os.environ["PATH"] = self.fill_placeholders(val, hlocs) + sep + os.environ["PATH"]
-            env["PATH"] = os.environ["PATH"]
-            # logger.info("Using env paths: %s", os.environ["PATH"])
+        def add_env_paths(key):
+            if key in desc:
+                val = desc[key].replace(";", sep)
+                os.environ["PATH"] = self.fill_placeholders(val, hlocs) + sep + os.environ["PATH"]
+                env["PATH"] = os.environ["PATH"]
+
+        add_env_paths("env_paths")
+        add_env_paths(f"{self.platform}_env_paths")
+        add_env_paths(f"{pname}.env_paths")
 
         if "python_path" in desc:
             elems = desc["python_path"]
