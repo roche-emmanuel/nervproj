@@ -27,7 +27,12 @@ class Builder(NVPBuilder):
         flags = [f"-DZLIB_INCLUDE_DIR={zlib_dir}/include"]
 
         if self.compiler.is_emcc():
-            flags += ["-DPNG_SHARED=OFF", f"-DZLIB_LIBRARY={zlib_dir}/lib/libz.a"]
+            flags += [
+                "-DPNG_SHARED=OFF",
+                f"-DZLIB_LIBRARY={zlib_dir}/lib/libz.a",
+                "-DPNG_TESTS=OFF",
+                '-DCMAKE_C_FLAGS="-pthread -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=4"',
+            ]
         else:
             flags += [f"-DZLIB_LIBRARY={zlib_dir}/lib/zlibstatic.lib"]
 
