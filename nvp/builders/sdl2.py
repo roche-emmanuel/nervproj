@@ -24,6 +24,9 @@ class SDL2Builder(NVPBuilder):
 
         flags = ["-DCMAKE_CXX_FLAGS_RELEASE=/MT", "-DSDL_STATIC=ON"]
 
+        if self.compiler.is_emcc():
+            flags = ["-DSDL_STATIC=ON", "-DSDL_SHARED=OFF", "-DSDL_ATOMIC=ON"]
+
         self.run_cmake(build_dir, prefix, "..", flags)
 
         self.run_ninja(build_dir)
