@@ -406,6 +406,9 @@ libraries:
   - name: DirectXTex
     version: 20240723
     git: git@github.com:roche-emmanuel/DirectXTex.git
+  - name: libpqxx
+    version: 20240728
+    git: https://github.com/jtv/libpqxx.git
 
 # list of available projects:
 projects: []
