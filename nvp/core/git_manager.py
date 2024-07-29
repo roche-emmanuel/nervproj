@@ -255,8 +255,10 @@ class GitManager(NVPComponent):
         """Clone a given url into a given folder"""
 
         # Ensure the parent folder exists:
-        base_dir = self.get_parent_folder(dest_folder)
-        self.make_folder(base_dir)
+        # make the dest folder an absolute path:
+        if self.is_absolute_path(dest_folder):
+            base_dir = self.get_parent_folder(dest_folder)
+            self.make_folder(base_dir)
 
         cmd = ["clone", "--progress"]
         if mirror:
