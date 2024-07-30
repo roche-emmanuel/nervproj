@@ -32,7 +32,9 @@ class ScriptRunner(NVPComponent):
         # Also extend the parser:
         ctx.define_subparsers("main", {"run": None})
         psr = ctx.get_parser("main.run")
-        psr.add_argument("script_name", type=str, default="run", help="Name of the script to execute")
+        psr.add_argument(
+            "script_name", type=str, default="run", help="Name of the script to execute"
+        )
         psr.add_argument(
             "--show-help",
             dest="show_script_help",
@@ -88,7 +90,12 @@ class ScriptRunner(NVPComponent):
             params = proj.get_config().get("script_parameters", {})
             for pname, pval in params.items():
                 if pname in sparams and sparams[pname] != pval:
-                    logger.warning("Overriding script parameter %s: %s => %s", pname, sparams[pname], pval)
+                    logger.warning(
+                        "Overriding script parameter %s: %s => %s",
+                        pname,
+                        sparams[pname],
+                        pval,
+                    )
                 sparams[pname] = pval
         return sparams
 
@@ -221,7 +228,9 @@ class ScriptRunner(NVPComponent):
 
         hlocs = {}
         # Note the project root dir below might still be None:
-        hlocs["${PROJECT_ROOT_DIR}"] = proj.get_root_dir() if proj is not None else self.ctx.get_root_dir()
+        hlocs["${PROJECT_ROOT_DIR}"] = (
+            proj.get_root_dir() if proj is not None else self.ctx.get_root_dir()
+        )
         hlocs["${NVP_ROOT_DIR}"] = self.ctx.get_root_dir()
         hlocs["${SCRIPT_NAME}"] = script_name
         hlocs["${EXE_SUFFIX}"] = ".exe" if self.platform == "windows" else ""
@@ -269,7 +278,9 @@ class ScriptRunner(NVPComponent):
             hlocs["${NODE_ENV_DIR}"] = node_root_dir
             node_path = nodejs.get_node_path(env_name)
             hlocs["${NODE}"] = node_path
-            hlocs["${NPM}"] = f"{node_path} {node_root_dir}/node_modules/npm/bin/npm-cli.js"
+            hlocs["${NPM}"] = (
+                f"{node_path} {node_root_dir}/node_modules/npm/bin/npm-cli.js"
+            )
 
         sparams = self.get_script_parameters()
         # logger.info("Using script parameters: %s", sparams)
@@ -321,13 +332,17 @@ class ScriptRunner(NVPComponent):
         if len(additional_paths) > 0:
             # Add the additional paths:
             val = sep.join(additional_paths)
-            os.environ["PATH"] = self.fill_placeholders(val, hlocs) + sep + os.environ["PATH"]
+            os.environ["PATH"] = (
+                self.fill_placeholders(val, hlocs) + sep + os.environ["PATH"]
+            )
             env["PATH"] = os.environ["PATH"]
 
         def add_env_paths(key):
             if key in desc:
                 val = desc[key].replace(";", sep)
-                os.environ["PATH"] = self.fill_placeholders(val, hlocs) + sep + os.environ["PATH"]
+                os.environ["PATH"] = (
+                    self.fill_placeholders(val, hlocs) + sep + os.environ["PATH"]
+                )
                 env["PATH"] = os.environ["PATH"]
 
         add_env_paths("env_paths")
@@ -336,7 +351,9 @@ class ScriptRunner(NVPComponent):
 
         if "python_path" in desc:
             elems = desc["python_path"]
-            elems = [self.fill_placeholders(el, hlocs).replace("\\", "/") for el in elems]
+            elems = [
+                self.fill_placeholders(el, hlocs).replace("\\", "/") for el in elems
+            ]
             sep = ";" if self.is_windows else ":"
             pypath = sep.join(elems)
             logger.debug("Using pythonpath: %s", pypath)
@@ -370,7 +387,9 @@ class ScriptRunner(NVPComponent):
             self.make_folder(folder)
 
         if lockfile is not None and self.file_exists(lockfile):
-            logger.warning("'%s' prevented: lock file exists (%s). ", script_name, lockfile)
+            logger.warning(
+                "'%s' prevented: lock file exists (%s). ", script_name, lockfile
+            )
             return
 
         # Create the lockfile otherwise if applicable:
@@ -389,7 +408,13 @@ class ScriptRunner(NVPComponent):
             notify = desc["notify"]
 
         while True:
-            success, rcode, outputs = self.execute(cmd, cwd=cwd, env=env, outfile=logfile, encoding=encoding)
+            try:
+                success, rcode, outputs = self.execute(
+                    cmd, cwd=cwd, env=env, outfile=logfile, encoding=encoding
+                )
+            except Exception:
+                logger.error("Exception trying to execute '%s' in cwd='%s'", cmd, cwd)
+                return
 
             if not success:
                 outs = "".join(outputs)
@@ -428,7 +453,9 @@ class ScriptRunner(NVPComponent):
                 logger.info("Process restart requested for %s.", script_name)
 
             if not success and auto_restart:
-                logger.info("Process failed, auto restart requested for %s.", script_name)
+                logger.info(
+                    "Process failed, auto restart requested for %s.", script_name
+                )
                 restart_requested = True
 
             if not restart_requested:
