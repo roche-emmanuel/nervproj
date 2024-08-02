@@ -409,6 +409,9 @@ libraries:
   - name: libpqxx
     version: 20240728
     git: https://github.com/jtv/libpqxx.git
+  - name: yaclib
+    version: 20240802
+    git: git@github.com:roche-emmanuel/YACLib.git
 
 # list of available projects:
 projects: []
