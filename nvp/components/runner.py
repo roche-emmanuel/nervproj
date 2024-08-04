@@ -232,6 +232,10 @@ class ScriptRunner(NVPComponent):
         hlocs["${EXE_SUFFIX}"] = ".exe" if self.platform == "windows" else ""
         hlocs["${HOME}"] = str(Path.home()).replace("\\", "/")
 
+        if "vars" in desc:
+            for k, v in desc["vars"].items():
+                hlocs["${" + k + "}"] = self.fill_placeholders(v, hlocs)
+
         # check if we should use python in this command:
         tools = self.get_component("tools")
         env_name = desc.get("custom_python_env", None)
