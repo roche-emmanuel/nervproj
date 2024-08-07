@@ -384,8 +384,24 @@ class NVPObject(object):
             if not self.dir_exists(parent_dir):
                 self.make_folder(parent_dir)
 
-        # shutil.move(src_path, dest_path)
-        os.rename(src_path, dest_path)
+        # Convert to absolute paths
+        src_path = os.path.abspath(src_path)
+        dest_path = os.path.abspath(dest_path)
+
+        if self.is_windows:
+            # Windows-specific long path handling
+            if len(src_path) > 260 or len(dest_path) > 260:
+                src_path = f"\\\\?\\{src_path}"
+                dest_path = f"\\\\?\\{dest_path}"
+
+        try:
+            shutil.move(src_path, dest_path)
+        except OSError as e:
+            if self.is_windows and getattr(e, "winerror", None) == 123:  # ERROR_INVALID_NAME
+                # If the \\?\ prefix doesn't work on Windows, try using os.rename
+                os.rename(src_path, dest_path)
+            else:
+                raise
 
     def rename_folder(self, src_path, dest_path, create_parent=False, remove_existing=False):
         """Rename a folder"""
