@@ -257,3 +257,28 @@ class NVPProject(NVPObject):
         """Try to retrieve a custom nodejs env from this project"""
         all_envs = self.config.get("nodejs_envs", {})
         return all_envs.get(env_name, None)
+
+    def resolve_object(self, container, key, hlocs=None):
+        """Resolve an object with either a platform or host suffix"""
+        desc = container.get(key, {})
+
+        desc.update(container.get(f"{key}.{self.ctx.get_platform()}", {}))
+
+        hname = self.get_hostname().lower()
+        desc.update(container.get(f"{key}.{hname}", {}))
+
+        if hlocs is not None:
+            desc = self.fill_placeholders(desc, hlocs)
+
+        return desc
+
+    def get_script_parameters(self):
+        """Get the script parameters in this project"""
+
+        params = self.resolve_object(self.config, "script_parameters")
+
+        desc = {}
+        for pname, pvalue in params.items():
+            desc[pname] = self.fill_placeholders(pvalue, params)
+
+        return desc
