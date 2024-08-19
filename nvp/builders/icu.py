@@ -39,5 +39,24 @@ class Builder(NVPBuilder):
         # The build dir should be changed to "source":
         build_dir = self.get_path(build_dir, "source")
 
-        self.run_configure(build_dir, prefix, ["--enable-static", "--disable-shared"])
+        flags = ["--enable-static", "--disable-shared"]
+        # emcc compilation not working.
+        if self.compiler.is_emcc():
+            # "--disable-tools",
+            # flags += ["--disable-tests", "--disable-samples", "--with-data-packaging=static"]
+            # cf. https://stackoverflow.com/questions/53880405/how-to-build-and-use-libicu-in-webassembly
+            flags = [
+                # "--with-cross-build=/home/kenshin/projects/NervProj/libraries/linux_clang/icu-66",
+                "--enable-static=yes",
+                "--enable-shared=no",
+                "--target=wasm32-unknown-emscripten",
+                "--with-data-packaging=static",
+                "--enable-icu-config",
+                "--enable-extras=no",
+                "--enable-tools=no",
+                "--enable-samples=no",
+                "--enable-tests=no",
+            ]
+
+        self.run_configure(build_dir, prefix, flags)
         self.run_make(build_dir)
