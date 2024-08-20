@@ -396,7 +396,6 @@ class QT6Builder(NVPBuilder):
             "-opensource",
             "-confirm-license",
             "-release",
-            "-icu",
             "-qt-doubleconversion",
             "-qt-pcre",
             "-qt-zlib",
@@ -407,10 +406,35 @@ class QT6Builder(NVPBuilder):
             "-qt-sqlite",
             "-qt-tiff",
             "-qt-webp",
-            "-openssl-runtime",
-            "-xcb-xlib",
-            "-xcb",
         ]
+
+        if self.compiler.is_emcc():
+            # get the host path for QT:
+            host_path = prefix.replace("linux_emcc", "linux_clang")
+            logger.info("QT host path is: %s", host_path)
+            self.check(self.dir_exists(host_path), "QT host path must exists.")
+
+            args += [
+                f"-qt-host-path {host_path}",
+                "-platform wasm-emscripten",
+                "-no-warnings-are-errors",
+                "-feature-thread",
+                "-static",
+                "-skip",
+                "qtwebengine",
+                "-skip",
+                "qtquick3d",
+                "-skip",
+                "qtquick3dphysics",
+            ]
+        else:
+            args += [
+                "-icu",
+                "-openssl-runtime",
+                "-xcb-xlib",
+                "-xcb",
+            ]
+
         # "-qt-assimp", "-webengine-icu=qt", "-qt-webengine-ffmpeg", "-qt-webengine-opus", "-qt-webengine-webp",
         args = " ".join(args)
 
