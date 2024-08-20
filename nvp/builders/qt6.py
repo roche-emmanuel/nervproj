@@ -1,5 +1,20 @@
 """This module provide the builder for the qt6 library."""
 
+# See this page for target emscripten versions: https://doc.qt.io/qt-6/wasm.html
+# Qt 6.2: 2.0.14
+# Qt 6.3: 3.0.0
+# Qt 6.4: 3.1.14
+# Qt 6.5: 3.1.25
+# Qt 6.6: 3.1.37
+# Qt 6.7: 3.1.50
+
+# To install we need for instance:
+# nvp emsdk install 3.1.50
+# nvp emsdk activate 3.1.50
+
+# Note: Can build QT6.4 with emscripten **3.1.35**
+# But now updating to version **3.1.64**
+
 import logging
 
 from nvp.core.build_manager import BuildManager
