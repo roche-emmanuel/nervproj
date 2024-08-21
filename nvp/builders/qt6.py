@@ -458,7 +458,7 @@ class QT6Builder(NVPBuilder):
                 "-icu",
                 # "-openssl-runtime",
                 "-openssl-linked",
-                "-openssl-static",
+                # "-openssl-static", (unknown command)
                 "-xcb-xlib",
                 "-xcb",
             ]
