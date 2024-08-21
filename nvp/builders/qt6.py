@@ -446,8 +446,8 @@ class QT6Builder(NVPBuilder):
             args += [
                 "-icu",
                 "-openssl-runtime",
-                "-xcb-xlib",
-                "-xcb",
+                # "-xcb-xlib",
+                # "-xcb",
             ]
 
         # "-qt-assimp", "-webengine-icu=qt", "-qt-webengine-ffmpeg", "-qt-webengine-opus", "-qt-webengine-webp",
