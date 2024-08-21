@@ -355,6 +355,8 @@ class QT6Builder(NVPBuilder):
         # Note: really need to install the following packages:
         # pkg-config
         # libnss3-dev libdbus-1-dev libcups2-dev libxkbcommon-dev libx11-xcb-dev
+        # libfontconfig1-dev
+        # libfreetype-dev
         # libx11-dev
         # libx11-xcb-dev
         # libxext-dev
@@ -362,6 +364,7 @@ class QT6Builder(NVPBuilder):
         # libxi-dev
         # libxrender-dev
         # libxcb1-dev
+        # libxcb-cursor-dev
         # libxcb-glx0-dev
         # libxcb-keysyms1-dev
         # libxcb-image0-dev
@@ -377,6 +380,7 @@ class QT6Builder(NVPBuilder):
         # libxcb-xkb-dev
         # libxkbcommon-dev
         # libxkbcommon-x11-dev
+
         # Additional libs for WebEngine:
         # libx11-dev libdrm-dev libxcomposite-dev libxcursor-dev libxrandr-dev libxi-dev x11proto-core-dev libxshmfence-dev libxtst-dev libxkbfile-dev libsecret-1-dev
         # X11:YES LIBDRM:YES XCOMPOSITE:NO XCURSOR:NO XRANDR:NO XI:YES XPROTO:YES XSHMFENCE:NO XTST:NO
@@ -446,8 +450,8 @@ class QT6Builder(NVPBuilder):
             args += [
                 "-icu",
                 "-openssl-runtime",
-                # "-xcb-xlib",
-                # "-xcb",
+                "-xcb-xlib",
+                "-xcb",
             ]
 
         # "-qt-assimp", "-webengine-icu=qt", "-qt-webengine-ffmpeg", "-qt-webengine-opus", "-qt-webengine-webp",
