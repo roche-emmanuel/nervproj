@@ -430,6 +430,8 @@ class QT6Builder(NVPBuilder):
             "qtwebengine",
             "-skip",
             "qtquick3dphysics",
+            "-skip",
+            "qtopcua",
         ]
 
         if self.compiler.is_emcc():
