@@ -401,6 +401,7 @@ class QT6Builder(NVPBuilder):
         # Trying to set the number of threads to use (but not sure this is really working ?)
         num_threads = max(min(self.cpu_count() - 4, 32), 1)
         self.env["CMAKE_BUILD_PARALLEL_LEVEL"] = f"{num_threads}"
+        self.env["OPENSSL_USE_STATIC_LIBS"] = "ON"
 
         cmake_args = " ".join(
             [
@@ -457,6 +458,7 @@ class QT6Builder(NVPBuilder):
             args += [
                 "-icu",
                 # "-openssl-runtime",
+                "-openssl",
                 "-openssl-linked",
                 # "-openssl-static", (unknown command)
                 "-xcb-xlib",
