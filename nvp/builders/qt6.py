@@ -449,6 +449,18 @@ class QT6Builder(NVPBuilder):
                 # "-skip",
                 # "qtquick3d",
             ]
+
+            # Need to patch the file:
+            # qtbase/src/plugins/platforms/wasm/qwasmcompositor.cpp
+            # for compatibility with emscripten 3.1.64
+            self.multi_patch_file(
+                self.get_path(build_dir, "qtbase/src/plugins/platforms/wasm/qwasmcompositor.cpp"),
+                (
+                    "static auto frame = [](double frameTime, void *context) -> int {",
+                    "static auto frame = [](double frameTime, void *context) -> EM_BOOL {",
+                ),
+            )
+
         else:
             ssl_dir = self.man.get_library_root_dir("openssl")
             self.compiler.append_cxxflag(f"-I{ssl_dir}/include")
