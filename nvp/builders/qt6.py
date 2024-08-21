@@ -447,9 +447,18 @@ class QT6Builder(NVPBuilder):
                 # "qtquick3d",
             ]
         else:
+            ssl_dir = self.man.get_library_root_dir("openssl")
+            self.compiler.append_cxxflag(f"-I{ssl_dir}/include")
+            self.compiler.append_cflag(f"-I{ssl_dir}/include")
+            self.compiler.append_ldflag(f"-L{ssl_dir}/lib64")
+            self.compiler.append_lib("-l:libssl.a")
+            self.compiler.append_lib("-l:libcrypto.a")
+
             args += [
                 "-icu",
-                "-openssl-runtime",
+                # "-openssl-runtime",
+                "-openssl-linked",
+                "-openssl-static",
                 "-xcb-xlib",
                 "-xcb",
             ]
