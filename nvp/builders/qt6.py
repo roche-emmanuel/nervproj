@@ -467,6 +467,13 @@ class QT6Builder(NVPBuilder):
                     "[](int, const EmscriptenUiEvent *, void *) -> EM_BOOL {",
                 ),
             )
+            self.multi_patch_file(
+                self.get_path(build_dir, "qtmultimedia/src/plugins/multimedia/wasm/common/qwasmvideooutput.cpp"),
+                (
+                    "static auto frame = [](double frameTime, void *context) -> int {",
+                    "static auto frame = [](double frameTime, void *context) -> EM_BOOL {",
+                ),
+            )
 
         else:
             ssl_dir = self.man.get_library_root_dir("openssl")
