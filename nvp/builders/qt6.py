@@ -421,6 +421,12 @@ class QT6Builder(NVPBuilder):
             "-qt-sqlite",
             "-qt-tiff",
             "-qt-webp",
+            "-skip",
+            "qtwebengine",
+            "-skip",
+            "qtquick3d",
+            "-skip",
+            "qtquick3dphysics",
         ]
 
         if self.compiler.is_emcc():
@@ -435,12 +441,6 @@ class QT6Builder(NVPBuilder):
                 "-no-warnings-are-errors",
                 "-feature-thread",
                 "-static",
-                "-skip",
-                "qtwebengine",
-                "-skip",
-                "qtquick3d",
-                "-skip",
-                "qtquick3dphysics",
             ]
         else:
             args += [
