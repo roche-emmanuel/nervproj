@@ -424,8 +424,6 @@ class QT6Builder(NVPBuilder):
             "-skip",
             "qtwebengine",
             "-skip",
-            "qtquick3d",
-            "-skip",
             "qtquick3dphysics",
         ]
 
@@ -441,6 +439,8 @@ class QT6Builder(NVPBuilder):
                 "-no-warnings-are-errors",
                 "-feature-thread",
                 "-static",
+                # "-skip",
+                # "qtquick3d",
             ]
         else:
             args += [
