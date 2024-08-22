@@ -48,7 +48,7 @@ class Builder(NVPBuilder):
         flags = [f"-DZLIB_INCLUDE_DIR={zlib_dir}/include", f"-DZLIB_LIBRARY={zlib_dir}/lib/libz.a"]
 
         if self.compiler.is_emcc():
-            flags += ["-DPNG_SHARED=OFF"]
+            flags += ["-DPNG_SHARED=OFF", '-DCMAKE_C_FLAGS="-pthread -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=4"']
 
         self.run_cmake(build_dir, prefix, ".", flags=flags)
 
