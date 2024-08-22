@@ -33,9 +33,10 @@ class HttpsServer(NVPComponent):
             port = self.get_param("port")
             index_file = self.get_param("index_file")
             use_chrome = self.get_param("use_chrome")
+            no_ssl = self.get_param("no_ssl")
             if index_file is None:
                 index_file = self.get_filename(root_dir) + ".html"
-            self.serve_directory(root_dir, port, index_file, use_chrome=use_chrome)
+            self.serve_directory(root_dir, port, index_file, use_chrome=use_chrome, use_ssl=not no_ssl)
             return True
 
         return False
@@ -63,7 +64,7 @@ class HttpsServer(NVPComponent):
         key_file = self.get_path(cert_dir, "nervtech.local_key.crt")
         return pem_file, key_file
 
-    def serve_directory(self, root_dir, port, index_file, use_chrome=False):
+    def serve_directory(self, root_dir, port, index_file, use_chrome=False, use_ssl=True):
         """Serve a given directory"""
         logger.info("Serving directory %s...", root_dir)
         os.chdir(root_dir)  # change the current working directory to the folder to serve
@@ -108,22 +109,23 @@ class HttpsServer(NVPComponent):
 
         httpd = http.server.HTTPServer(("localhost", port), MyRequestHandler)
 
-        # Add the ssl layer:
-        pem_file, key_file = self.gen_ssl_cert()
-        cert = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-        cert.load_cert_chain(pem_file, key_file)
+        if use_ssl:
+            # Add the ssl layer:
+            pem_file, key_file = self.gen_ssl_cert()
+            cert = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            cert.load_cert_chain(pem_file, key_file)
 
-        # wrap the server socket with SSL and start the server
-        httpd.socket = cert.wrap_socket(httpd.socket, server_side=True)
+            # wrap the server socket with SSL and start the server
+            httpd.socket = cert.wrap_socket(httpd.socket, server_side=True)
 
-        # logger.info("Serving at https://localhost:%d/%s", port, index_file)
-        if port == 443:
-            url = f"https://nervtech.local/{index_file}"
+            # logger.info("Serving at https://localhost:%d/%s", port, index_file)
+            if port == 443:
+                url = f"https://nervtech.local/{index_file}"
+            else:
+                url = f"https://nervtech.local:{port}/{index_file}"
         else:
-            url = f"https://nervtech.local:{port}/{index_file}"
-
-        # **Note**: will also work without SSL if we serve on localhost:
-        # url = f"http://localhost:{port}/{index_file}"
+            # **Note**: will also work without SSL if we serve on localhost:
+            url = f"http://localhost:{port}/{index_file}"
 
         logger.info("Serving at %s", url)
 
@@ -186,5 +188,6 @@ if __name__ == "__main__":
     psr.add_int("--port", dest="port", default=444)("Port where to serve the directory")
     psr.add_str("--index", dest="index_file")("Default index file to serve")
     psr.add_flag("--chrome", dest="use_chrome")("Specify that we should use chrome as browser")
+    psr.add_flag("--no-ssl", dest="no_ssl")("Disable ssl usage")
 
     comp.run()
