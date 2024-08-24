@@ -205,10 +205,12 @@ raspberry64_tools:
 
 # List of libraries that we can build:
 libraries:
-  - linux_url: https://www.zlib.net/zlib-1.2.13.tar.gz
+  # - linux_url: https://www.zlib.net/zlib-1.2.13.tar.gz
+  - linux_url: http://files.nervtech.org/nvp_packages/sources/zlib-1.2.13.tar.gz
     name: zlib
     version: 1.2.13
-    windows_url: https://www.zlib.net/zlib1213.zip
+    # windows_url: https://www.zlib.net/zlib1213.zip
+    windows_url: http://files.nervtech.org/nvp_packages/sources/zlib1213.zip
   - name: libiconv
     url: https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.16.tar.gz
     version: "1.16"
