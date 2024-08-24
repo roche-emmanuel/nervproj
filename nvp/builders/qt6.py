@@ -99,9 +99,36 @@ class QT6Builder(NVPBuilder):
         self.check(self.dir_exists(host_path), "QT host path must exists.")
 
         # self.env["QT_HOST_PATH"]=host_path
-        args = f"-qt-host-path {host_path} -platform wasm-emscripten -opensource"
-        args += " -confirm-license -no-warnings-are-errors -feature-thread -static"
-        args += " -skip qtwebengine -skip qtquick3d -skip qtquick3dphysics"
+
+        # args += " -skip qtwebengine -skip qtquick3d -skip qtquick3dphysics"
+        args = [
+            f"-qt-host-path {host_path} -platform wasm-emscripten -opensource",
+            " -confirm-license -no-warnings-are-errors -feature-thread -static",
+            " -skip qtwebengine -skip qtquick3dphysics" "-optimize-full",
+            "-opensource",
+            "-confirm-license",
+            "-release",
+            "-qt-doubleconversion",
+            "-qt-pcre",
+            "-qt-zlib",
+            "-qt-freetype",
+            "-qt-harfbuzz",
+            "-qt-libpng",
+            "-qt-libjpeg",
+            "-qt-sqlite",
+            "-qt-tiff",
+            "-qt-webp",
+            "-skip",
+            "qtwebengine",
+            "-skip",
+            "qtquick3dphysics",
+            "-skip",
+            "qtopcua",
+        ]
+
+        args = " ".join(args)
+
+        self.patch_emscripten_files(build_dir)
 
         em_dir = self.compiler.get_cxx_dir()
         cmake_args = f"-DCMAKE_TOOLCHAIN_FILE={em_dir}/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_SUPPRESS_DEVELOPER_WARNINGS=1"
@@ -349,6 +376,34 @@ class QT6Builder(NVPBuilder):
 
         logger.info("Done building QT6.")
 
+    def patch_emscripten_files(self, build_dir):
+        """Patch the emscripten files for support of v3.1.64"""
+
+        # Need to patch the file:
+        # qtbase/src/plugins/platforms/wasm/qwasmcompositor.cpp
+        # for compatibility with emscripten 3.1.64
+        self.multi_patch_file(
+            self.get_path(build_dir, "qtbase/src/plugins/platforms/wasm/qwasmcompositor.cpp"),
+            (
+                "static auto frame = [](double frameTime, void *context) -> int {",
+                "static auto frame = [](double frameTime, void *context) -> EM_BOOL {",
+            ),
+        )
+        self.multi_patch_file(
+            self.get_path(build_dir, "qtbase/src/plugins/platforms/wasm/qwasmintegration.cpp"),
+            (
+                "[](int, const EmscriptenUiEvent *, void *) -> int {",
+                "[](int, const EmscriptenUiEvent *, void *) -> EM_BOOL {",
+            ),
+        )
+        self.multi_patch_file(
+            self.get_path(build_dir, "qtmultimedia/src/plugins/multimedia/wasm/common/qwasmvideooutput.cpp"),
+            (
+                "static auto frame = [](double frameTime, void *context) -> int {",
+                "static auto frame = [](double frameTime, void *context) -> EM_BOOL {",
+            ),
+        )
+
     def build_on_linux(self, build_dir, prefix, _desc):
         """Build method for QT6 on linux"""
 
@@ -450,30 +505,7 @@ class QT6Builder(NVPBuilder):
                 # "qtquick3d",
             ]
 
-            # Need to patch the file:
-            # qtbase/src/plugins/platforms/wasm/qwasmcompositor.cpp
-            # for compatibility with emscripten 3.1.64
-            self.multi_patch_file(
-                self.get_path(build_dir, "qtbase/src/plugins/platforms/wasm/qwasmcompositor.cpp"),
-                (
-                    "static auto frame = [](double frameTime, void *context) -> int {",
-                    "static auto frame = [](double frameTime, void *context) -> EM_BOOL {",
-                ),
-            )
-            self.multi_patch_file(
-                self.get_path(build_dir, "qtbase/src/plugins/platforms/wasm/qwasmintegration.cpp"),
-                (
-                    "[](int, const EmscriptenUiEvent *, void *) -> int {",
-                    "[](int, const EmscriptenUiEvent *, void *) -> EM_BOOL {",
-                ),
-            )
-            self.multi_patch_file(
-                self.get_path(build_dir, "qtmultimedia/src/plugins/multimedia/wasm/common/qwasmvideooutput.cpp"),
-                (
-                    "static auto frame = [](double frameTime, void *context) -> int {",
-                    "static auto frame = [](double frameTime, void *context) -> EM_BOOL {",
-                ),
-            )
+            self.patch_emscripten_files(build_dir)
 
         else:
             ssl_dir = self.man.get_library_root_dir("openssl")
