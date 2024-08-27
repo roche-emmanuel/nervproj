@@ -90,9 +90,11 @@ class NVPProject(NVPObject):
 
                 # if we had no project root dir in the config then we can build one using the provided project names:
                 if "project_root_dir" not in scfg:
+                    logger.info("Searching project root dir for %s", scfg["names"][0])
                     proj_dir = self.find_project_folder(scfg["names"][0])
                     if proj_dir is None:
                         # Use our parent project path as fallback:
+                        logger.info("Using default parent dir for sub proj %s: %s", scfg["names"][0], proj_path)
                         proj_dir = proj_path
 
                     # Assign parent path as root path:
