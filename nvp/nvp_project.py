@@ -108,7 +108,8 @@ class NVPProject(NVPObject):
         params = self.get_script_parameters()
 
         # Fill all the placeholders in the config:
-        self.config = self.fill_placeholders(self.config, params)
+        hlocs = {f"${{{key}}}": val for key, val in params.items()}
+        self.config = self.fill_placeholders(self.config, hlocs)
 
         # Keep track of the scripts:
         self.scripts = self.config.get("scripts", {})
@@ -251,17 +252,20 @@ class NVPProject(NVPObject):
 
         params = self.ctx.resolve_object(self.config, "script_parameters")
 
-        rdir = self.get_root_dir()
-        if rdir is not None and "PROJECT_ROOT_DIR" not in params:
-            params["PROJECT_ROOT_DIR"] = rdir
+        hlocs = {
+            "${PROJECT_ROOT_DIR}": self.get_root_dir(),
+        }
 
         pdir = self.config.get("parent_root_dir", None)
-        if pdir is not None and "PARENT_ROOT_DIR" not in params:
-            params["PARENT_ROOT_DIR"] = pdir
+        if pdir is not None:
+            hlocs["${PARENT_ROOT_DIR}"] = pdir
+
+        for key, val in params.items():
+            hlocs[f"${{{key}}}"] = val
 
         desc = {}
         for pname, pvalue in params.items():
-            desc[pname] = self.fill_placeholders(pvalue, params)
+            desc[pname] = self.fill_placeholders(pvalue, hlocs)
 
         return desc
 
