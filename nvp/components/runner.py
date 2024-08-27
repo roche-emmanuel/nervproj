@@ -181,8 +181,8 @@ class ScriptRunner(NVPComponent):
 
             # We should not have both "script" and "cmd" entries:
             self.check("cmd" not in desc, "Should not have cmd here")
-            self.check("windows_cmd" not in desc, "Should not have windows_cmd here")
-            self.check("linux_cmd" not in desc, "Should not have linux_cmd here")
+            self.check("cmd.windows" not in desc, "Should not have cmd.windows here")
+            self.check("cmd.linux" not in desc, "Should not have cmd.linux here")
 
             # Retrieve the curresponding script desc:
             # The name of the script will be the first word, and the
@@ -213,7 +213,7 @@ class ScriptRunner(NVPComponent):
                 if "script" in desc2:
                     desc2["script"] += f" {args}"
                 else:
-                    for key in ["cmd", f"{self.platform}_cmd"]:
+                    for key in ["cmd", f"cmd.{self.platform}"]:
                         if key in desc2:
                             desc2[key] += f" {args}"
 
@@ -221,8 +221,7 @@ class ScriptRunner(NVPComponent):
             self.run_script_desc(desc2, sname, proj)
             return
 
-        key = f"{self.platform}_cmd"
-        cmd = desc[key] if key in desc else desc["cmd"]
+        cmd = self.ctx.resolve_object(desc, "cmd")
 
         hlocs = {}
         # Note the project root dir below might still be None:
