@@ -777,6 +777,12 @@ scripts:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/tools/netcdf_manager.py extract_schemas
     python_path: ["${NVP_ROOT_DIR}"]
 
+  cdf_compare_schemas:
+    notify: false
+    custom_python_env: cdf_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/tools/netcdf_manager.py compare_schemas
+    python_path: ["${NVP_ROOT_DIR}"]
+
 # Notify in case of script error:
 notify_script_errors: true
 
@@ -910,6 +916,7 @@ custom_python_envs:
     packages:
       - xarray
       - netcdf4
+      - deepdiff
 
 # Available dynamic components:
 components:
