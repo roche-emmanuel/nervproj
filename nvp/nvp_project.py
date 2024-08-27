@@ -112,6 +112,12 @@ class NVPProject(NVPObject):
 
         # Fill all the placeholders in the config:
         hlocs = {f"${{{key}}}": val for key, val in params.items()}
+        hlocs["${PROJECT_ROOT_DIR}"] = self.get_root_dir()
+
+        pdir = self.config.get("parent_root_dir", None)
+        if pdir is not None and "${PARENT_ROOT_DIR}" not in hlocs:
+            hlocs["${PARENT_ROOT_DIR}"] = pdir
+
         self.config = self.fill_placeholders(self.config, hlocs)
 
         # Keep track of the scripts:
