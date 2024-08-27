@@ -909,6 +909,7 @@ custom_python_envs:
     inherit: default_env
     packages:
       - xarray
+      - netcdf4
 
 # Available dynamic components:
 components:

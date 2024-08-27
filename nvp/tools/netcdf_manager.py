@@ -5,6 +5,7 @@ import logging
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
+from nvp.tools.ncschema import NCSchema
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,11 @@ class NetCDFManager(NVPComponent):
 
         logger.info("Should write schema for %s to %s", input_file, output_file)
 
+        # Create an NCSchema for this file:
+        schema = NCSchema(input_file)
+        logger.info("Extracted %d variables.", len(schema.variables))
+        schema.write_yaml_file(output_file)
+
 
 if __name__ == "__main__":
     # Create the context:
@@ -49,5 +55,8 @@ if __name__ == "__main__":
 
     psr = context.build_parser("extract_schemas")
     psr.add_str("-p", "--pattern", dest="pattern", default="\.nc$")("Input file pattern")
+
+    # psr = context.build_parser("compare_schemas")
+    # psr.add_str("-p", "--pattern", dest="pattern", default="\.schema\.yaml$")("Schema file pattern")
 
     comp.run()
