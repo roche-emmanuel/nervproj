@@ -771,13 +771,13 @@ scripts:
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/core/admin.py json-to-yaml
     python_path: ["${NVP_ROOT_DIR}"]
 
-  cdf_extract_schemas:
+  cdf_sch_extract:
     notify: false
     custom_python_env: cdf_env
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/tools/netcdf_manager.py extract_schemas
     python_path: ["${NVP_ROOT_DIR}"]
 
-  cdf_compare_schemas:
+  cdf_sch_compare:
     notify: false
     custom_python_env: cdf_env
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/tools/netcdf_manager.py compare_schemas

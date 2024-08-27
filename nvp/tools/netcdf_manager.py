@@ -47,6 +47,7 @@ class NetCDFManager(NVPComponent):
                 return True
 
             # Read the first schema as reference:
+            logger.info("Comparing schemas...")
             ref_schema = self.read_yaml(self.get_path(folder, all_files[0]))
             all_files.pop(0)
 
@@ -88,6 +89,14 @@ class NetCDFManager(NVPComponent):
         ]
 
         count = 0
+        for change_type, changes in diff.items():
+            for change, change_details in changes.items():
+                if change in ignored_changes:
+                    continue
+                count += 1
+
+        if count == 0:
+            return False
 
         logger.info("Differences found:")
         for change_type, changes in diff.items():
@@ -96,11 +105,9 @@ class NetCDFManager(NVPComponent):
                 for change, change_details in changes.items():
                     if change in ignored_changes:
                         continue
-
                     ref_value = change_details.get("old_value", "N/A")
                     cur_value = change_details.get("new_value", "N/A")
                     logger.info("  %s: %s -> %s", change, ref_value, cur_value)
-                    count += 1
             elif change_type in [
                 "dictionary_item_added",
                 "dictionary_item_removed",
@@ -112,11 +119,9 @@ class NetCDFManager(NVPComponent):
                         logger.info("  %s: None -> %s", change, changes[change])
                     else:  # removed
                         logger.info("  %s: %s -> None", change, changes[change])
-                    count += 1
             else:
                 for change in changes:
                     logger.info("  %s", change)
-                    count += 1
 
         return True
 
