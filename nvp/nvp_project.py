@@ -141,7 +141,7 @@ class NVPProject(NVPObject):
 
         if "project_root_dir" in self.config:
             self.root_dir = self.config["project_root_dir"]
-            # logger.info("Using custom subproject root dir: %s", self.root_dir)
+            logger.info("Using custom subproject root dir: %s", self.root_dir)
             return self.root_dir
 
         proj_path = self.find_project_folder(self.get_name(False), self.desc.get("paths", None))
