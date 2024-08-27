@@ -759,12 +759,28 @@ class NVPContext(NVPObject):
 
     def resolve_object(self, container, key, hlocs=None):
         """Resolve an object with either a platform or host suffix"""
-        desc = container.get(key, {})
-
-        desc.update(container.get(f"{key}.{self.get_platform()}", {}))
-
         hname = self.get_hostname().lower()
-        desc.update(container.get(f"{key}.{hname}", {}))
+        key2 = f"{key}.{self.get_platform()}"
+        key3 = f"{key}.{hname}"
+
+        desc = None
+        desc = container.get(key, None)
+
+        if key2 in container:
+            if desc is None:
+                desc = container[key2]
+            elif isinstance(desc, dict):
+                desc.update(container[key2])
+            else:
+                desc = container[key2]
+
+        if key3 in container:
+            if desc is None:
+                desc = container[key3]
+            elif isinstance(desc, dict):
+                desc.update(container[key3])
+            else:
+                desc = container[key3]
 
         if hlocs is not None:
             desc = self.fill_placeholders(desc, hlocs)

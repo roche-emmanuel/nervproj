@@ -260,12 +260,13 @@ class NVPProject(NVPObject):
         if pdir is not None:
             hlocs["${PARENT_ROOT_DIR}"] = pdir
 
-        for key, val in params.items():
-            hlocs[f"${{{key}}}"] = val
-
         desc = {}
-        for pname, pvalue in params.items():
-            desc[pname] = self.fill_placeholders(pvalue, hlocs)
+        if params is not None:
+            for key, val in params.items():
+                hlocs[f"${{{key}}}"] = val
+
+            for pname, pvalue in params.items():
+                desc[pname] = self.fill_placeholders(pvalue, hlocs)
 
         return desc
 
