@@ -83,6 +83,7 @@ class NVPProject(NVPObject):
                     hlocs = {"${PARENT_ROOT_DIR}": proj_path}
                     sub_root_dir = self.fill_placeholders(sub_root_dir, hlocs)
                     scfg["project_root_dir"] = sub_root_dir
+                    logger.info("Found project root dir for %s: %s", scfg["names"][0], sub_root_dir)
 
                 if "names" not in scfg:
                     # Add the names from the parent project:
