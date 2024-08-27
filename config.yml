@@ -771,6 +771,12 @@ scripts:
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/core/admin.py json-to-yaml
     python_path: ["${NVP_ROOT_DIR}"]
 
+  cdf_extract_schemas:
+    notify: false
+    custom_python_env: cdf_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/tools/netcdf_manager.py extract_schemas
+    python_path: ["${NVP_ROOT_DIR}"]
+
 # Notify in case of script error:
 notify_script_errors: true
 
@@ -898,6 +904,11 @@ custom_python_envs:
       # - docx2pdf
       - fontawesome
       # - unoconv
+
+  cdf_env:
+    inherit: default_env
+    packages:
+      - xarray
 
 # Available dynamic components:
 components:
