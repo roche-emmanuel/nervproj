@@ -85,7 +85,7 @@ class ScriptRunner(NVPComponent):
         projs = self.ctx.get_projects()
         sparams = {}
         for proj in projs:
-            params = proj.get_config().get("script_parameters", {})
+            params = proj.get_script_parameters()
             for pname, pval in params.items():
                 if pname in sparams and sparams[pname] != pval:
                     logger.warning(

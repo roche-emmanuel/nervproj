@@ -24,9 +24,6 @@ class NVPProject(NVPObject):
 
         self.config.update(desc)
 
-        # We might have some "scripts" already registered for that project from the desc:
-        self.scripts = self.desc.get("scripts", {})
-
         proj_path = self.get_root_dir()
 
         # dir0 = self.config.get("parent_root_dir", "parent")
@@ -46,9 +43,6 @@ class NVPProject(NVPObject):
                 cfg = self.read_yaml(cfg_file)
                 # logger.info("Project %s config: %s", self.get_name(False), cfg)
                 self.config.update(cfg)
-
-            # Update the scripts from what we just read from the config:
-            self.scripts.update(self.config.get("scripts", {}))
 
             # Note: the nvp_plug system bellow is obsolete and should be removed eventually:
             if ctx.is_master_context() and self.file_exists(proj_path, "nvp_plug.py") and not is_local_sub_proj:
@@ -110,20 +104,14 @@ class NVPProject(NVPObject):
                 sproj = NVPProject(scfg, self.ctx)
                 self.ctx.add_project(sproj)
 
-        # For each available script we replace the $PROJECT_ROOT_DIR variable where applicable:
-        hlocs = {"${PROJECT_ROOT_DIR}": proj_path}
-        if "parent_root_dir" in self.config:
-            hlocs["${PARENT_ROOT_DIR}"] = self.config["parent_root_dir"]
+        # Get the script parameters:
+        params = self.get_script_parameters()
 
-        for _, desc in self.scripts.items():
-            # for entry in ["cmd", "windows_cmd", "linux_cmd", "cwd", "python_path"]:
-            #     if entry in desc:
-            for entry in desc:
-                desc[entry] = self.fill_placeholders(desc[entry], hlocs)
+        # Fill all the placeholders in the config:
+        self.config = self.fill_placeholders(self.config, params)
 
-        script_parameters = self.config.get("script_parameters", {})
-        for pname, pval in script_parameters.items():
-            script_parameters[pname] = self.fill_placeholders(pval, hlocs)
+        # Keep track of the scripts:
+        self.scripts = self.config.get("scripts", {})
 
     def has_name(self, pname):
         """Check if this project has the given name"""
@@ -258,27 +246,29 @@ class NVPProject(NVPObject):
         all_envs = self.config.get("nodejs_envs", {})
         return all_envs.get(env_name, None)
 
-    def resolve_object(self, container, key, hlocs=None):
-        """Resolve an object with either a platform or host suffix"""
-        desc = container.get(key, {})
-
-        desc.update(container.get(f"{key}.{self.ctx.get_platform()}", {}))
-
-        hname = self.get_hostname().lower()
-        desc.update(container.get(f"{key}.{hname}", {}))
-
-        if hlocs is not None:
-            desc = self.fill_placeholders(desc, hlocs)
-
-        return desc
-
     def get_script_parameters(self):
         """Get the script parameters in this project"""
 
-        params = self.resolve_object(self.config, "script_parameters")
+        params = self.ctx.resolve_object(self.config, "script_parameters")
+
+        rdir = self.get_root_dir()
+        if rdir is not None and "PROJECT_ROOT_DIR" not in params:
+            params["PROJECT_ROOT_DIR"] = rdir
+
+        pdir = self.config.get("parent_root_dir", None)
+        if pdir is not None and "PARENT_ROOT_DIR" not in params:
+            params["PARENT_ROOT_DIR"] = pdir
 
         desc = {}
         for pname, pvalue in params.items():
             desc[pname] = self.fill_placeholders(pvalue, params)
 
         return desc
+
+    def get_parameter(self, pname, hlocs=None):
+        """Resolve a parameter by name"""
+        res = self.ctx.resolve_object(self.config, pname)
+        if hlocs is None:
+            return res
+
+        return self.fill_placeholders(res, hlocs)

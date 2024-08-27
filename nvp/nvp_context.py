@@ -756,3 +756,17 @@ class NVPContext(NVPObject):
         """Call a given handler with arguments"""
         handler = self.get_handler(hname)
         return handler(*args, **kwargs)
+
+    def resolve_object(self, container, key, hlocs=None):
+        """Resolve an object with either a platform or host suffix"""
+        desc = container.get(key, {})
+
+        desc.update(container.get(f"{key}.{self.get_platform()}", {}))
+
+        hname = self.get_hostname().lower()
+        desc.update(container.get(f"{key}.{hname}", {}))
+
+        if hlocs is not None:
+            desc = self.fill_placeholders(desc, hlocs)
+
+        return desc
