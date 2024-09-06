@@ -1006,12 +1006,17 @@ class NVPObject(object):
             logger.info("Returncode: %d", proc.returncode)
             return True, proc.returncode, None
 
+    def ensure_trailing_slash(self, folder_path):
+        """Add trailing slash to folder if needed."""
+        return folder_path if folder_path.endswith(("/", "\\")) else folder_path + "/"
+
     def get_all_files(self, folder, exp=".*", recursive=False):
         """Get all the files matching a given pattern in a folder."""
 
         # prepare a pattern:
         p = re.compile(exp)
-        num = len(folder) + 1
+        folder = self.ensure_trailing_slash(folder)
+        num = len(folder)
         if recursive:
             # Retrieve all files in a given folder recursively
             res = []
