@@ -5,6 +5,9 @@ import logging
 import os
 import sys
 
+import numpy as np
+from PIL import Image
+
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
 
@@ -563,6 +566,36 @@ class AdminManager(NVPComponent):
         self.write_yaml(content, dst_file, sort_keys=sort_keys)
         logger.info("Saved %s as %s", input_file, dst_file)
 
+    def compare_images(self, image1_path, image2_path, tolerance=0.05):
+        """Compare 2 images with a given tolerance threshold."""
+        # Open images
+        img1 = Image.open(image1_path)
+        img2 = Image.open(image2_path)
+
+        # Ensure images are the same size
+        if img1.size != img2.size:
+            return False
+
+        # Ensure images are in the same mode (RGB, RGBA, etc.)
+        if img1.mode != img2.mode:
+            return False
+
+        # Convert images to numpy arrays (as float to avoid overflow)
+        arr1 = np.array(img1, dtype=np.float32)
+        arr2 = np.array(img2, dtype=np.float32)
+
+        # Calculate the difference
+        diff = np.abs(arr1 - arr2)
+
+        # Calculate the maximum possible difference (account for all channels)
+        max_diff = 255.0 * np.prod(arr1.shape)
+
+        # Calculate the actual difference percentage
+        diff_percentage = np.sum(diff) / max_diff
+
+        # Compare with tolerance
+        return diff_percentage <= tolerance
+
     def compare_folders(self, input_folder, ref_folder):
         """Compare 2 folders."""
 
@@ -597,8 +630,14 @@ class AdminManager(NVPComponent):
                 ref_size = self.get_file_size(ref_path)
 
                 if cur_size != ref_size:
-                    logger.info("File %s size changed: %d => %d", rfile, ref_size, cur_size)
-                    diffs += 1
+                    are_similar = False
+                    if self.get_path_extension(rfile).lower() == ".png":
+                        # logger.info("Comparing %s images...", rfile)
+                        are_similar = self.compare_images(cur_path, ref_path, 0.001)
+
+                    if not are_similar:
+                        logger.info("File %s size changed: %d => %d", rfile, ref_size, cur_size)
+                        diffs += 1
 
         if diffs == 0:
             logger.info("Folders are identical.")
