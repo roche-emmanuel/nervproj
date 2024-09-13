@@ -633,7 +633,7 @@ class AdminManager(NVPComponent):
                     are_similar = False
                     if self.get_path_extension(rfile).lower() == ".png":
                         # logger.info("Comparing %s images...", rfile)
-                        are_similar = self.compare_images(cur_path, ref_path, 0.0004)
+                        are_similar = self.compare_images(cur_path, ref_path, 0.0005)
 
                     if not are_similar:
                         logger.info("File %s size changed: %d => %d", rfile, ref_size, cur_size)
