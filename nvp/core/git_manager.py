@@ -236,6 +236,11 @@ class GitManager(NVPComponent):
                         logger.error("Could not push repository %s", proj.get_name())
             return True
 
+        if cmd == "checkout":
+            hash_str = self.get_param("hash_str")
+            self.execute_git(["checkout", hash_str])
+            return True
+
         return False
 
     def execute_git(self, args, cwd=None):
@@ -371,6 +376,9 @@ if __name__ == "__main__":
     comp = context.get_component("git")
 
     context.define_subparsers("main", ["status", "diff", "setup", "push", "pull", "pullall", "pushall"])
+
+    psr = context.build_parser("checkout")
+    psr.add_str("hash_str")(help="Name of the hash to checkout")
 
     psr = context.build_parser("clone")
     psr.add_str("dest_folder", nargs="?", default=None)(help="Name of the folder where to checkout the project")
