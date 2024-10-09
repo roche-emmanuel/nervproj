@@ -609,7 +609,7 @@ scripts:
     notify: false
     help: Check if 2 folders have the same files content.
     custom_python_env: media_env
-    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/admin.py compare-folders
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/dev_utils.py compare-folders
     python_path: ["${NVP_ROOT_DIR}"]
 
   concat-media:
