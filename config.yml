@@ -6,6 +6,7 @@ msvc_install_paths:
   - D:\Softs\VisualStudio2022CE
   - D:\Softs\VisualStudio\VS2022
   - D:\Softs\VisualStudio\VS2017
+  - C:\Softs\VisualStudio2022
 
 # No ssh keys by default:
 ssh: {}
