@@ -1,12 +1,13 @@
 """Collection of tools utility functions"""
+
 import logging
 import os
 import sys
+import tarfile
 import time
+import zipfile
 from datetime import datetime
 
-import zipfile
-import tarfile
 import requests
 import urllib3
 
@@ -46,6 +47,8 @@ class ToolsManager(NVPComponent):
         tools = self.config[f"{self.platform}_tools"]
 
         sep = "\\" if self.is_windows else "/"
+
+        post_callbacks = []
 
         for desc in tools:
             tname = desc["name"]
@@ -92,8 +95,8 @@ class ToolsManager(NVPComponent):
                             fname = f"_post_install_{desc['name']}_{self.platform}"
                             postinst = self.get_method(fname.lower())
                             if postinst is not None:
-                                logger.info("Running post install for %s...", full_name)
-                                postinst(install_path, desc)
+                                # Store the post install callback to run it afterwards:
+                                post_callbacks.append([full_name, postinst, install_path, desc])
 
                             # Remove the source package:
                             # self.remove_file(pkg_file)
@@ -125,6 +128,10 @@ class ToolsManager(NVPComponent):
                     }
                     self.tools[sub_name] = sdesc
                     self.add_execute_permission(sdesc["path"])
+
+        for lname, cb, ipath, desc in post_callbacks:
+            logger.info("Running post install for %s...", lname)
+            cb(ipath, desc)
 
     def build_tool(self, full_name, desc):
         """Build a tool package from sources"""
