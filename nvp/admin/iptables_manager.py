@@ -140,7 +140,7 @@ class IPTablesManager(NVPComponent):
         """Write the filter policies."""
         key = desc[source]
         pols = self.config["policies"][key]
-        for k, v in pols:
+        for k, v in pols.items():
             cmd = f"{prefix} -P {k} {v}"
             self.run_ipt(cmd)
 
