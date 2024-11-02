@@ -106,6 +106,7 @@ class IPTablesManager(NVPComponent):
         rules = self.list_rules()
 
         self.write_text_file(rules, file)
+        logger.info("Saved iptables rules to file %s", file)
 
     def load_rules(self, file, flush=True):
         """Load the current iptable rules."""
@@ -114,12 +115,13 @@ class IPTablesManager(NVPComponent):
 
         app = "ip6tables-restore" if self.ipv == 6 else "iptables-restore"
         cmd = ["sudo", app, file]
-        stdout, stderr, returncode = self.execute_command(cmd)
+        _, stderr, returncode = self.execute_command(cmd)
 
         if returncode != 0:
             logger.error("Failed to restore rules from %s: %s", file, stderr)
             return
-        logger.info(stdout)
+
+        logger.info("Loaded iptables rules to file %s", file)
 
 
 if __name__ == "__main__":
