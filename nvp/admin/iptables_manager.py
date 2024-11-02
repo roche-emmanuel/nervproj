@@ -42,6 +42,11 @@ class IPTablesManager(NVPComponent):
             self.load_rules(file)
             return True
 
+        if cmd == "write":
+            cfg = self.get_param("config_name")
+            self.write_rules(cfg)
+            return True
+
         return False
 
     def get_rules_file(self, key="filename"):
@@ -124,6 +129,56 @@ class IPTablesManager(NVPComponent):
 
         logger.info("Loaded iptables rules to file %s", file)
 
+    def write_policies(self, desc, source, prefix=""):
+        """Write the filter policies."""
+        key = desc[source]
+        pols = self.config["policies"][key]
+        for k, v in pols:
+            cmd = f"{prefix} -P {k} {v}"
+            logger.info("Running: %s", cmd)
+            # self.run_ipt("-P INPUT ACCEPT")
+
+    def write_filter_policies(self, desc):
+        """Write the filter policies."""
+        self.write_policies(desc, "filter_policies")
+
+    def write_nat_policies(self, desc):
+        """Write the nat policies."""
+        self.write_policies(desc, "nat_policies", "-t nat")
+
+    def write_rule(self, desc, rname, values, hlocs):
+        """Write a rule template with the given values."""
+
+        entries = desc["templates"][rname]
+
+        for entry in entries:
+            entry = self.fill_placeholders(entry, hlocs)
+            for val in values:
+                cmd = self.fill_placeholders(entry, {"${VALUE}": str(val)})
+                logger.info("Running: %s", cmd)
+                # self.run_ipt("-P INPUT ACCEPT")
+
+    def write_rules(self, cfg_name, flush=True):
+        """Write the rules from a given config."""
+        # First we flush the rules:
+        # if flush:
+        # self.flush_all()
+
+        desc = self.config[cfg_name]
+
+        # Write the policies:
+        self.write_filter_policies(desc)
+        self.write_nat_policies(desc)
+
+        # Prepare the hlocs:
+        vdescs = desc["variables"]
+        hlocs = {f"${{{vname}}}": val for vname, val in vdescs.items()}
+
+        # Write the rules:
+        rdescs = desc["rules"]
+        for rname, values in rdescs.items():
+            self.write_rule(desc, rname, values, hlocs)
+
 
 if __name__ == "__main__":
     # Create the context:
@@ -147,5 +202,8 @@ if __name__ == "__main__":
     psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
         "File where to load the IPtable rules from."
     )
+
+    psr = context.build_parser("write")
+    psr.add_str("cfg_name", dest="config_name")("Config to write.")
 
     comp.run()
