@@ -33,8 +33,14 @@ class IPTablesManager(NVPComponent):
 
         if cmd == "save":
             file = self.get_param("filename")
-            file = file.replace("${IPV}", self.ipv)
+            file = file.replace("${IPV}", str(self.ipv))
             self.save_rules(file)
+            return True
+
+        if cmd == "load":
+            file = self.get_param("filename")
+            file = file.replace("${IPV}", str(self.ipv))
+            self.load_rules(file)
             return True
 
         return False
@@ -90,10 +96,23 @@ class IPTablesManager(NVPComponent):
 
     def save_rules(self, file):
         """Save the current iptable rules."""
-
         rules = self.list_rules()
 
         self.write_text_file(rules, file)
+
+    def load_rules(self, file, flush=True):
+        """Load the current iptable rules."""
+        if flush:
+            self.flush_all()
+
+        app = "ip6tables-restore" if self.ipv == 6 else "iptables-restore"
+        cmd = ["sudo", app, file]
+        stdout, stderr, returncode = self.execute_command(cmd)
+
+        if returncode != 0:
+            logger.error("Failed to restore rules from %s: %s", file, stderr)
+            return
+        logger.info(stdout)
 
 
 if __name__ == "__main__":
@@ -104,13 +123,19 @@ if __name__ == "__main__":
     comp = context.register_component("IPTablesManager", IPTablesManager(context))
 
     psr = context.build_parser("list")
+    psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
     psr.add_str("-c", "--chain", dest="chain")("Target chain for the listing.")
-    psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version for the listing.")
 
     psr = context.build_parser("save")
-    psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version for the listing.")
+    psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
     psr.add_str("-f", "--file", dest="filename", default="~/.nvp/iptable_rules.v${IPV}")(
         "File where to save the IPtable rules."
+    )
+
+    psr = context.build_parser("load")
+    psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
+    psr.add_str("-f", "--file", dest="filename", default="~/.nvp/iptable_rules.v${IPV}")(
+        "File where to load the IPtable rules from."
     )
 
     comp.run()
