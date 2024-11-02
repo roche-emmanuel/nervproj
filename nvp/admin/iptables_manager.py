@@ -16,6 +16,7 @@ class IPTablesManager(NVPComponent):
         """Component constructor"""
         NVPComponent.__init__(self, ctx)
         self.ipv = 4
+        self.dryrun = False
         self.config = ctx.get_config().get("iptables", {})
         logger.info("iptables configs: %s", self.config)
 
@@ -23,6 +24,7 @@ class IPTablesManager(NVPComponent):
         """Re-implementation of process_cmd_path"""
 
         self.ipv = self.get_param("ip_version", 4)
+        self.dryrun = self.get_param("dry_run", False)
 
         if cmd == "list":
             chain = self.get_param("chain")
@@ -79,6 +81,11 @@ class IPTablesManager(NVPComponent):
             args = shlex.split(args)
 
         cmd = ["sudo", app] + args
+
+        if self.dryrun:
+            logger.info("Dryrun: %s", " ".join(cmd))
+            return ""
+
         stdout, stderr, returncode = self.execute_command(cmd)
 
         if returncode != 0:
@@ -135,8 +142,7 @@ class IPTablesManager(NVPComponent):
         pols = self.config["policies"][key]
         for k, v in pols:
             cmd = f"{prefix} -P {k} {v}"
-            logger.info("Running: %s", cmd)
-            # self.run_ipt("-P INPUT ACCEPT")
+            self.run_ipt(cmd)
 
     def write_filter_policies(self, desc):
         """Write the filter policies."""
@@ -155,14 +161,13 @@ class IPTablesManager(NVPComponent):
             entry = self.fill_placeholders(entry, hlocs)
             for val in values:
                 cmd = self.fill_placeholders(entry, {"${VALUE}": str(val)})
-                logger.info("Running: %s", cmd)
-                # self.run_ipt("-P INPUT ACCEPT")
+                self.run_ipt(cmd)
 
     def write_rules(self, cfg_name, flush=True):
         """Write the rules from a given config."""
         # First we flush the rules:
-        # if flush:
-        # self.flush_all()
+        if flush:
+            self.flush_all()
 
         desc = self.config[cfg_name]
 
@@ -205,5 +210,5 @@ if __name__ == "__main__":
 
     psr = context.build_parser("write")
     psr.add_str("cfg_name", dest="config_name")("Config to write.")
-
+    psr.add_flag("-d", "--dry-run", dest="dry_run")("Specify dryrun flag")
     comp.run()
