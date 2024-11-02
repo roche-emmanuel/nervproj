@@ -86,6 +86,7 @@ class IPTablesManager(NVPComponent):
             logger.info("Dryrun: %s", " ".join(cmd))
             return ""
 
+        logger.info("running: %s", " ".join(cmd))
         stdout, stderr, returncode = self.execute_command(cmd)
 
         if returncode != 0:
