@@ -791,6 +791,12 @@ scripts:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/tools/netcdf_manager.py compare_schemas
     python_path: ["${NVP_ROOT_DIR}"]
 
+  ipt:
+    notify: false
+    custom_python_env: min_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/admin/iptables_manager.py
+    python_path: ["${NVP_ROOT_DIR}"]
+
 # Notify in case of script error:
 notify_script_errors: true
 
