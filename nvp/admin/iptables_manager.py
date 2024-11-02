@@ -16,7 +16,7 @@ class IPTablesManager(NVPComponent):
         """Component constructor"""
         NVPComponent.__init__(self, ctx)
         self.ipv = 4
-        self.config = ctx.get_config().get("ip_tables", {})
+        self.config = ctx.get_config().get("iptables", {})
         logger.info("iptables configs: %s", self.config)
 
     def process_cmd_path(self, cmd):
