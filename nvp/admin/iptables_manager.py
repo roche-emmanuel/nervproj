@@ -152,10 +152,10 @@ class IPTablesManager(NVPComponent):
         """Write the nat policies."""
         self.write_policies(desc, "nat_policies", "-t nat")
 
-    def write_rule(self, desc, rname, values, hlocs):
+    def write_rule(self, rname, values, hlocs):
         """Write a rule template with the given values."""
 
-        entries = desc["templates"][rname]
+        entries = self.config["templates"][rname]
 
         for entry in entries:
             entry = self.fill_placeholders(entry, hlocs)
@@ -182,7 +182,7 @@ class IPTablesManager(NVPComponent):
         # Write the rules:
         rdescs = desc["rules"]
         for rname, values in rdescs.items():
-            self.write_rule(desc, rname, values, hlocs)
+            self.write_rule(rname, values, hlocs)
 
 
 if __name__ == "__main__":
