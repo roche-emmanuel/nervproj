@@ -18,7 +18,7 @@ class IPTablesManager(NVPComponent):
         self.ipv = 4
         self.dryrun = False
         self.config = ctx.get_config().get("iptables", {})
-        logger.info("iptables configs: %s", self.config)
+        # logger.info("iptables configs: %s", self.config)
 
     def process_cmd_path(self, cmd):
         """Re-implementation of process_cmd_path"""
