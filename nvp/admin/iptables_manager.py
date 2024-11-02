@@ -209,6 +209,6 @@ if __name__ == "__main__":
     )
 
     psr = context.build_parser("write")
-    psr.add_str("cfg_name", dest="config_name")("Config to write.")
+    psr.add_str("config_name")("Config to write.")
     psr.add_flag("-d", "--dry-run", dest="dry_run")("Specify dryrun flag")
     comp.run()
