@@ -182,8 +182,13 @@ class IPTablesManager(NVPComponent):
 
         # Write the rules:
         rdescs = desc["rules"]
-        for rname, values in rdescs.items():
-            self.write_rule(rname, values, hlocs)
+        for rdesc in rdescs:
+            if isinstance(rdesc, str):
+                # This is a simple rule with no values:
+                self.write_rule(rdesc, [0], hlocs)
+            else:
+                for rname, values in rdesc.items():
+                    self.write_rule(rname, values, hlocs)
 
 
 if __name__ == "__main__":
