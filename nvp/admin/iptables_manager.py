@@ -32,18 +32,25 @@ class IPTablesManager(NVPComponent):
             return True
 
         if cmd == "save":
-            file = self.get_param("filename")
-            file = file.replace("${IPV}", str(self.ipv))
+            file = self.get_rules_file()
             self.save_rules(file)
             return True
 
         if cmd == "load":
-            file = self.get_param("filename")
-            file = file.replace("${IPV}", str(self.ipv))
+            file = self.get_rules_file()
             self.load_rules(file)
             return True
 
         return False
+
+    def get_rules_file(self, key="filename"):
+        """Retrieve the filled rules filename."""
+        file = self.get_param(key)
+        file = file.replace("${HOME}", self.ctx.get_home_dir())
+        file = file.replace("${IPV}", str(self.ipv))
+        folder = self.get_parent_folder(file)
+        self.make_folder(folder)
+        return file
 
     def list_rules(self, _chain=None):
         """List iptables rules."""
@@ -128,13 +135,13 @@ if __name__ == "__main__":
 
     psr = context.build_parser("save")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str("-f", "--file", dest="filename", default="~/.nvp/iptable_rules.v${IPV}")(
+    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
         "File where to save the IPtable rules."
     )
 
     psr = context.build_parser("load")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str("-f", "--file", dest="filename", default="~/.nvp/iptable_rules.v${IPV}")(
+    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
         "File where to load the IPtable rules from."
     )
 
