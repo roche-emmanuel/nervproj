@@ -177,7 +177,7 @@ class IPTablesManager(NVPComponent):
         self.write_nat_policies(desc)
 
         # Prepare the hlocs:
-        vdescs = self.config["variables"]
+        vdescs = desc["variables"]
         hlocs = {f"${{{vname}}}": val for vname, val in vdescs.items()}
 
         # Write the rules:
