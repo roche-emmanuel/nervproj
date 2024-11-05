@@ -17,7 +17,11 @@ class IPTablesManager(NVPComponent):
         NVPComponent.__init__(self, ctx)
         self.ipv = 4
         self.dryrun = False
-        self.config = ctx.get_config().get("iptables", {})
+        self.config = ctx.get_config().get("iptables")
+        if self.config is None:
+            self.config = self.ctx.get_project("NervHome").get_config().get("iptables")
+
+        self.check(self.config is not None, "Invalid iptables config.")
         # logger.info("iptables configs: %s", self.config)
 
     def process_cmd_path(self, cmd):
