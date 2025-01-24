@@ -819,7 +819,7 @@ custom_python_envs:
   media_env:
     inherit: default_env
     packages:
-      - moviepy
+      - moviepy==1.0.3
       - pydub
       - Pillow
       - ffmpeg-python
