@@ -415,6 +415,13 @@ libraries:
   - name: yaclib
     version: 20240802
     git: git@github.com:roche-emmanuel/YACLib.git
+  - name: cgal
+    version: 20250216
+    git: git@github.com:roche-emmanuel/cgal.git
+  - name: manifold
+    version: git-20250216
+    # git: git@github.com:roche-emmanuel/manifold.git
+    windows_url: http://files.nervtech.org/nvp_packages/sources/manifold-git-20250216-windows.7z
 
 # list of available projects:
 projects: []
