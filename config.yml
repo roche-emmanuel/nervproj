@@ -292,8 +292,10 @@ libraries:
     version: 1.15.0
     url: git@github.com:roche-emmanuel/hdf5.git
   - name: hdf4
-    version: 4.2.16
-    url: https://support.hdfgroup.org/ftp/HDF/releases/HDF4.2.16/src/hdf-4.2.16.zip
+    # version: 4.2.16
+    # url: https://support.hdfgroup.org/ftp/HDF/releases/HDF4.2.16/src/hdf-4.2.16.zip
+    version: 4.3.0
+    url: http://files.nervtech.org/nvp_packages/sources/hdf4-4.3.0.7z
   - name: proj4
     version: 8.2.1
     url: https://github.com/OSGeo/PROJ/releases/download/8.2.1/proj-8.2.1.zip
