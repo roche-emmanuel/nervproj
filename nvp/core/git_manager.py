@@ -187,6 +187,11 @@ class GitManager(NVPComponent):
             self.git_pull(cwd)
             return True
 
+        if cmd == "fetch":
+            cwd = self.get_canonical_cwd()
+            self.git_fetch(cwd)
+            return True
+
         if cmd == "setup":
             # Setup the git configuration
             self.setup_global_config()
@@ -327,6 +332,10 @@ class GitManager(NVPComponent):
         """perform git pull from a given folder"""
         self.execute_git(["pull"], cwd=folder)
 
+    def git_fetch(self, folder):
+        """perform git fetch from a given folder"""
+        self.execute_git(["fetch"], cwd=folder)
+
     def git_checkout(self, folder, discard=False, branch=None):
         """perform git pull from a given folder"""
         cmd = ["checkout"]
@@ -375,7 +384,7 @@ if __name__ == "__main__":
     # Add our component:
     comp = context.get_component("git")
 
-    context.define_subparsers("main", ["status", "diff", "setup", "push", "pull", "pullall", "pushall"])
+    context.define_subparsers("main", ["status", "diff", "setup", "push", "pull", "pullall", "pushall", "fetch"])
 
     psr = context.build_parser("checkout")
     psr.add_str("hash_str")(help="Name of the hash to checkout")
