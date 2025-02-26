@@ -815,6 +815,10 @@ notify_script_errors: true
 # Available custom python environments:
 custom_python_envs:
   default_env:
+    pre_packages:
+      - pip
+      - wheel
+      - setuptools
     packages:
       - requests
       - jstyleson
