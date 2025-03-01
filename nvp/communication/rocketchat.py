@@ -27,7 +27,7 @@ class RocketChat(NVPComponent):
         # Get the config for this component:
         self.config = ctx.get_config().get("rocketchat", None)
 
-        logger.info("rocketchat config is: {}", self.config)
+        logger.info("rocketchat config is: %s", self.config)
         self.user_id = None
         self.token = None
         self.base_url = None
