@@ -53,6 +53,10 @@ class IPTablesManager(NVPComponent):
             self.write_rules(cfg)
             return True
 
+        if cmd == "update_sets":
+            self.update_ipsets()
+            return True
+
         return False
 
     def get_rules_file(self, key="filename"):
@@ -194,6 +198,10 @@ class IPTablesManager(NVPComponent):
                 for rname, values in rdesc.items():
                     self.write_rule(rname, values, hlocs)
 
+    def update_ipsets(self):
+        """Update the ipsets."""
+        logger.info("Should update ipsets here.")
+
 
 if __name__ == "__main__":
     # Create the context:
@@ -217,6 +225,8 @@ if __name__ == "__main__":
     psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
         "File where to load the IPtable rules from."
     )
+
+    psr = context.build_parser("update_sets")
 
     psr = context.build_parser("write")
     psr.add_str("config_name")("Config to write.")
