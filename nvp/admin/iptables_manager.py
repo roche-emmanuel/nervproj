@@ -3,6 +3,7 @@
 import logging
 import re
 import shlex
+from datetime import datetime
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -326,11 +327,80 @@ class IPTablesManager(NVPComponent):
 
         # Print results
         # for ip, mac, iface in devices:
-        #     print(f"IP: {ip}, MAC: {mac}, Interface: {iface}")
+        #     print(f"IP: {ip}, MAC: {mac.upper()}, Interface: {iface}")
 
         return {
             elem[1]: (elem[0], elem[2]) for elem in devices if elem[1] != "INCOMPLETE"
         }
+
+    def check_in_schedule(self, schedule):
+        """Check if current time is in schedule."""
+
+        if schedule == "always":
+            return True
+
+        if schedule == "never":
+            return False
+
+        # get the current day:
+        now = datetime.now()
+        day = now.weekday()
+        day_map = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+        day_str = day_map[day]
+
+        cur_hour = now.hour
+        cur_min = now.minute
+        cur_sec = now.second
+
+        cur_ts = cur_hour * 3600 + cur_min * 60 + cur_sec
+
+        factor = 1.0
+
+        # Iterate on each rule:
+        for rule in schedule:
+            if "days" in rule:
+                active_days = rule["days"].split("|")
+                if day_str not in active_days:
+                    # Rule not applicable today
+                    continue
+
+            # Get the start time:
+            parts = rule["start"].split(":")
+            if len(parts) == 2:
+                parts.append("0")
+            start_ts = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+
+            parts = rule["end"].split(":")
+            if len(parts) == 2:
+                parts.append("0")
+            end_ts = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+
+            if end_ts < start_ts:
+                # In this case we add 24hours to the end:
+                end_ts += 24 * 3600
+
+            # Apply the factor on the duration:
+            delta_secs = float(end_ts - start_ts)
+            end_ts = int(start_ts + delta_secs * factor)
+
+            end_ts = max(end_ts, start_ts)
+
+            # After scaling, determine if end time is now on the next day or current day
+            is_overnight_after_scaling = end_ts > 24 * 3600
+
+            if is_overnight_after_scaling:
+                # Remove 1 full day in this case:
+                adjusted_end_ts = end_ts - 24 * 3600
+
+                # Handle overnight case
+                if cur_ts >= start_ts or cur_ts < adjusted_end_ts:
+                    return True
+            else:
+                # Normal same-day schedule
+                if start_ts <= cur_ts < end_ts:
+                    return True
+
+        return False
 
     def update_mac_wl(self):
         """Update the WAN access rule"""
@@ -344,17 +414,17 @@ class IPTablesManager(NVPComponent):
         if not self.has_set(sname):
             logger.info("Creating set %s", sname)
             self.create_set(sname, "hash:net")
-        l0 = self.has_set(sname)
-        logger.info("Has mac_whitelist: %s", l0)
-        l1 = self.has_set("blacklist")
-        logger.info("Has blacklist: %s", l1)
+        # l0 = self.has_set(sname)
+        # logger.info("Has mac_whitelist: %s", l0)
+        # l1 = self.has_set("blacklist")
+        # logger.info("Has blacklist: %s", l1)
 
         macs = self.config["mac_addresses"]
         grps = self.config["mac_groups"]
 
         prev_list = self.get_set_content(sname)
         logger.info("Previous list contained %d elements", len(prev_list))
-
+        changes = False
         found = []
 
         # First we add all the IPs that are not on the eno2/eno1 interfaces:
@@ -369,21 +439,24 @@ class IPTablesManager(NVPComponent):
 
                 logger.info("Adding IP %s for MAC %s on %s", ip, mac, desc[1])
                 self.add_to_set(sname, ip)
+                changes = True
             else:
                 found.append(ip)
 
         # Iterate on the enable groups:
         sch = self.config.get("internet_schedule", {})
-        for grp_name, state in sch.items():
+        for grp_name, schedule in sch.items():
             # logger.info("%s: %s", grp_name, state)
             # Add each element from that group to the set:
             grp = grps[grp_name]
-            if state == "always":
+
+            if self.check_in_schedule(schedule):
                 for elem in grp:
                     mac = macs[elem].upper()
 
                     # If that MAC is not connected, we ignore it:
                     if mac not in mac_map:
+                        # logger.info("Mac %s not connected", mac)
                         continue
 
                     ip = mac_map[mac][0]
@@ -397,7 +470,9 @@ class IPTablesManager(NVPComponent):
                     if ip not in prev_list:
                         logger.info("Adding IP %s for MAC %s", ip, mac)
                         self.add_to_set(sname, ip)
+                        changes = True
                     else:
+                        # logger.info("IP %s already in list", ip, mac)
                         found.append(ip)
 
         # Remove the non wanted elements:
@@ -405,9 +480,11 @@ class IPTablesManager(NVPComponent):
         for elem in to_remove:
             logger.info("Removing IP '%s' from set.", elem)
             self.remove_from_set(sname, elem)
+            changes = True
 
-        content = self.get_set_content(sname)
-        logger.info("Final set content: %s", content)
+        if changes:
+            content = self.get_set_content(sname)
+            logger.info("Updated IP whitelist: %s", content)
 
     # def update_mac_wl(self):
     #     """Update the WAN access rule"""
