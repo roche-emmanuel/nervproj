@@ -423,7 +423,7 @@ class IPTablesManager(NVPComponent):
         grps = self.config["mac_groups"]
 
         prev_list = self.get_set_content(sname)
-        logger.info("Previous list contained %d elements", len(prev_list))
+        # logger.info("Previous list contained %d elements", len(prev_list))
         changes = False
         found = []
 
@@ -468,7 +468,9 @@ class IPTablesManager(NVPComponent):
                         continue
 
                     if ip not in prev_list:
-                        logger.info("Adding IP %s for MAC %s", ip, mac)
+                        logger.info(
+                            "Adding IP %s for MAC %s (grp: %s)", ip, mac, grp_name
+                        )
                         self.add_to_set(sname, ip)
                         changes = True
                     else:
@@ -478,13 +480,14 @@ class IPTablesManager(NVPComponent):
         # Remove the non wanted elements:
         to_remove = [elem for elem in prev_list if elem not in found]
         for elem in to_remove:
-            logger.info("Removing IP '%s' from set.", elem)
+            logger.info("Removing IP %s from set", elem)
             self.remove_from_set(sname, elem)
             changes = True
 
         if changes:
             content = self.get_set_content(sname)
-            logger.info("Updated IP whitelist: %s", content)
+            # logger.info("Updated IP whitelist: %s", content)
+            logger.info("Updated IP whitelist contains %d elements.", len(content))
 
     # def update_mac_wl(self):
     #     """Update the WAN access rule"""
