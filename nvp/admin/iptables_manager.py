@@ -470,15 +470,20 @@ class IPTablesManager(NVPComponent):
 
                     ip = mac_map[mac][0]
                     if ip != ref_ip:
-                        # TODO: Clarify what to do here.
-                        logger.error(
-                            "Detected IP mismatch for %s (MAC %s): expected: %s, got: %s",
-                            elem,
-                            mac,
-                            ref_ip,
-                            ip,
-                        )
-                        # continue
+                        allowed = False
+                        if ip == "192.168.2.8" and ref_ip == "192.168.2.25":
+                            # manu_uranus case allowed:
+                            allowed = True
+
+                        if not allowed:
+                            logger.error(
+                                "Detected IP mismatch for %s (MAC %s): expected: %s, got: %s",
+                                elem,
+                                mac,
+                                ref_ip,
+                                ip,
+                            )
+                            continue
 
                     if ip not in prev_list:
                         logger.info(
