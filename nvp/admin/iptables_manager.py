@@ -1,6 +1,7 @@
 """IPTablesManager handling component"""
 
 import logging
+import re
 import shlex
 
 from nvp.nvp_component import NVPComponent
@@ -58,6 +59,15 @@ class IPTablesManager(NVPComponent):
             self.update_mac_wl()
             return True
 
+        if cmd == "update_ebt":
+            self.update_ebtables()
+            return True
+
+        # if cmd == "monitor":
+        #     iname = self.get_param("intf_name")
+        #     self.monitor_traffic(iname)
+        #     return True
+
         return False
 
     def get_rules_file(self, key="filename"):
@@ -85,6 +95,48 @@ class IPTablesManager(NVPComponent):
     def run_ipt(self, args):
         """Run the iptables command."""
         app = "ip6tables" if self.ipv == 6 else "iptables"
+
+        if isinstance(args, str):
+            args = shlex.split(args)
+
+        cmd = ["sudo", app] + args
+
+        if self.dryrun:
+            logger.info("Dryrun: %s", " ".join(cmd))
+            return ""
+
+        logger.info("running: %s", " ".join(cmd))
+        stdout, stderr, returncode = self.execute_command(cmd)
+
+        if returncode != 0:
+            self.throw("Failed to execute command %s: %s", cmd, stderr)
+
+        return stdout
+
+    def run_arp(self, args):
+        """Run the iptables command."""
+        app = "arp"
+
+        if isinstance(args, str):
+            args = shlex.split(args)
+
+        cmd = [app] + args
+
+        if self.dryrun:
+            logger.info("Dryrun: %s", " ".join(cmd))
+            return ""
+
+        # logger.info("running: %s", " ".join(cmd))
+        stdout, stderr, returncode = self.execute_command(cmd)
+
+        if returncode != 0:
+            self.throw("Failed to execute command %s: %s", cmd, stderr)
+
+        return stdout
+
+    def run_ebt(self, args):
+        """Run the ebtables command."""
+        app = "ebtables"
 
         if isinstance(args, str):
             args = shlex.split(args)
@@ -152,7 +204,7 @@ class IPTablesManager(NVPComponent):
         mac_section = out.split("Members:")[1]
 
         # Split by lines and strip whitespace to get clean MAC addresses
-        mac_list = [mac.strip() for mac in mac_section.strip().split("\n")]
+        mac_list = [mac.strip() for mac in mac_section.strip().split("\n") if mac != ""]
 
         return mac_list
 
@@ -252,16 +304,46 @@ class IPTablesManager(NVPComponent):
                 for rname, values in rdesc.items():
                     self.write_rule(rname, values, hlocs)
 
+    def get_mac_ip_mapping(self):
+        """Get the MAC/IP mapping with arp"""
+        cmd = ["arp", "-n"]
+
+        arp_output = self.run_arp("-n")
+
+        # Regular expression to match IP, MAC, and Interface
+        pattern = re.compile(
+            r"(\d+\.\d+\.\d+\.\d+)\s+(?:ether\s+([\da-f:]+)\s+)?\S*\s+(\S+)"
+        )
+
+        # Extracted data
+        devices = []
+
+        for match in pattern.finditer(arp_output):
+            ip = match.group(1)
+            mac = match.group(2) if match.group(2) else "INCOMPLETE"
+            interface = match.group(3)
+            devices.append((ip, mac.upper(), interface))
+
+        # Print results
+        # for ip, mac, iface in devices:
+        #     print(f"IP: {ip}, MAC: {mac}, Interface: {iface}")
+
+        return {
+            elem[1]: (elem[0], elem[2]) for elem in devices if elem[1] != "INCOMPLETE"
+        }
+
     def update_mac_wl(self):
         """Update the WAN access rule"""
         grps = self.config.get("mac_groups", {})
-        logger.info("Found MAC groups:: %s", grps)
+        # logger.info("Found MAC groups:: %s", grps)
         sname = "mac_whitelist"
+
+        mac_map = self.get_mac_ip_mapping()
 
         # create the set if needed:
         if not self.has_set(sname):
             logger.info("Creating set %s", sname)
-            self.create_set(sname, "hash:mac")
+            self.create_set(sname, "hash:net")
         l0 = self.has_set(sname)
         logger.info("Has mac_whitelist: %s", l0)
         l1 = self.has_set("blacklist")
@@ -275,6 +357,21 @@ class IPTablesManager(NVPComponent):
 
         found = []
 
+        # First we add all the IPs that are not on the eno2/eno1 interfaces:
+        for mac, desc in mac_map.items():
+            ip = desc[0]
+
+            if desc[1] in ["eno1", "eno2"]:
+                continue
+
+            if ip not in prev_list:
+                self.check(ip not in found, "Ip %s was already whitelisted.", ip)
+
+                logger.info("Adding IP %s for MAC %s on %s", ip, mac, desc[1])
+                self.add_to_set(sname, ip)
+            else:
+                found.append(ip)
+
         # Iterate on the enable groups:
         sch = self.config.get("internet_schedule", {})
         for grp_name, state in sch.items():
@@ -284,23 +381,88 @@ class IPTablesManager(NVPComponent):
             if state == "always":
                 for elem in grp:
                     mac = macs[elem].upper()
-                    if mac not in prev_list:
-                        logger.info("Adding MAC %s for %s", mac, elem)
-                        self.add_to_set(sname, mac)
+
+                    # If that MAC is not connected, we ignore it:
+                    if mac not in mac_map:
+                        continue
+
+                    ip = mac_map[mac][0]
+                    intf = mac_map[mac][1]
+                    if intf != "eno2":
+                        logger.info(
+                            "Ignoring IP/MAC %s/%s in interface %s", ip, mac, intf
+                        )
+                        continue
+
+                    if ip not in prev_list:
+                        logger.info("Adding IP %s for MAC %s", ip, mac)
+                        self.add_to_set(sname, ip)
                     else:
-                        found.append(mac)
+                        found.append(ip)
 
         # Remove the non wanted elements:
         to_remove = [elem for elem in prev_list if elem not in found]
         for elem in to_remove:
-            logger.info("Removing MAC %s from set.", elem)
+            logger.info("Removing IP '%s' from set.", elem)
             self.remove_from_set(sname, elem)
 
         content = self.get_set_content(sname)
         logger.info("Final set content: %s", content)
 
-    def update_ebtables(self):
-        """Update the ebtables."""
+    # def update_mac_wl(self):
+    #     """Update the WAN access rule"""
+    #     grps = self.config.get("mac_groups", {})
+
+    #     # Clear ebtable:
+    #     self.run_ebt("-F FORWARD")
+
+    #     macs = self.config["mac_addresses"]
+    #     grps = self.config["mac_groups"]
+
+    #     cmd = '-A FORWARD -i eno3 -j LOG --log-prefix "[forbidden_dst_mac]: "'
+    #     cmd += " --log-tcp-options --log-ip-options"
+
+    #     self.run_ebt(cmd)
+
+    # # Iterate on the enable groups:
+    # sch = self.config.get("internet_schedule", {})
+    # for grp_name, state in sch.items():
+    #     # logger.info("%s: %s", grp_name, state)
+    #     # Add each element from that group to the set:
+    #     grp = grps[grp_name]
+    #     if state == "always":
+    #         for elem in grp:
+    #             mac = macs[elem].upper()
+    #             if mac not in prev_list:
+    #                 logger.info("Adding MAC %s for %s", mac, elem)
+    #                 self.add_to_set(sname, mac)
+    #             else:
+    #                 found.append(mac)
+
+    # # Remove the non wanted elements:
+    # to_remove = [elem for elem in prev_list if elem not in found]
+    # for elem in to_remove:
+    #     logger.info("Removing MAC %s from set.", elem)
+    #     self.remove_from_set(sname, elem)
+
+    # content = self.get_set_content(sname)
+    # logger.info("Final set content: %s", content)
+
+    # def update_ebtables(self):
+    #     """Update the ebtables."""
+    #     # self.run_ebt("-A FORWARD -i eno3 -m set ! --match-set mac_whitelist dst -j DROP")
+    #     self.run_ebt("-F FORWARD")
+
+    #     cmd = "-A FORWARD -i eno3 -m set --match-set mac_whitelist dst --match-set-flags dst ! src"
+    #     cmd += ' -j LOG --log-prefix "[forbidden_dst_mac]: " --log-tcp-options --log-ip-options'
+    #     self.run_ebt(cmd)
+
+    #     # self.run_ebt("-A FORWARD -i eno3 -m set ! --match-set mac_whitelist dst -j DROP")
+
+    # def monitor_traffic(self, iname):
+    #     """Monitor the net traffic."""
+    #     cmd = ["sudo", "iftop", "-nBP", "-i", iname]
+    #     self.execute(cmd)
 
 
 if __name__ == "__main__":
@@ -325,6 +487,12 @@ if __name__ == "__main__":
     psr.add_str(
         "-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}"
     )("File where to load the IPtable rules from.")
+
+    # This will not work for now:
+    # psr = context.build_parser("monitor")
+    # psr.add_str("-i", dest="intf_name")("Interface to monitor.")
+
+    psr = context.build_parser("update_ebt")
 
     psr = context.build_parser("update_mac_whitelist")
     # psr.add_str("config_name")("Config to write.")
