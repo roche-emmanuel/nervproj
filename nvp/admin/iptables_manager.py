@@ -53,8 +53,9 @@ class IPTablesManager(NVPComponent):
             self.write_rules(cfg)
             return True
 
-        if cmd == "update_sets":
-            self.update_ipsets()
+        if cmd == "update_mac_whitelist":
+            # cfg = self.get_param("config_name")
+            self.update_mac_wl()
             return True
 
         return False
@@ -101,6 +102,59 @@ class IPTablesManager(NVPComponent):
             self.throw("Failed to execute command %s: %s", cmd, stderr)
 
         return stdout
+
+    def run_ipset(self, args, retcode=False):
+        """Run the ipset command."""
+        app = "ipset"
+
+        if isinstance(args, str):
+            args = shlex.split(args)
+
+        cmd = ["sudo", app] + args
+
+        if self.dryrun:
+            logger.info("Dryrun: %s", " ".join(cmd))
+            return ""
+
+        # logger.info("running: %s", " ".join(cmd))
+        stdout, stderr, returncode = self.execute_command(cmd)
+
+        if retcode:
+            return returncode
+
+        if returncode != 0:
+            self.throw("Failed to execute command %s: %s", cmd, stderr)
+
+        return stdout
+
+    def has_set(self, set_name):
+        """Check if a given set exists."""
+        res = self.run_ipset(f"list {set_name}", True)
+        return res == 0
+
+    def create_set(self, sname, htype):
+        """Create an ipset."""
+        self.run_ipset(["create", sname, htype])
+
+    def add_to_set(self, sname, entry):
+        """Create an element to a set"""
+        self.run_ipset(["add", sname, entry])
+
+    def remove_from_set(self, sname, entry):
+        """Remove an element from a set."""
+        self.run_ipset(["del", sname, entry])
+
+    def get_set_content(self, sname):
+        """Get content of one set."""
+        out = self.run_ipset(["list", sname])
+
+        # Split the string by "Members:" and take the second part
+        mac_section = out.split("Members:")[1]
+
+        # Split by lines and strip whitespace to get clean MAC addresses
+        mac_list = [mac.strip() for mac in mac_section.strip().split("\n")]
+
+        return mac_list
 
     def flush_all(self):
         """Flush all the rules."""
@@ -198,9 +252,55 @@ class IPTablesManager(NVPComponent):
                 for rname, values in rdesc.items():
                     self.write_rule(rname, values, hlocs)
 
-    def update_ipsets(self):
-        """Update the ipsets."""
-        logger.info("Should update ipsets here.")
+    def update_mac_wl(self):
+        """Update the WAN access rule"""
+        grps = self.config.get("mac_groups", {})
+        logger.info("Found MAC groups:: %s", grps)
+        sname = "mac_whitelist"
+
+        # create the set if needed:
+        if not self.has_set(sname):
+            logger.info("Creating set %s", sname)
+            self.create_set(sname, "hash:mac")
+        l0 = self.has_set(sname)
+        logger.info("Has mac_whitelist: %s", l0)
+        l1 = self.has_set("blacklist")
+        logger.info("Has blacklist: %s", l1)
+
+        macs = self.config["mac_addresses"]
+        grps = self.config["mac_groups"]
+
+        prev_list = self.get_set_content(sname)
+        logger.info("Previous list contained %d elements", len(prev_list))
+
+        found = []
+
+        # Iterate on the enable groups:
+        sch = self.config.get("internet_schedule", {})
+        for grp_name, state in sch.items():
+            # logger.info("%s: %s", grp_name, state)
+            # Add each element from that group to the set:
+            grp = grps[grp_name]
+            if state == "always":
+                for elem in grp:
+                    mac = macs[elem].upper()
+                    if mac not in prev_list:
+                        logger.info("Adding MAC %s for %s", mac, elem)
+                        self.add_to_set(sname, mac)
+                    else:
+                        found.append(mac)
+
+        # Remove the non wanted elements:
+        to_remove = [elem for elem in prev_list if elem not in found]
+        for elem in to_remove:
+            logger.info("Removing MAC %s from set.", elem)
+            self.remove_from_set(sname, elem)
+
+        content = self.get_set_content(sname)
+        logger.info("Final set content: %s", content)
+
+    def update_ebtables(self):
+        """Update the ebtables."""
 
 
 if __name__ == "__main__":
@@ -216,17 +316,18 @@ if __name__ == "__main__":
 
     psr = context.build_parser("save")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
-        "File where to save the IPtable rules."
-    )
+    psr.add_str(
+        "-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}"
+    )("File where to save the IPtable rules.")
 
     psr = context.build_parser("load")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
-        "File where to load the IPtable rules from."
-    )
+    psr.add_str(
+        "-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}"
+    )("File where to load the IPtable rules from.")
 
-    psr = context.build_parser("update_sets")
+    psr = context.build_parser("update_mac_whitelist")
+    # psr.add_str("config_name")("Config to write.")
 
     psr = context.build_parser("write")
     psr.add_str("config_name")("Config to write.")
