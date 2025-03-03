@@ -10,7 +10,7 @@ from nvp.nvp_context import NVPContext
 
 logger = logging.getLogger(__name__)
 
-NTP_SERVERS = [
+NTP_SERVERS = {
     "128.138.140.44",
     "66.243.43.2",
     "192.36.144.22",
@@ -25,11 +25,9 @@ NTP_SERVERS = [
     "192.6.38.127",
     "216.133.140.77",
     "140.221.8.88",
-    "66.243.43.2",
-    "128.138.140.44",
     "131.107.13.100",
     "129.6.15.28",
-]
+}
 
 
 class IPTablesManager(NVPComponent):
@@ -436,7 +434,7 @@ class IPTablesManager(NVPComponent):
             logger.info("NTP server list ipset %s already exists", sname)
             return
 
-        self.create_set(sname, "hash:net", NTP_SERVERS)
+        self.create_set(sname, "hash:net", list(NTP_SERVERS))
         logger.info("Created NTP server list ipset %s", sname)
 
     def update_mac_wl(self):
