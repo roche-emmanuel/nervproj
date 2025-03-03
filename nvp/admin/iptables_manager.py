@@ -10,6 +10,27 @@ from nvp.nvp_context import NVPContext
 
 logger = logging.getLogger(__name__)
 
+NTP_SERVERS = [
+    "128.138.140.44",
+    "66.243.43.2",
+    "192.36.144.22",
+    "139.78.100.163",
+    "131.107.1.10",
+    "199.165.76.11",
+    "140.142.16.34",
+    "137.146.210.250",
+    "129.7.1.66",
+    "192.43.244.18",
+    "158.121.104.4",
+    "192.6.38.127",
+    "216.133.140.77",
+    "140.221.8.88",
+    "66.243.43.2",
+    "128.138.140.44",
+    "131.107.13.100",
+    "129.6.15.28",
+]
+
 
 class IPTablesManager(NVPComponent):
     """IPTablesManager component class"""
@@ -60,8 +81,8 @@ class IPTablesManager(NVPComponent):
             self.update_mac_wl()
             return True
 
-        if cmd == "update_ebt":
-            self.update_ebtables()
+        if cmd == "update_ntp_list":
+            self.create_ntp_list()
             return True
 
         # if cmd == "monitor":
@@ -185,9 +206,16 @@ class IPTablesManager(NVPComponent):
         res = self.run_ipset(f"list {set_name}", True)
         return res == 0
 
-    def create_set(self, sname, htype):
+    def create_set(self, sname, htype, elements=None):
         """Create an ipset."""
         self.run_ipset(["create", sname, htype])
+
+        if elements is None:
+            return
+
+        # If we have elements we should add them here:
+        for elem in elements:
+            self.add_to_set(sname, elem)
 
     def add_to_set(self, sname, entry):
         """Create an element to a set"""
@@ -327,6 +355,8 @@ class IPTablesManager(NVPComponent):
         # for ip, mac, iface in devices:
         #     print(f"IP: {ip}, MAC: {mac.upper()}, Interface: {iface}")
 
+        # Note: here we have to be careful with the wifi extender MAC addresses:
+        # because we will see the extender MAC address associated to
         return {elem[1]: (elem[0], elem[2]) for elem in devices if elem[1] != "INCOMPLETE"}
 
     def check_in_schedule(self, schedule):
@@ -397,6 +427,17 @@ class IPTablesManager(NVPComponent):
                     return True
 
         return False
+
+    def create_ntp_list(self):
+        """Create the ntp servers list."""
+        sname = "ntp_servers"
+
+        if self.has_set(sname):
+            logger.info("NTP server list ipset %s already exists", sname)
+            return
+
+        self.create_set(sname, "hash:net", NTP_SERVERS)
+        logger.info("Created NTP server list ipset %s", sname)
 
     def update_mac_wl(self):
         """Update the WAN access rule"""
@@ -511,61 +552,6 @@ class IPTablesManager(NVPComponent):
             # logger.info("Updated IP whitelist: %s", content)
             logger.info("Updated IP whitelist contains %d elements.", len(content))
 
-    # def update_mac_wl(self):
-    #     """Update the WAN access rule"""
-    #     grps = self.config.get("mac_groups", {})
-
-    #     # Clear ebtable:
-    #     self.run_ebt("-F FORWARD")
-
-    #     macs = self.config["mac_addresses"]
-    #     grps = self.config["mac_groups"]
-
-    #     cmd = '-A FORWARD -i eno3 -j LOG --log-prefix "[forbidden_dst_mac]: "'
-    #     cmd += " --log-tcp-options --log-ip-options"
-
-    #     self.run_ebt(cmd)
-
-    # # Iterate on the enable groups:
-    # sch = self.config.get("internet_schedule", {})
-    # for grp_name, state in sch.items():
-    #     # logger.info("%s: %s", grp_name, state)
-    #     # Add each element from that group to the set:
-    #     grp = grps[grp_name]
-    #     if state == "always":
-    #         for elem in grp:
-    #             mac = macs[elem].upper()
-    #             if mac not in prev_list:
-    #                 logger.info("Adding MAC %s for %s", mac, elem)
-    #                 self.add_to_set(sname, mac)
-    #             else:
-    #                 found.append(mac)
-
-    # # Remove the non wanted elements:
-    # to_remove = [elem for elem in prev_list if elem not in found]
-    # for elem in to_remove:
-    #     logger.info("Removing MAC %s from set.", elem)
-    #     self.remove_from_set(sname, elem)
-
-    # content = self.get_set_content(sname)
-    # logger.info("Final set content: %s", content)
-
-    # def update_ebtables(self):
-    #     """Update the ebtables."""
-    #     # self.run_ebt("-A FORWARD -i eno3 -m set ! --match-set mac_whitelist dst -j DROP")
-    #     self.run_ebt("-F FORWARD")
-
-    #     cmd = "-A FORWARD -i eno3 -m set --match-set mac_whitelist dst --match-set-flags dst ! src"
-    #     cmd += ' -j LOG --log-prefix "[forbidden_dst_mac]: " --log-tcp-options --log-ip-options'
-    #     self.run_ebt(cmd)
-
-    #     # self.run_ebt("-A FORWARD -i eno3 -m set ! --match-set mac_whitelist dst -j DROP")
-
-    # def monitor_traffic(self, iname):
-    #     """Monitor the net traffic."""
-    #     cmd = ["sudo", "iftop", "-nBP", "-i", iname]
-    #     self.execute(cmd)
-
 
 if __name__ == "__main__":
     # Create the context:
@@ -594,7 +580,7 @@ if __name__ == "__main__":
     # psr = context.build_parser("monitor")
     # psr.add_str("-i", dest="intf_name")("Interface to monitor.")
 
-    psr = context.build_parser("update_ebt")
+    psr = context.build_parser("update_ntp_list")
 
     psr = context.build_parser("update_mac_whitelist")
     # psr.add_str("config_name")("Config to write.")
