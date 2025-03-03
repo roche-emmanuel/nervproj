@@ -516,7 +516,7 @@ class IPTablesManager(NVPComponent):
                                 ref_ip,
                                 ip,
                             )
-                            # continue
+                            continue
 
                     if ip not in prev_list:
                         logger.info(
