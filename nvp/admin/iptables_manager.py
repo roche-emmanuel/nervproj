@@ -506,7 +506,7 @@ class IPTablesManager(NVPComponent):
                     ip = mac_map[mac][0]
                     if ip != ref_ip:
                         allowed = False
-                        if ip == "192.168.2.8" and ref_ip == "192.168.2.25":
+                        if ref_ip == "192.168.2.8" and ip == "192.168.2.25":
                             # manu_uranus case allowed:
                             allowed = True
 
