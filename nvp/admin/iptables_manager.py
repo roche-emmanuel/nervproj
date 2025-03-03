@@ -312,9 +312,7 @@ class IPTablesManager(NVPComponent):
         arp_output = self.run_arp("-n")
 
         # Regular expression to match IP, MAC, and Interface
-        pattern = re.compile(
-            r"(\d+\.\d+\.\d+\.\d+)\s+(?:ether\s+([\da-f:]+)\s+)?\S*\s+(\S+)"
-        )
+        pattern = re.compile(r"(\d+\.\d+\.\d+\.\d+)\s+(?:ether\s+([\da-f:]+)\s+)?\S*\s+(\S+)")
 
         # Extracted data
         devices = []
@@ -329,9 +327,7 @@ class IPTablesManager(NVPComponent):
         # for ip, mac, iface in devices:
         #     print(f"IP: {ip}, MAC: {mac.upper()}, Interface: {iface}")
 
-        return {
-            elem[1]: (elem[0], elem[2]) for elem in devices if elem[1] != "INCOMPLETE"
-        }
+        return {elem[1]: (elem[0], elem[2]) for elem in devices if elem[1] != "INCOMPLETE"}
 
     def check_in_schedule(self, schedule):
         """Check if current time is in schedule."""
@@ -463,9 +459,7 @@ class IPTablesManager(NVPComponent):
 
                     intf = mac_map[mac][1]
                     if intf != "eno2":
-                        logger.info(
-                            "Ignoring IP/MAC %s/%s in interface %s", ip, mac, intf
-                        )
+                        logger.info("Ignoring IP/MAC %s/%s in interface %s", ip, mac, intf)
                         continue
 
                     ip = mac_map[mac][0]
@@ -483,7 +477,7 @@ class IPTablesManager(NVPComponent):
                                 ref_ip,
                                 ip,
                             )
-                            continue
+                            # continue
 
                     if ip not in prev_list:
                         logger.info(
@@ -586,15 +580,15 @@ if __name__ == "__main__":
 
     psr = context.build_parser("save")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str(
-        "-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}"
-    )("File where to save the IPtable rules.")
+    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
+        "File where to save the IPtable rules."
+    )
 
     psr = context.build_parser("load")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str(
-        "-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}"
-    )("File where to load the IPtable rules from.")
+    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
+        "File where to load the IPtable rules from."
+    )
 
     # This will not work for now:
     # psr = context.build_parser("monitor")
