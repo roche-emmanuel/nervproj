@@ -751,7 +751,7 @@ scripts:
   gen-thumb:
     notify: false
     custom_python_env: media_env
-    cwd: Z:/perso/youtube
+    cwd: X:/perso/youtube
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/media/thumb_generator.py gen-thumb
     python_path: ["${NVP_ROOT_DIR}"]
     env_vars:
