@@ -380,49 +380,50 @@ class IPTablesManager(NVPComponent):
 
         factor = 1.0
 
-        # Iterate on each rule:
-        for rule in schedule:
-            if "days" in rule:
-                active_days = rule["days"].split("|")
-                if day_str not in active_days:
-                    # Rule not applicable today
-                    continue
+        # Iterate on each ruleset:
+        for days, rules in schedule.items():
+            active_days = days.split("|")
+            if day_str not in active_days:
+                # Rules not applicable today
+                continue
 
-            # Get the start time:
-            parts = rule["start"].split(":")
-            if len(parts) == 2:
-                parts.append("0")
-            start_ts = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+            for rule in rules:
+                start_end = rule.split("-")
+                # Get the start time:
+                parts = start_end[0].split(":")
+                if len(parts) == 2:
+                    parts.append("0")
+                start_ts = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
 
-            parts = rule["end"].split(":")
-            if len(parts) == 2:
-                parts.append("0")
-            end_ts = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+                parts = start_end[1].split(":")
+                if len(parts) == 2:
+                    parts.append("0")
+                end_ts = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
 
-            if end_ts < start_ts:
-                # In this case we add 24hours to the end:
-                end_ts += 24 * 3600
+                if end_ts < start_ts:
+                    # In this case we add 24hours to the end:
+                    end_ts += 24 * 3600
 
-            # Apply the factor on the duration:
-            delta_secs = float(end_ts - start_ts)
-            end_ts = int(start_ts + delta_secs * factor)
+                # Apply the factor on the duration:
+                delta_secs = float(end_ts - start_ts)
+                end_ts = int(start_ts + delta_secs * factor)
 
-            end_ts = max(end_ts, start_ts)
+                end_ts = max(end_ts, start_ts)
 
-            # After scaling, determine if end time is now on the next day or current day
-            is_overnight_after_scaling = end_ts > 24 * 3600
+                # After scaling, determine if end time is now on the next day or current day
+                is_overnight_after_scaling = end_ts > 24 * 3600
 
-            if is_overnight_after_scaling:
-                # Remove 1 full day in this case:
-                adjusted_end_ts = end_ts - 24 * 3600
+                if is_overnight_after_scaling:
+                    # Remove 1 full day in this case:
+                    adjusted_end_ts = end_ts - 24 * 3600
 
-                # Handle overnight case
-                if cur_ts >= start_ts or cur_ts < adjusted_end_ts:
-                    return True
-            else:
-                # Normal same-day schedule
-                if start_ts <= cur_ts < end_ts:
-                    return True
+                    # Handle overnight case
+                    if cur_ts >= start_ts or cur_ts < adjusted_end_ts:
+                        return True
+                else:
+                    # Normal same-day schedule
+                    if start_ts <= cur_ts < end_ts:
+                        return True
 
         return False
 
