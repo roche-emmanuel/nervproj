@@ -228,6 +228,13 @@ libraries:
     extracted_dir: llvm-project-llvmorg-15.0.4
     windows_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-15.0.4.zip
     linux_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-15.0.4.tar.gz
+    # version: 18.1.8
+    # extracted_dir: llvm-project-llvmorg-18.1.8
+    # # Note: need to download the sources directly from https://github.com/llvm/llvm-project/releases/tag
+    # # windows_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-18.1.8.zip
+    # # linux_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-18.1.8.tar.gz
+    # windows_url: https://files.nervtech.org/nvp_packages/sources/llvm-project-llvmorg-18.1.8.zip
+    # linux_url: https://files.nervtech.org/nvp_packages/sources/llvm-project-llvmorg-18.1.8.tar.gz
     # version: 14.0.6
     # extracted_dir: llvm-project-llvmorg-14.0.6
     # windows_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.6.zip
