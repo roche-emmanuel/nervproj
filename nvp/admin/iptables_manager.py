@@ -333,8 +333,6 @@ class IPTablesManager(NVPComponent):
 
     def get_mac_ip_mapping(self):
         """Get the MAC/IP mapping with arp"""
-        cmd = ["arp", "-n"]
-
         arp_output = self.run_arp("-n")
 
         # Regular expression to match IP, MAC, and Interface
@@ -355,7 +353,26 @@ class IPTablesManager(NVPComponent):
 
         # Note: here we have to be careful with the wifi extender MAC addresses:
         # because we will see the extender MAC address associated to
-        return {elem[1]: (elem[0], elem[2]) for elem in devices if elem[1] != "INCOMPLETE"}
+        #
+        # return {elem[1]: (elem[0], elem[2]) for elem in devices if elem[1] != "INCOMPLETE"}
+
+        # Now turn this into a MAC map:
+        mac_to_ip_interfaces = {}
+
+        # Process each device in the list
+        for ip, mac, interface in devices:
+            # Skip incomplete entries if you don't want them
+            if mac == "INCOMPLETE":
+                continue
+
+            # If this MAC is not in the dictionary yet, add it with an empty list
+            if mac not in mac_to_ip_interfaces:
+                mac_to_ip_interfaces[mac] = []
+
+            # Add the IP/interface pair to this MAC's list
+            mac_to_ip_interfaces[mac].append((ip, interface))
+
+        return mac_to_ip_interfaces
 
     def check_in_schedule(self, schedule):
         """Check if current time is in schedule."""
@@ -465,20 +482,19 @@ class IPTablesManager(NVPComponent):
         found = []
 
         # First we add all the IPs that are not on the eno2/eno1 interfaces:
-        for mac, desc in mac_map.items():
-            ip = desc[0]
+        for mac, ips in mac_map.items():
+            for ip, intf in ips:
+                if intf in ["eno1", "eno2"]:
+                    continue
 
-            if desc[1] in ["eno1", "eno2"]:
-                continue
+                if ip not in prev_list:
+                    self.check(ip not in found, "Ip %s was already whitelisted.", ip)
 
-            if ip not in prev_list:
-                self.check(ip not in found, "Ip %s was already whitelisted.", ip)
-
-                logger.info("Adding IP %s for MAC %s on %s", ip, mac, desc[1])
-                self.add_to_set(sname, ip)
-                changes = True
-            else:
-                found.append(ip)
+                    logger.info("Adding IP %s for MAC %s on %s", ip, mac, intf)
+                    self.add_to_set(sname, ip)
+                    changes = True
+                else:
+                    found.append(ip)
 
         # Iterate on the enable groups:
         sch = self.config.get("internet_schedule", {})
@@ -490,48 +506,53 @@ class IPTablesManager(NVPComponent):
             if self.check_in_schedule(schedule):
                 for elem in grp:
                     mac = devs[elem]["mac"].upper()
-                    ref_ip = devs[elem]["ip"]
+                    ref_ips = devs[elem]["ip"]
+
+                    if isinstance(ref_ips, str):
+                        ref_ips = [ref_ips]
 
                     # If that MAC is not connected, we ignore it:
                     if mac not in mac_map:
                         # logger.info("Mac %s not connected", mac)
                         continue
 
-                    intf = mac_map[mac][1]
-                    if intf != "eno2":
-                        logger.info("Ignoring IP/MAC %s/%s in interface %s", ip, mac, intf)
-                        continue
-
-                    ip = mac_map[mac][0]
-                    if ip != ref_ip:
-                        allowed = False
-                        if ref_ip == "192.168.2.8" and ip == "192.168.2.25":
-                            # manu_uranus case allowed:
-                            allowed = True
-
-                        if not allowed:
-                            logger.error(
-                                "Detected IP mismatch for %s (MAC %s): expected: %s, got: %s",
-                                elem,
-                                mac,
-                                ref_ip,
-                                ip,
-                            )
+                    ips = mac_map[mac]
+                    valid_ip = None
+                    for ip, intf in ips:
+                        if intf != "eno2":
+                            logger.info("Ignoring IP/MAC %s/%s in interface %s", ip, mac, intf)
                             continue
 
-                    if ip not in prev_list:
+                        if ip not in ref_ips:
+                            continue
+
+                        # Always use the first ref_ip here:
+                        valid_ip = ref_ips[0]
+                        break
+
+                    if valid_ip is None:
+                        logger.error(
+                            "No valid Ip found for %s (MAC %s): expected: %s, got: %s",
+                            elem,
+                            mac,
+                            ref_ips,
+                            ips,
+                        )
+                        continue
+
+                    if valid_ip not in prev_list:
                         logger.info(
                             "Adding IP %s for %s (grp: %s) (MAC: %s)",
-                            ip,
+                            valid_ip,
                             elem,
                             grp_name,
                             mac,
                         )
-                        self.add_to_set(sname, ip)
+                        self.add_to_set(sname, valid_ip)
                         changes = True
                     else:
                         # logger.info("IP %s already in list", ip, mac)
-                        found.append(ip)
+                        found.append(valid_ip)
 
         # Remove the non wanted elements:
         to_remove = [elem for elem in prev_list if elem not in found]
