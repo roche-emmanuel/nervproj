@@ -3,11 +3,13 @@
 import logging
 import os
 import re
+import struct
 
 import cv2
 import lz4.frame
 import numpy as np
 import rasterio
+import zstandard as zstd
 from PIL import Image
 from scipy import ndimage
 
@@ -81,6 +83,8 @@ class EtopoManager(NVPComponent):
 
         # Calculate column index (longitude)
         # lon for E, 360 - lon for W
+        # Apply an offset of 180 deg east to get the output in range [-180, 180]:
+        lon += 180
         col_start = int((lon if lon_dir == "E" else 360 - lon) * 240)
 
         return row_start, col_start
@@ -212,6 +216,27 @@ class EtopoManager(NVPComponent):
             compressed = lz4.frame.compress(array.tobytes())
             f.write(compressed)
 
+    def save_uint16_as_zstd(self, array, output_path, compression_level=19):
+        """Save as zstd."""
+        logger.info("Saving file %s...", output_path)
+
+        # Create compressor
+        cctx = zstd.ZstdCompressor(level=compression_level)
+
+        with open(output_path, "wb") as f:
+            # Write header: magic bytes, dtype code, ndim, and shape
+            f.write(b"ZSTD")  # Magic bytes to identify our format
+            f.write(struct.pack("<H", 16))  # uint16 bit depth (16 bits)
+            f.write(struct.pack("<B", array.ndim))  # Number of dimensions
+
+            # Write shape as uint64
+            for dim in array.shape:
+                f.write(struct.pack("<Q", dim))
+
+            # Compress and write the data
+            compressed = cctx.compress(array.tobytes())
+            f.write(compressed)
+
     def save_uint16_as_raw(self, array, output_path):
         """Save as raw."""
         shape = array.shape
@@ -308,15 +333,21 @@ class EtopoManager(NVPComponent):
         h = arr.shape[0]
 
         # Quantize the data:
-        logger.info("Quantizing terrain heights...")
-        arr = self.terrain_aware_quantize(arr)
+        suffix = ""
+        if self.get_param("quantize", False):
+            logger.info("Quantizing terrain heights...")
+            suffix = "_q"
+            arr = self.terrain_aware_quantize(arr)
 
-        self.save_uint16_as_png(arr, f"etopo2022_16bit_{w}x{h}.png")
-        # self.save_uint16_as_lz4(arr, f"etopo2022_16bit_{w}x{h}.lz4")
-        # self.save_uint16_as_raw(arr, f"etopo2022_16bit_{w}x{h}.raw")
+        bname = f"etopo2022_16bit_{w}x{h}{suffix}"
+
+        self.save_uint16_as_png(arr, f"{bname}.png")
+        # self.save_uint16_as_zstd(arr, f"{bname}.bin")
+        # self.save_uint16_as_lz4(arr, f"{bname}.lz4")
+        # self.save_uint16_as_raw(arr, f"{bname}.raw")
 
         content = f"vmin={vmin}\nvmax={vmax}"
-        self.write_text_file(content, f"etopo2022_16bit_{w}x{h}.txt")
+        self.write_text_file(content, f"{bname}.txt")
         return True
 
 
@@ -331,5 +362,6 @@ if __name__ == "__main__":
     # psr.add_str("tag_name")("Input tag to generate a thumbnail for")
     psr.add_str("-i", "--input-dir", dest="input_dir")("Input directory")
     psr.add_int("-d", "--downscale", dest="downscale_factor", default=4)("Downscale factor to use")
+    psr.add_flag("-q", "--quantize", dest="quantize")("Quantize terrain data")
 
     comp.run()
