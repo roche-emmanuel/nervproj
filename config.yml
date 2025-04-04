@@ -816,6 +816,12 @@ scripts:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/admin/iptables_manager.py
     python_path: ["${NVP_ROOT_DIR}"]
 
+  etopo_gen:
+    notify: false
+    custom_python_env: etopo_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/etopo_manager.py gen
+    python_path: ["${NVP_ROOT_DIR}"]
+
 # Notify in case of script error:
 notify_script_errors: true
 
@@ -839,6 +845,18 @@ custom_python_envs:
     inherit: default_env
     packages:
       - requests-oauthlib
+
+  etopo_env:
+    inherit: default_env
+    packages:
+      - numpy
+      - Pillow
+      - rasterio
+      - lz4
+      - opencv-python
+      - zstandard
+      - scipy
+
   media_env:
     inherit: default_env
     packages:
