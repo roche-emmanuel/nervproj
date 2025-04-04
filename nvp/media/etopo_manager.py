@@ -53,6 +53,11 @@ class EtopoManager(NVPComponent):
                 folder = self.get_cwd()
             return self.generate_elevation_map(folder, factor)
 
+        if cmd == "resize":
+            imgfile = self.get_param("input_file")
+            tsize = self.get_param("target_size")
+            return self.resize_image(imgfile, tsize)
+
         return False
 
     # Function to extract coordinates from ETOPO filename
@@ -254,6 +259,9 @@ class EtopoManager(NVPComponent):
 
         logger.info("Saving file %s...", output_path)
 
+        # compression_level = 9
+        # cv2.imwrite(output_path, array, [cv2.IMWRITE_PNG_COMPRESSION, compression_level])
+
         # Convert to PIL Image
         # For single channel, we use mode 'I;16' for 16-bit unsigned integer
         img = Image.fromarray(array, mode="I;16")
@@ -350,6 +358,37 @@ class EtopoManager(NVPComponent):
         self.write_text_file(content, f"{bname}.txt")
         return True
 
+    def resize_image(self, imgfile, tsize):
+        """Resize an input image."""
+        shape = tsize.split("x")
+        w = int(shape[0])
+        h = int(shape[1])
+
+        # Load the image using cv2
+        arr = cv2.imread(imgfile)
+        if arr is None:
+            raise ValueError(f"Could not load image: {imgfile}")
+
+        # Resize the image
+        arr = cv2.resize(arr, (w, h), interpolation=cv2.INTER_LANCZOS4)
+
+        # Create output filename with dimensions
+        filename, ext = os.path.splitext(imgfile)
+        output_file = f"{filename}_{w}x{h}{ext}"
+
+        # Save the resized image
+        # cv2.imwrite(output_file, arr)
+        compression_level = 9
+        cv2.imwrite(output_file, arr, [cv2.IMWRITE_PNG_COMPRESSION, compression_level])
+
+        # # Convert to PIL Image
+        # img = Image.fromarray(arr, mode="RGB")
+
+        # # Save as PNG
+        # img.save(output_file, format="PNG")
+
+        return True
+
 
 if __name__ == "__main__":
     # Create the context:
@@ -363,5 +402,9 @@ if __name__ == "__main__":
     psr.add_str("-i", "--input-dir", dest="input_dir")("Input directory")
     psr.add_int("-d", "--downscale", dest="downscale_factor", default=4)("Downscale factor to use")
     psr.add_flag("-q", "--quantize", dest="quantize")("Quantize terrain data")
+
+    psr = context.build_parser("resize")
+    psr.add_str("-i", "--input", dest="input_file")("Input file to resize")
+    psr.add_str("-s", "--size", dest="target_size")("target size")
 
     comp.run()

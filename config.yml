@@ -821,6 +821,14 @@ scripts:
     custom_python_env: etopo_env
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/etopo_manager.py gen
     python_path: ["${NVP_ROOT_DIR}"]
+    # Example: nvp etopo_gen -i surface -d 8 -q
+
+  resize_img:
+    notify: false
+    custom_python_env: etopo_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/etopo_manager.py resize
+    python_path: ["${NVP_ROOT_DIR}"]
+    # Example: nvp resize_img -i world.topo.bathy.200406.3x21600x10800.png -s 8129x4096
 
 # Notify in case of script error:
 notify_script_errors: true
