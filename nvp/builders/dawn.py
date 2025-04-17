@@ -1,7 +1,6 @@
 """This module provide the builder for the dawn library."""
 
 import logging
-import re
 
 from nvp.core.build_manager import BuildManager
 from nvp.nvp_builder import NVPBuilder
@@ -43,8 +42,9 @@ class DawnBuilder(NVPBuilder):
         self.prepend_env_list(paths, self.env)
 
         # Force adding ninja path on top:
+        git_dir = self.tools.get_tool_dir("git")
         ninja_dir = self.tools.get_tool_dir("ninja")
-        self.env["PATH"] = ninja_dir + ";" + self.env["PATH"]
+        self.env["PATH"] = git_dir + ";" + ninja_dir + ";" + self.env["PATH"]
         # python_dir = self.tools.get_tool_dir("python")
         # self.env["PATH"] = python_dir + ";" + ninja_dir + ";" + self.env["PATH"]
 
@@ -52,9 +52,21 @@ class DawnBuilder(NVPBuilder):
         # cf. https://chromium.googlesource.com/chromium/src/+/HEAD/docs/windows_build_instructions.md
         self.env["DEPOT_TOOLS_WIN_TOOLCHAIN"] = "0"
 
+        # Need to patch gclient bootstrap.py below:
+        gclient_dir = self.tools.get_tool_dir("gclient")
+        bootstrap_file = self.get_path(gclient_dir, "bootstrap", "bootstrap.py")
+        self.patch_file(bootstrap_file, "if tail.lower() == 'git':", "if tail.lower().startswith('git'):")
+
         # Fetch external dependencies and toolchains with gclient
         # gclient sync
+        # write a custom script here to call gclient with the git path available:
+        # content = f"set PATH={git_dir};%PATH%\n"
+        # content += f"{gclient_path} sync\n"
+        # gclient_alt = self.get_path(build_dir, "gclient_sync.bat")
+        # self.write_text_file(content, gclient_alt)
+
         cmd = [gclient_path, "sync"]
+        # cmd = [gclient_alt]
         logger.info("Executing gclient sync...")
         self.execute(cmd, cwd=build_dir, env=self.env)
 
@@ -88,7 +100,7 @@ class DawnBuilder(NVPBuilder):
         self.install_files("src/tint", r"\.lib$", "lib", "library", recurse=True)
         absl_libs = self.install_files("third_party", r"absl_.*\.lib$", "lib", "library", recurse=True)
         self.install_files("third_party", r"SPIRV-Tools.*\.lib$", "lib", "library", recurse=True)
-        self.install_files("gen/include/dawn", r"\.h$", "include/dawn", "header", recurse=True)
+        self.install_files("gen/include/dawn", r"\.h$", "include/dawn", "header", flatten=False, recurse=True)
         self.install_files("include", r"\.h$", "include", "header", src_dir=build_dir, flatten=False, recurse=True)
         self.install_files(
             "src/dawn", r"\.h$", "include/internals/dawn", "dawn_header", src_dir=build_dir, flatten=False, recurse=True
