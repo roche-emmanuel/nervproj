@@ -57,6 +57,10 @@ class DawnBuilder(NVPBuilder):
         bootstrap_file = self.get_path(gclient_dir, "bootstrap", "bootstrap.py")
         self.patch_file(bootstrap_file, "if tail.lower() == 'git':", "if tail.lower().startswith('git'):")
 
+        # Patch for v20250417 compilation
+        tint_vector_file = self.get_path(build_dir, "src/tint/utils/containers/vector.h")
+        self.patch_file(tint_vector_file, "void Grow() { Reserve(std::max(impl_.slice.cap, static_cast<size_t>(1)) * 2); }", "void Grow() { Reserve(max(impl_.slice.cap, static_cast<size_t>(1)) * 2); }")
+
         # Fetch external dependencies and toolchains with gclient
         # gclient sync
         # write a custom script here to call gclient with the git path available:
