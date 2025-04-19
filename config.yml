@@ -94,6 +94,11 @@ windows_tools:
     sub_path: gclient.bat
     # urls: http://files.nervtech.org/nvp_packages/tools/depot_tools-git-20230508-windows.7z
     git: https://chromium.googlesource.com/chromium/tools/depot_tools.git
+  - name: clang
+    sub_path: bin/clang++.exe
+    urls:
+      - http://files.nervtech.org/nvp_packages/tools/clang-18.1.8-windows.7z
+    version: 18.1.8
 
 # Tools that can be used on linux:
 linux_tools:
