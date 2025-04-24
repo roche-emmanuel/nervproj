@@ -24,6 +24,8 @@ class Builder(NVPBuilder):
 
         flags = [
             "-DCURL_USE_OPENSSL=ON",
+            "-DBUILD_SHARED_LIBS=OFF",
+            # "-DCURL_STATICLIB=ON",
             f"-DOPENSSL_ROOT_DIR={ssl_dir}",
             # f"-DOPENSSL_LIBRARIES={ssl_dir}/lib",
             f"-DOPENSSL_INCLUDE_DIR={ssl_dir}/include",
@@ -38,7 +40,9 @@ class Builder(NVPBuilder):
             ]
         else:
             flags += [
-                f"-DZLIB_LIBRARY={zlib_dir}/lib/zlib.lib",
+                f"-DOPENSSL_CRYPTO_LIBRARY={ssl_dir}/lib/libcrypto.lib",
+                f"-DOPENSSL_SSL_LIBRARY={ssl_dir}/lib/libssl.lib",
+                f"-DZLIB_LIBRARY={zlib_dir}/lib/zlibstatic.lib",
             ]
 
         self.run_cmake(build_dir, prefix, ".", flags)
