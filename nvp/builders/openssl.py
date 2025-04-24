@@ -38,7 +38,8 @@ class Builder(NVPBuilder):
 
         self.env = self.append_env_list(dirs, self.env)
 
-        cmd = [perl, "Configure", "VC-WIN64A", f"--prefix={prefix}", f"--openssldir={prefix}/ssl"]
+        # Added "no-shared" below to build static version of the libraries.
+        cmd = [perl, "Configure", "VC-WIN64A", "no-shared", f"--prefix={prefix}", f"--openssldir={prefix}/ssl"]
 
         logger.info("Executing command: %s", cmd)
 
