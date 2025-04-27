@@ -245,8 +245,11 @@ libraries:
     # windows_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.6.zip
     # linux_url: https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-14.0.6.tar.gz
   - name: boost
-    url: https://boostorg.jfrog.io/artifactory/main/release/1.79.0/source/boost_1_79_0.7z
-    version: 1.79.0
+    # url: https://boostorg.jfrog.io/artifactory/main/release/1.79.0/source/boost_1_79_0.7z
+    # version: 1.79.0
+    linux_url: https://archives.boost.io/release/1.88.0/source/boost_1_88_0.tar.bz2
+    windows_url: https://archives.boost.io/release/1.88.0/source/boost_1_88_0.7z
+    version: 1.88.0
   - name: SDL2
     # url: https://www.libsdl.org/release/SDL2-2.0.20.zip
     # version: 2.0.20

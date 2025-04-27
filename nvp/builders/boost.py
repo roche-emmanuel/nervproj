@@ -55,7 +55,7 @@ class BoostBuilder(NVPBuilder):
                 "toolset=msvc",
                 "architecture=x86",
                 "address-model=64",
-                # "variant=release",
+                "variant=release",  # comment this for debug build support
                 "link=static",
                 "threading=multi",
                 "runtime-link=shared",
@@ -152,7 +152,7 @@ class BoostBuilder(NVPBuilder):
             "--without-mpi",
             "-sNO_BZIP2=1",
             "architecture=x86",
-            # "variant=release",
+            "variant=release",  # comment this for debug build support
             "link=static",
             "threading=multi",
             "address-model=64",
