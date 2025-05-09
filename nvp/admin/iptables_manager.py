@@ -455,26 +455,57 @@ class IPTablesManager(NVPComponent):
         self.create_set(sname, "hash:net", list(NTP_SERVERS))
         logger.info("Created NTP server list ipset %s", sname)
 
+    def get_all_ref_ips(self, grp):
+        """Get all the ref IPs for a given group."""
+        ips = []
+        devs = self.config["devices"]
+
+        for elem in grp:
+            ref_ips = devs[elem]["ip"]
+
+            if isinstance(ref_ips, str):
+                ref_ips = [ref_ips]
+
+            ips.append(ref_ips[0])
+
+        return ips
+
+    def update_blocked_ip_list(self, set_name, ips, add_to_list):
+        """Update the blocked IP set."""
+        prev_block_list = self.get_set_content(set_name)
+        for ip in ips:
+            if ip in prev_block_list and not add_to_list:
+                logger.info("Unblocking ip address %s", ip)
+                self.remove_from_set(set_name, ip)
+            elif ip not in prev_block_list and add_to_list:
+                logger.info("Blocking ip address %s", ip)
+                self.add_to_set(set_name, ip)
+
     def update_mac_wl(self):
         """Update the WAN access rule"""
         grps = self.config.get("mac_groups", {})
         # logger.info("Found MAC groups:: %s", grps)
         sname = "mac_whitelist"
 
+        block_set = "blocked_local_ips"
+        enforce_blocks = self.config.get("enforce_blocking", [])
         mac_map = self.get_mac_ip_mapping()
 
         # create the set if needed:
         if not self.has_set(sname):
             logger.info("Creating set %s", sname)
             self.create_set(sname, "hash:net")
+
+        if not self.has_set(block_set):
+            logger.info("Creating set %s", block_set)
+            self.create_set(block_set, "hash:net")
+
         # l0 = self.has_set(sname)
         # logger.info("Has mac_whitelist: %s", l0)
         # l1 = self.has_set("blacklist")
         # logger.info("Has blacklist: %s", l1)
 
         devs = self.config["devices"]
-
-        grps = self.config["mac_groups"]
 
         prev_list = self.get_set_content(sname)
         # logger.info("Previous list contained %d elements", len(prev_list))
@@ -503,7 +534,13 @@ class IPTablesManager(NVPComponent):
             # Add each element from that group to the set:
             grp = grps[grp_name]
 
-            if self.check_in_schedule(schedule):
+            in_schedule = self.check_in_schedule(schedule)
+
+            if grp_name in enforce_blocks:
+                # We should update the list of blocked ips:
+                self.update_blocked_ip_list(block_set, self.get_all_ref_ips(grp), not in_schedule)
+
+            if in_schedule:
                 for elem in grp:
                     mac = devs[elem]["mac"].upper()
                     ref_ips = devs[elem]["ip"]
