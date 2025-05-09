@@ -521,6 +521,7 @@ class IPTablesManager(NVPComponent):
         if (cur_time - last_flush_time) > 600:
             state["last_flush_time"] = cur_time
             self.write_json(state, state_file)
+            logger.info("Flushing IP neighbours.")
 
             utl.send_rocketchat_message(":warning: Flushing IP neighbours.")
             self.run_ip(["neigh", "flush", "all"])
