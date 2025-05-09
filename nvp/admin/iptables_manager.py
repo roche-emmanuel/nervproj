@@ -3,8 +3,10 @@
 import logging
 import re
 import shlex
+import time
 from datetime import datetime
 
+import nvp.core.utils as utl
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
 
@@ -178,6 +180,30 @@ class IPTablesManager(NVPComponent):
     def run_ipset(self, args, retcode=False):
         """Run the ipset command."""
         app = "ipset"
+
+        if isinstance(args, str):
+            args = shlex.split(args)
+
+        cmd = ["sudo", app] + args
+
+        if self.dryrun:
+            logger.info("Dryrun: %s", " ".join(cmd))
+            return ""
+
+        # logger.info("running: %s", " ".join(cmd))
+        stdout, stderr, returncode = self.execute_command(cmd)
+
+        if retcode:
+            return returncode
+
+        if returncode != 0:
+            self.throw("Failed to execute command %s: %s", cmd, stderr)
+
+        return stdout
+
+    def run_ip(self, args, retcode=False):
+        """Run the ip command."""
+        app = "ip"
 
         if isinstance(args, str):
             args = shlex.split(args)
@@ -481,6 +507,26 @@ class IPTablesManager(NVPComponent):
                 logger.info("Blocking ip address %s", ip)
                 self.add_to_set(set_name, ip)
 
+    def flush_ip_neighbours(self):
+        """Flush the IP neighbours."""
+        state_file = self.get_path(self.get_home_dir(), ".nvp", "state_iptables.json")
+        state = {}
+        if self.file_exists(state_file):
+            state = self.read_json(state_file)
+
+        last_flush_time = state.get("last_flush_time", 0)
+        cur_time = time.time()
+
+        # Use a delay of 10 minutes:
+        if (cur_time - last_flush_time) > 600:
+            state["last_flush_time"] = cur_time
+            self.write_json(state, state_file)
+
+            utl.send_rocketchat_message(":warning: Flushing IP neighbours.")
+            self.run_ip(["neigh", "flush", "all"])
+
+        # read/write an ip state file:
+
     def update_mac_wl(self):
         """Update the WAN access rule"""
         grps = self.config.get("mac_groups", {})
@@ -575,6 +621,7 @@ class IPTablesManager(NVPComponent):
                             ref_ips,
                             ips,
                         )
+                        self.flush_ip_neighbours()
                         continue
 
                     if valid_ip not in prev_list:
