@@ -509,7 +509,7 @@ class IPTablesManager(NVPComponent):
 
     def flush_ip_neighbours(self):
         """Flush the IP neighbours."""
-        state_file = self.get_path(self.get_home_dir(), ".nvp", "state_iptables.json")
+        state_file = self.get_path(self.ctx.get_home_dir(), ".nvp", "state_iptables.json")
         state = {}
         if self.file_exists(state_file):
             state = self.read_json(state_file)
