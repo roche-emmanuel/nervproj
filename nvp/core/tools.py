@@ -455,6 +455,11 @@ class ToolsManager(NVPComponent):
                 tar.extractall(path=dest_dir)
             logger.info("Done extracting %s.", src_pkg_path)
             return
+        elif src_pkg_path.endswith(".tar.bz2"):
+            with tarfile.open(src_pkg_path, "r:bz2") as tar:
+                tar.extractall(path=dest_dir)
+            logger.info("Done extracting %s.", src_pkg_path)
+            return
         elif src_pkg_path.endswith(".7z.exe"):
             if target_name is None:
                 target_name = self.remove_file_extension(os.path.basename(src_pkg_path))
