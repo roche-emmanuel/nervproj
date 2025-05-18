@@ -44,5 +44,5 @@ class Builder(NVPBuilder):
             "-DCLIPPER2_EXAMPLES=OFF",
         ]
 
-        self.run_cmake(build_dir, prefix, ".", flags=flags)
+        self.run_cmake(build_dir, prefix, "CPP", flags=flags)
         self.run_ninja(self.get_path(build_dir, "release_build"))
