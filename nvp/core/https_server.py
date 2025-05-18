@@ -77,16 +77,17 @@ class HttpsServer(NVPComponent):
 
             # check if we have a corresponding wasm.br file:
             brfile = in_file + ".br"
+            clevel = self.get_param("compression_level")
             if not self.file_exists(brfile):
-                logger.info("Generating %s...", brfile)
+                logger.info("Generating %s (clevel=%d)...", brfile, clevel)
                 brotli = self.get_component("brotli")
-                brotli.compress_file(in_file, brfile)
+                brotli.compress_file(in_file, brfile, clevel=clevel)
             elif self.get_file_mtime(wfile) > self.get_file_mtime(brfile):
                 # The brfile already exists but the wasm file is more recent
-                logger.info("Updating %s...", brfile)
+                logger.info("Updating %s (clevel=%d)...", brfile, clevel)
                 self.remove_file(brfile)
                 brotli = self.get_component("brotli")
-                brotli.compress_file(in_file, brfile)
+                brotli.compress_file(in_file, brfile, clevel=clevel)
             else:
                 logger.info("%s is OK", brfile)
 
@@ -186,6 +187,7 @@ if __name__ == "__main__":
     psr = context.build_parser("serve")
     psr.add_str("--dir", dest="root_dir")("Root directory to serve")
     psr.add_int("--port", dest="port", default=444)("Port where to serve the directory")
+    psr.add_int("-c", "--clevel", dest="compression_level", default=11)("Brotly compression level.")
     psr.add_str("--index", dest="index_file")("Default index file to serve")
     psr.add_flag("--chrome", dest="use_chrome")("Specify that we should use chrome as browser")
     psr.add_flag("--no-ssl", dest="no_ssl")("Disable ssl usage")

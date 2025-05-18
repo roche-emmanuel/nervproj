@@ -40,7 +40,7 @@ class BrotliHandler(NVPComponent):
 
         return False
 
-    def compress_file(self, input_file, output_file=None):
+    def compress_file(self, input_file, output_file=None, clevel=11):
         """Compress a file"""
         if output_file is None:
             output_file = input_file + ".br"
@@ -48,7 +48,7 @@ class BrotliHandler(NVPComponent):
         params = {
             # 'mode': brotli.MODE_TEXT  # Set to brotli.MODE_TEXT for text-based files
             "mode": brotli.MODE_GENERIC,
-            "quality": 11,
+            "quality": clevel,
             "lgwin": 22,
             "lgblock": 0,
         }
