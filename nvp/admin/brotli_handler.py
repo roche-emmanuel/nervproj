@@ -31,7 +31,8 @@ class BrotliHandler(NVPComponent):
         if cmd == "compress":
             file = self.get_param("input_file")
             outfile = self.get_param("output_file")
-            return self.compress_file(file, outfile)
+            level = self.get_param("compression_level")
+            return self.compress_file(file, outfile, clevel=level)
 
         if cmd == "decompress":
             file = self.get_param("input_file")
@@ -95,6 +96,7 @@ if __name__ == "__main__":
     psr = context.build_parser("compress")
     psr.add_str("input_file")("File to compress")
     psr.add_str("-o", "--output", dest="output_file")("Output destination for compress")
+    psr.add_int("-l", "--level", dest="compression_level", default=11)("Compression level")
     psr = context.build_parser("decompress")
     psr.add_str("input_file")("File to decompress")
     psr.add_str("-o", "--output", dest="output_file")("Output destination for decompress")
