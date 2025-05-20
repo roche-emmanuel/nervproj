@@ -158,7 +158,8 @@ class GitManager(NVPComponent):
             else:
                 # We must have an url provided:
                 url = self.get_param("url")
-                self.clone_repository(url, dest_dir)
+                recurv = self.get_param("recursive")
+                self.clone_repository(url, dest_dir, recurse=recurv)
             return True
 
         if cmd == "commit":
@@ -332,10 +333,6 @@ class GitManager(NVPComponent):
         """perform git pull from a given folder"""
         self.execute_git(["pull"], cwd=folder)
 
-    def git_fetch(self, folder):
-        """perform git fetch from a given folder"""
-        self.execute_git(["fetch"], cwd=folder)
-
     def git_checkout(self, folder, discard=False, branch=None):
         """perform git pull from a given folder"""
         cmd = ["checkout"]
@@ -393,6 +390,7 @@ if __name__ == "__main__":
     psr.add_str("dest_folder", nargs="?", default=None)(help="Name of the folder where to checkout the project")
     psr.add_str("-p", "--project", dest="project")(help="The project that should be cloned.")
     psr.add_str("-u", "--url", dest="url")(help="The url that should be cloned.")
+    psr.add_flag("-r", "--recursive", dest="recursive")(help="Recursive cloning.")
 
     psr = context.build_parser("commit")
     psr.add_str("message")(help="Commit message")
