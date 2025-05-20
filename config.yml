@@ -132,7 +132,9 @@ linux_tools:
       # - /mnt/array1/dev/compilers/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz
       # - http://files.nervtech.org/nvp_packages/tools/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz
       # - https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz
-      - https://files.nervtech.org/nvp_packages/tools/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+      # - https://files.nervtech.org/nvp_packages/tools/clang+llvm-18.1.8-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+      # - https://files.nervtech.org/nvp_packages/tools/clang+llvm-18.1.8-x86_64-linux-gnu-ubuntu-18.04.tar.xz
+      - https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/clang+llvm-18.1.8-x86_64-linux-gnu-ubuntu-18.04.tar.xz
     # version: 13.0.1
     version: 18.1.8
   - name: ffmpeg
