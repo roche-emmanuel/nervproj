@@ -447,8 +447,9 @@ libraries:
     git: git@github.com:roche-emmanuel/cgal.git
   - name: manifold
     version: git-20250217
-    git: git@github.com:roche-emmanuel/manifold.git
-    # windows_url: http://files.nervtech.org/nvp_packages/sources/manifold-git-20250216-windows.7z
+    # git: git@github.com:roche-emmanuel/manifold.git
+    windows_url: http://files.nervtech.org/nvp_packages/sources/manifold-git-20250217-windows.7z
+    linux_url: http://files.nervtech.org/nvp_packages/sources/manifold-git-20250217-linux.tar.xz
   - name: clipper2
     version: git-20250217
     git: git@github.com:roche-emmanuel/Clipper2.git
