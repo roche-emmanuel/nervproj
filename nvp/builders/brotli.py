@@ -49,7 +49,8 @@ class Builder(NVPBuilder):
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
 
-        flags = ["-S", ".", "-B", "release_build", "-DBUILD_SHARED_LIBS=OFF", "-DFT_REQUIRE_ZLIB=TRUE"]
+        flags = ["-S", ".", "-B", "release_build", "-DBUILD_SHARED_LIBS=OFF"]
+        # , "-DFT_REQUIRE_ZLIB=TRUE"
         # if self.compiler.is_emcc():
 
         self.run_cmake(build_dir, prefix, ".", flags=flags)
