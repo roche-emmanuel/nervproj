@@ -557,11 +557,13 @@ class IPTablesManager(NVPComponent):
     def select_valid_ip(self, mac_map, triplets, dev_name, intf="eno2"):
         """Select a valid mac/ip pair."""
         devs = self.config["devices"]
-        macs = devs[dev_name]["mac"].upper()
+        macs = devs[dev_name]["mac"]
         ips = devs[dev_name]["ip"]
 
         if isinstance(macs, str):
             macs = [macs]
+
+        macs = [mac.upper() for mac in macs]
 
         if all(mac not in mac_map for mac in macs):
             # This device is not active:
