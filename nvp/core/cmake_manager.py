@@ -701,6 +701,16 @@ class CMakeManager(NVPComponent):
 
             flags.append(f"-D{var_name}={var_val}")
 
+        # Add our custom definitions:
+        defs = desc.get("defs", {})
+
+        # Also add the definitions specific to this platform:
+        platform = self.get_platform()
+        platform_defs = desc.get(f"{platform}_defs", {})
+        defs.update(platform_defs)
+        for dname, value in defs.items():
+            flags.append(f"-D{dname}={value}")
+
         # Request generation of compile commands:
         flags.append("-DCMAKE_EXPORT_COMPILE_COMMANDS=1")
 
