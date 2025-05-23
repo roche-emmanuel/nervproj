@@ -165,8 +165,11 @@ class BuildManager(NVPComponent):
 
     def has_library(self, lib_name):
         """Check if a given library is available"""
+        # If we have a specified version number here we just
+        # ignore it for now:
+        name = lib_name.split("==")[0]
         for ldesc in self.config["libraries"]:
-            if ldesc["name"] == lib_name:
+            if ldesc["name"] == name:
                 return True
         return False
 
@@ -180,13 +183,30 @@ class BuildManager(NVPComponent):
     def get_library_root_dir(self, lib_name, auto_setup=True):
         """Retrieve the root dir for a given library"""
 
+        version_override = None
+        # Split if we have a version number specified:
+        if "==" in lib_name:
+            parts = lib_name.split("==")
+            self.check(len(parts) == 2, "Should have 2 parts here.")
+            lib_name = parts[0]
+            version_override = parts[1]
+
         # Iterate on all the available libraries:
         for ldesc in self.config["libraries"]:
             dep_name = self.get_std_package_name(ldesc)
 
             # First we check if we have the dependency target folder already:
-
             if ldesc["name"] == lib_name or dep_name == lib_name:
+
+                # Apply the version override if needed:
+                if version_override is not None and ldesc["version"] != version_override:
+                    # logger.info("Using version override for %s-%s", lib_name, version_override)
+                    # Replace the ldesc:
+                    ldesc.clear()
+                    ldesc["name"] = lib_name
+                    ldesc["version"] = version_override
+                    dep_name = self.get_std_package_name(ldesc)
+
                 dep_dir = self.get_path(self.libs_dir, dep_name)
 
                 if auto_setup and not self.dir_exists(dep_dir):
@@ -316,7 +336,7 @@ class BuildManager(NVPComponent):
         return desc["version"]
 
     def get_std_package_name(self, desc):
-        """Return a standard package naem from base name and version"""
+        """Return a standard package name from base name and version"""
         return f"{desc['name']}-{self.get_package_version(desc)}"
 
     def setup_build_context(self, desc, use_existing_src, base_build_dir=None):

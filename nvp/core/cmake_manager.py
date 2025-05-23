@@ -203,9 +203,7 @@ class CMakeManager(NVPComponent):
 
         self.write_project_file_content(hlocs, dest_file, header_tpl)
 
-        dest_file = self.get_path(
-            proj_dir, "sources", mod_dir, "src", f"{class_name}.cpp"
-        )
+        dest_file = self.get_path(proj_dir, "sources", mod_dir, "src", f"{class_name}.cpp")
         if rewrite and self.file_exists(dest_file):
             self.remove_file(dest_file)
 
@@ -536,9 +534,7 @@ class CMakeManager(NVPComponent):
                 for desc in cprojs:
                     pname = desc["name"].lower()
                     desc["root_dir"] = self.fill_placeholders(desc["root_dir"], hlocs)
-                    desc["install_dir"] = self.fill_placeholders(
-                        desc["install_dir"], hlocs
-                    )
+                    desc["install_dir"] = self.fill_placeholders(desc["install_dir"], hlocs)
 
                     # Add the project name:
                     desc["nvp_project"] = proj.get_name(False)
@@ -652,9 +648,7 @@ class CMakeManager(NVPComponent):
 
         # we should run a cmake command
         # For the build dir we should also append the compiler type:
-        build_dir = self.get_path(
-            self.build_dir, f"{proj_name}_{ctype}_{build_type.lower()}"
-        )
+        build_dir = self.get_path(self.build_dir, f"{proj_name}_{ctype}_{build_type.lower()}")
 
         if rebuild and self.dir_exists(build_dir):
             logger.info("Removing build folder %s", build_dir)
@@ -686,10 +680,14 @@ class CMakeManager(NVPComponent):
                 var_val = tgt
 
             elif vtype == "root_dir":
+                # Should handle here the case where the lib_name also contain a fixed
+                # version number like: "dawn==git-20250320"
                 if bman.has_library(lib_name):
                     var_val = bman.get_library_root_dir(lib_name)
                 else:
                     var_val = tool.get_tool_root_dir(lib_name)
+                self.check(var_val is not None, "Cannot find root dir for %s", lib_name)
+                # logger.info("Resolved dir %s for %s", var_val, lib_name)
 
                 var_val = var_val.replace("\\", "/")
             elif vtype == "version_major":
@@ -712,14 +710,10 @@ class CMakeManager(NVPComponent):
 
         # Write the build outputs to a build logfile:
         build_file = self.get_path(src_dir, f"{proj_name}_{ctype}_build.log")
-        outfile = (
-            None if gen_commands else open(build_file, "w", encoding="utf-8", newline="")
-        )
+        outfile = None if gen_commands else open(build_file, "w", encoding="utf-8", newline="")
 
         builder = self.get_builder()
-        builder.run_cmake(
-            build_dir, install_dir, src_dir, flags, outfile=outfile, build_type=build_type
-        )
+        builder.run_cmake(build_dir, install_dir, src_dir, flags, outfile=outfile, build_type=build_type)
 
         if bman.get_compiler().is_clang():
             # Copy the compile_commands.json file:
@@ -784,28 +778,18 @@ if __name__ == "__main__":
     psr.add_str("proj_names")("List of modules to build")
     psr.add_str("-d", "--dir", dest="mod_install_dir")("Install folder")
     psr.add_flag("-r", "--rebuild", dest="rebuild")("Force rebuilding completely")
-    psr.add_str("-t", "--build-type", dest="build_type", default="Release")(
-        "Specify the cmake build type"
-    )
-    psr.add_str("-c", "--compiler", dest="compiler_type", default="clang")(
-        "Select the compiler"
-    )
-    psr.add_int("-j", "--num-threads", dest="num_threads")(
-        "Specify the number of threads to use during build."
-    )
+    psr.add_str("-t", "--build-type", dest="build_type", default="Release")("Specify the cmake build type")
+    psr.add_str("-c", "--compiler", dest="compiler_type", default="clang")("Select the compiler")
+    psr.add_int("-j", "--num-threads", dest="num_threads")("Specify the number of threads to use during build.")
 
     psr = context.build_parser("install")
-    psr.add_str("ctx_names", nargs="?", default="default")(
-        "List of module context to install"
-    )
+    psr.add_str("ctx_names", nargs="?", default="default")("List of module context to install")
 
     psr = context.build_parser("setup")
     psr.add_str("cproj_name")("Cmake project to init")
     psr.add_flag("-g", dest="gen_commands")("Generate the compile_commands.json file")
     psr.add_flag("-r", "--reconfig", dest="reconfig")("Force reconfiguring completely")
-    psr.add_str("-c", "--compiler", dest="compiler_type", default="clang")(
-        "Select the compiler"
-    )
+    psr.add_str("-c", "--compiler", dest="compiler_type", default="clang")("Select the compiler")
 
     psr = context.build_parser("add.header")
     psr.add_str("cproj_name")("Cmake project")
