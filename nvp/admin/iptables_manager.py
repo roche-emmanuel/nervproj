@@ -31,6 +31,9 @@ NTP_SERVERS = {
     "129.6.15.28",
 }
 
+WHITELIST_SET = "mac_whitelist"
+BLOCKED_SET = "blocked_local_ips"
+
 
 class IPTablesManager(NVPComponent):
     """IPTablesManager component class"""
@@ -528,33 +531,87 @@ class IPTablesManager(NVPComponent):
 
         # read/write an ip state file:
 
+    def mac_map_to_triplets(self, mac_map):
+        """Convert mac map to triplets list."""
+        tlist = []
+        for mac, ips in mac_map.items():
+            for ip, intf in ips:
+                tlist.append(f"{mac.upper()}_{ip}_{intf}")
+        return tlist
+
+    def contains_map_ip_intf(self, tlist, mac, ip, intf):
+        """Check if the triplet list contains a MAC/IP/INTF triplet."""
+        key = f"{mac.upper()}_{ip}_{intf}"
+        return key in tlist
+
+    def create_ipsets(self):
+        """Create the ipsets if missing."""
+        if not self.has_set(WHITELIST_SET):
+            logger.info("Creating set %s", WHITELIST_SET)
+            self.create_set(WHITELIST_SET, "hash:net")
+
+        if not self.has_set(BLOCKED_SET):
+            logger.info("Creating set %s", BLOCKED_SET)
+            self.create_set(BLOCKED_SET, "hash:net")
+
+    def select_valid_ip(self, mac_map, triplets, dev_name, intf="eno2"):
+        """Select a valid mac/ip pair."""
+        devs = self.config["devices"]
+        macs = devs[dev_name]["mac"].upper()
+        ips = devs[dev_name]["ip"]
+
+        if isinstance(macs, str):
+            macs = [macs]
+
+        if all(mac not in mac_map for mac in macs):
+            # This device is not active:
+            return (None, None)
+
+        if isinstance(ips, str):
+            ips = [ips]
+
+        # Keep track of all valid triplets:
+        valid_ips = []
+        for mac in macs:
+            for ip in ips:
+                if self.contains_map_ip_intf(triplets, mac, ip, intf):
+                    valid_ips.append((ip, mac))
+
+        if len(valid_ips) == 0:
+            # Did not find correct IP for that device:
+            got_ips = []
+            for mac in macs:
+                if mac in mac_map:
+                    got_ips += mac_map[mac]
+
+            logger.error("No valid Ip found for %s (MAC %s): expected: %s, got: %s", dev_name, macs, ips, got_ips)
+            self.flush_ip_neighbours()
+            return (None, None)
+
+        if len(valid_ips) > 1:
+            logger.warning("Found multiple valid ips for same device (%s): %s", dev_name, valid_ips)
+
+        return valid_ips[0]
+
     def update_mac_wl(self):
         """Update the WAN access rule"""
         grps = self.config.get("mac_groups", {})
         # logger.info("Found MAC groups:: %s", grps)
-        sname = "mac_whitelist"
 
-        block_set = "blocked_local_ips"
         enforce_blocks = self.config.get("enforce_blocking", [])
         mac_map = self.get_mac_ip_mapping()
 
         # create the set if needed:
-        if not self.has_set(sname):
-            logger.info("Creating set %s", sname)
-            self.create_set(sname, "hash:net")
+        self.create_ipsets()
 
-        if not self.has_set(block_set):
-            logger.info("Creating set %s", block_set)
-            self.create_set(block_set, "hash:net")
-
-        # l0 = self.has_set(sname)
+        # l0 = self.has_set(WHITELIST_SET)
         # logger.info("Has mac_whitelist: %s", l0)
         # l1 = self.has_set("blacklist")
         # logger.info("Has blacklist: %s", l1)
 
         devs = self.config["devices"]
 
-        prev_list = self.get_set_content(sname)
+        prev_list = self.get_set_content(WHITELIST_SET)
         # logger.info("Previous list contained %d elements", len(prev_list))
         changes = False
         found = []
@@ -569,10 +626,12 @@ class IPTablesManager(NVPComponent):
                     self.check(ip not in found, "Ip %s was already whitelisted.", ip)
 
                     logger.info("Adding IP %s for MAC %s on %s", ip, mac, intf)
-                    self.add_to_set(sname, ip)
+                    self.add_to_set(WHITELIST_SET, ip)
                     changes = True
                 else:
                     found.append(ip)
+
+        triplets = self.mac_map_to_triplets(mac_map)
 
         # Iterate on the enable groups:
         sch = self.config.get("internet_schedule", {})
@@ -585,44 +644,13 @@ class IPTablesManager(NVPComponent):
 
             if grp_name in enforce_blocks:
                 # We should update the list of blocked ips:
-                self.update_blocked_ip_list(block_set, self.get_all_ref_ips(grp), not in_schedule)
+                self.update_blocked_ip_list(BLOCKED_SET, self.get_all_ref_ips(grp), not in_schedule)
 
             if in_schedule:
                 for elem in grp:
-                    mac = devs[elem]["mac"].upper()
-                    ref_ips = devs[elem]["ip"]
-
-                    if isinstance(ref_ips, str):
-                        ref_ips = [ref_ips]
-
-                    # If that MAC is not connected, we ignore it:
-                    if mac not in mac_map:
-                        # logger.info("Mac %s not connected", mac)
-                        continue
-
-                    ips = mac_map[mac]
-                    valid_ip = None
-                    for ip, intf in ips:
-                        if intf != "eno2":
-                            logger.info("Ignoring IP/MAC %s/%s in interface %s", ip, mac, intf)
-                            continue
-
-                        if ip not in ref_ips:
-                            continue
-
-                        # Always use the first ref_ip here:
-                        valid_ip = ref_ips[0]
-                        break
+                    valid_ip, valid_mac = self.select_valid_ip(mac_map, triplets, elem)
 
                     if valid_ip is None:
-                        logger.error(
-                            "No valid Ip found for %s (MAC %s): expected: %s, got: %s",
-                            elem,
-                            mac,
-                            ref_ips,
-                            ips,
-                        )
-                        self.flush_ip_neighbours()
                         continue
 
                     if valid_ip not in prev_list:
@@ -631,9 +659,9 @@ class IPTablesManager(NVPComponent):
                             valid_ip,
                             elem,
                             grp_name,
-                            mac,
+                            valid_mac,
                         )
-                        self.add_to_set(sname, valid_ip)
+                        self.add_to_set(WHITELIST_SET, valid_ip)
                         changes = True
                     else:
                         # logger.info("IP %s already in list", ip, mac)
@@ -644,16 +672,17 @@ class IPTablesManager(NVPComponent):
         for elem in to_remove:
             dev_name = "<unknown>"
             for dname, desc in devs.items():
-                if desc["ip"] == elem:
+                device_ips = desc["ip"] if isinstance(desc["ip"], list) else [desc["ip"]]
+                if elem in device_ips:
                     dev_name = dname
                     break
 
             logger.info("Removing IP %s (for %s)", elem, dev_name)
-            self.remove_from_set(sname, elem)
+            self.remove_from_set(WHITELIST_SET, elem)
             changes = True
 
         if changes:
-            content = self.get_set_content(sname)
+            content = self.get_set_content(WHITELIST_SET)
             # logger.info("Updated IP whitelist: %s", content)
             logger.info("Updated IP whitelist contains %d elements.", len(content))
 
