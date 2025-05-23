@@ -597,7 +597,7 @@ class IPTablesManager(NVPComponent):
 
                     # If that MAC is not connected, we ignore it:
                     if mac not in mac_map:
-                        logger.info("Mac %s not connected", mac)
+                        # logger.info("Mac %s not connected", mac)
                         continue
 
                     ips = mac_map[mac]
