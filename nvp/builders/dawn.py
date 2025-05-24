@@ -91,6 +91,7 @@ class DawnBuilder(NVPBuilder):
             f"-DPython_EXECUTABLE={py_path}",
             f"-DPython3_EXECUTABLE={py_path}",
             "-DDAWN_ENABLE_PIC=ON",
+            # "-DBUILD_SHARED_LIBS=OFF",
         ]
 
         self.run_cmake(build_dir, prefix, flags=flags)
@@ -164,6 +165,7 @@ class DawnBuilder(NVPBuilder):
             f"-DPython_EXECUTABLE={py_path}",
             f"-DPython3_EXECUTABLE={py_path}",
             "-DDAWN_ENABLE_PIC=ON",
+            # "-DBUILD_SHARED_LIBS=OFF",
         ]
 
         self.run_cmake(build_dir, prefix, flags=flags)
