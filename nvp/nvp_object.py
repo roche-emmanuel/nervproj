@@ -113,6 +113,22 @@ class NVPObject(object):
         """raise an exception"""
         raise NVPCheckError(fmt % args)
 
+    def debug(self, *args):
+        """Log a debug message."""
+        logger.debug(*args)
+
+    def info(self, *args):
+        """Log an info message."""
+        logger.info(*args)
+
+    def warn(self, *args):
+        """Log an warning message."""
+        logger.warning(*args)
+
+    def error(self, *args):
+        """Log an error message."""
+        logger.error(*args)
+
     def safe_call(self, func, excepts, delay=2.0, retries=10, err_cb=None):
         """Execute a given code block safely, catching potential
         temporary errors and retrying as needed."""

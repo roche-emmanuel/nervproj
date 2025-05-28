@@ -5,6 +5,7 @@ import argparse
 import logging
 import os
 import platform
+import re
 import signal
 import sys
 from importlib import import_module
@@ -355,6 +356,38 @@ class NVPContext(NVPObject):
         #     self.extend_config(user_cfg)
 
         # self.config.update(user_cfg)
+
+    def get_known_dir_vars(self):
+        """Get all the known dirs variables."""
+        hlocs = {
+            "${NVP_DIR}": self.root_dir,
+            "${HOME_DIR}": self.home_dir,
+            "${BASE_DIR}": self.base_dir,
+        }
+
+        # Add the root dir from all known projects:
+        for proj in self.get_projects():
+            key = f"{proj.get_name().upper()}_DIR"
+            val = proj.get_root_dir()
+            if key not in hlocs:
+                logger.info("Adding project dir: %s=%s", key, val)
+                hlocs[key] = val
+
+        return hlocs
+
+    def resolve_path(self, path, check_resolved=True):
+        """Fill placeholders in a path."""
+        hlocs = self.get_known_dir_vars()
+
+        path = self.fill_placeholders(path, hlocs)
+
+        if check_resolved:
+            # Check that we have no remaining vars:
+            pattern = r"\$\{([^}]+)\}"
+            matches = re.findall(pattern, path)
+            self.check(len(matches) == 0, "Found unresolved variables in path: %s", matches)
+
+        return path
 
     def enable_process_restart(self):
         """Notify that we will want to restart the current process"""

@@ -47,8 +47,28 @@ class IPTablesManager(NVPComponent):
         if self.config is None:
             self.config = self.ctx.get_project("NervHome").get_config().get("iptables")
 
+        # Get the devices file list:
+        self.devices = self.config["devices"]
+        if isinstance(self.devices, list):
+            # This is a list of file names:
+            self.devices = self.load_devices(self.devices)
+
         self.check(self.config is not None, "Invalid iptables config.")
         # logger.info("iptables configs: %s", self.config)
+
+    def load_devices(self, device_files):
+        """Load the devices from a list of files."""
+        # Iterate on each file:
+        devices = {}
+        for fname in device_files:
+            # Fill the placeholders if needed:
+            full_path = self.ctx.resolve_path(fname)
+            if self.file_exists(full_path):
+                self.info("Reading devices from %s", full_path)
+                cfg = self.read_yaml(full_path)
+                devices.update(cfg)
+
+        return devices
 
     def process_cmd_path(self, cmd):
         """Re-implementation of process_cmd_path"""
@@ -487,7 +507,7 @@ class IPTablesManager(NVPComponent):
     def get_all_ref_ips(self, grp):
         """Get all the ref IPs for a given group."""
         ips = []
-        devs = self.config["devices"]
+        devs = self.devices
 
         for elem in grp:
             ref_ips = devs[elem]["ip"]
@@ -556,7 +576,7 @@ class IPTablesManager(NVPComponent):
 
     def select_valid_ip(self, mac_map, triplets, dev_name, intf="eno2"):
         """Select a valid mac/ip pair."""
-        devs = self.config["devices"]
+        devs = self.devices
         macs = devs[dev_name]["mac"]
         ips = devs[dev_name]["ip"]
 
@@ -611,7 +631,7 @@ class IPTablesManager(NVPComponent):
         # l1 = self.has_set("blacklist")
         # logger.info("Has blacklist: %s", l1)
 
-        devs = self.config["devices"]
+        devs = self.devices
 
         prev_list = self.get_set_content(WHITELIST_SET)
         # logger.info("Previous list contained %d elements", len(prev_list))
