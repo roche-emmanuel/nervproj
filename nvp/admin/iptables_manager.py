@@ -72,7 +72,7 @@ class IPTablesManager(NVPComponent):
             full_path = self.ctx.resolve_path(fname)
             if self.file_exists(full_path):
                 # self.info("Reading config elements from %s", full_path)
-                cfg = self.read_yaml(full_path)
+                cfg = self.read_yaml(full_path) or {}
                 config.update(cfg)
 
         return config
