@@ -357,12 +357,14 @@ class NVPContext(NVPObject):
 
         # self.config.update(user_cfg)
 
-    def get_known_dir_vars(self):
+    def get_known_vars(self):
         """Get all the known dirs variables."""
         hlocs = {
             "${NVP_DIR}": self.root_dir,
             "${HOME_DIR}": self.home_dir,
             "${BASE_DIR}": self.base_dir,
+            "${HOSTNAME}": self.get_hostname().lower(),
+            "${PLATFORM}": self.get_platform().lower(),
         }
 
         # Add the root dir from all known projects:
@@ -377,7 +379,7 @@ class NVPContext(NVPObject):
 
     def resolve_path(self, path, check_resolved=True):
         """Fill placeholders in a path."""
-        hlocs = self.get_known_dir_vars()
+        hlocs = self.get_known_vars()
 
         path = self.fill_placeholders(path, hlocs)
 
