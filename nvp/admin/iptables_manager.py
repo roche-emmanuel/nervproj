@@ -51,6 +51,7 @@ class IPTablesManager(NVPComponent):
         self.devices = self.load_config_entry("devices")
         self.mac_groups = self.load_config_entry("mac_groups")
         self.internet_schedule = self.load_config_entry("internet_schedule")
+        self.rules = self.load_config_entry("templates")
 
         self.check(self.config is not None, "Invalid iptables config.")
         # logger.info("iptables configs: %s", self.config)
@@ -351,8 +352,7 @@ class IPTablesManager(NVPComponent):
 
     def write_rule(self, rname, values, hlocs):
         """Write a rule template with the given values."""
-
-        entries = self.config["templates"][rname]
+        entries = self.rules[rname]
 
         for entry in entries:
             entry = self.fill_placeholders(entry, hlocs)
@@ -391,9 +391,7 @@ class IPTablesManager(NVPComponent):
         arp_output = self.run_arp("-n")
 
         # Regular expression to match IP, MAC, and Interface
-        pattern = re.compile(
-            r"(\d+\.\d+\.\d+\.\d+)\s+(?:ether\s+([\da-f:]+)\s+)?\S*\s+(\S+)"
-        )
+        pattern = re.compile(r"(\d+\.\d+\.\d+\.\d+)\s+(?:ether\s+([\da-f:]+)\s+)?\S*\s+(\S+)")
 
         # Extracted data
         devices = []
@@ -625,9 +623,7 @@ class IPTablesManager(NVPComponent):
             return (None, None)
 
         if len(valid_ips) > 1:
-            logger.warning(
-                "Found multiple valid ips for same device (%s): %s", dev_name, valid_ips
-            )
+            logger.warning("Found multiple valid ips for same device (%s): %s", dev_name, valid_ips)
 
         return valid_ips[0]
 
@@ -682,9 +678,7 @@ class IPTablesManager(NVPComponent):
 
             if grp_name in enforce_blocks:
                 # We should update the list of blocked ips:
-                self.update_blocked_ip_list(
-                    BLOCKED_SET, self.get_all_ref_ips(grp), not in_schedule
-                )
+                self.update_blocked_ip_list(BLOCKED_SET, self.get_all_ref_ips(grp), not in_schedule)
 
             if in_schedule:
                 for elem in grp:
@@ -740,15 +734,15 @@ if __name__ == "__main__":
 
     psr = context.build_parser("save")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str(
-        "-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}"
-    )("File where to save the IPtable rules.")
+    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
+        "File where to save the IPtable rules."
+    )
 
     psr = context.build_parser("load")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str(
-        "-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}"
-    )("File where to load the IPtable rules from.")
+    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
+        "File where to load the IPtable rules from."
+    )
 
     # This will not work for now:
     # psr = context.build_parser("monitor")
