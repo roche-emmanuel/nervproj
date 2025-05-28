@@ -391,7 +391,9 @@ class IPTablesManager(NVPComponent):
         arp_output = self.run_arp("-n")
 
         # Regular expression to match IP, MAC, and Interface
-        pattern = re.compile(r"(\d+\.\d+\.\d+\.\d+)\s+(?:ether\s+([\da-f:]+)\s+)?\S*\s+(\S+)")
+        pattern = re.compile(
+            r"(\d+\.\d+\.\d+\.\d+)\s+(?:ether\s+([\da-f:]+)\s+)?\S*\s+(\S+)"
+        )
 
         # Extracted data
         devices = []
@@ -612,12 +614,20 @@ class IPTablesManager(NVPComponent):
                 if mac in mac_map:
                     got_ips += mac_map[mac]
 
-            logger.error("No valid Ip found for %s (MAC %s): expected: %s, got: %s", dev_name, macs, ips, got_ips)
+            logger.error(
+                "No valid Ip found for %s (MAC %s): expected: %s, got: %s",
+                dev_name,
+                macs,
+                ips,
+                got_ips,
+            )
             self.flush_ip_neighbours()
             return (None, None)
 
         if len(valid_ips) > 1:
-            logger.warning("Found multiple valid ips for same device (%s): %s", dev_name, valid_ips)
+            logger.warning(
+                "Found multiple valid ips for same device (%s): %s", dev_name, valid_ips
+            )
 
         return valid_ips[0]
 
@@ -662,7 +672,7 @@ class IPTablesManager(NVPComponent):
         triplets = self.mac_map_to_triplets(mac_map)
 
         # Iterate on the enable groups:
-        sch = self.config.get("internet_schedule", {})
+        sch = self.internet_schedule
         for grp_name, schedule in sch.items():
             # logger.info("%s: %s", grp_name, state)
             # Add each element from that group to the set:
@@ -672,7 +682,9 @@ class IPTablesManager(NVPComponent):
 
             if grp_name in enforce_blocks:
                 # We should update the list of blocked ips:
-                self.update_blocked_ip_list(BLOCKED_SET, self.get_all_ref_ips(grp), not in_schedule)
+                self.update_blocked_ip_list(
+                    BLOCKED_SET, self.get_all_ref_ips(grp), not in_schedule
+                )
 
             if in_schedule:
                 for elem in grp:
@@ -728,15 +740,15 @@ if __name__ == "__main__":
 
     psr = context.build_parser("save")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
-        "File where to save the IPtable rules."
-    )
+    psr.add_str(
+        "-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}"
+    )("File where to save the IPtable rules.")
 
     psr = context.build_parser("load")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
-        "File where to load the IPtable rules from."
-    )
+    psr.add_str(
+        "-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}"
+    )("File where to load the IPtable rules from.")
 
     # This will not work for now:
     # psr = context.build_parser("monitor")
