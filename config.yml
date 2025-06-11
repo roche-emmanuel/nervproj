@@ -102,8 +102,10 @@ windows_tools:
   - name: clang
     sub_path: bin/clang++.exe
     urls:
-      - http://files.nervtech.org/nvp_packages/tools/clang-18.1.8-windows.7z
-    version: 18.1.8
+      # - http://files.nervtech.org/nvp_packages/tools/clang-18.1.8-windows.7z
+      - http://files.nervtech.org/nvp_packages/tools/clang-20.1.6-windows.7z
+    # version: 18.1.8
+    version: 20.1.6
 
 # Tools that can be used on linux:
 linux_tools:
