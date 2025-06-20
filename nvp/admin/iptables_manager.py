@@ -395,7 +395,9 @@ class IPTablesManager(NVPComponent):
         arp_output = self.run_arp("-n")
 
         # Regular expression to match IP, MAC, and Interface
-        pattern = re.compile(r"(\d+\.\d+\.\d+\.\d+)\s+(?:ether\s+([\da-f:]+)\s+)?\S*\s+(\S+)")
+        pattern = re.compile(
+            r"(\d+\.\d+\.\d+\.\d+)\s+(?:ether\s+([\da-f:]+)\s+)?\S*\s+(\S+)"
+        )
 
         # Extracted data
         devices = []
@@ -627,7 +629,9 @@ class IPTablesManager(NVPComponent):
             return (None, None)
 
         if len(valid_ips) > 1:
-            logger.warning("Found multiple valid ips for same device (%s): %s", dev_name, valid_ips)
+            logger.warning(
+                "Found multiple valid ips for same device (%s): %s", dev_name, valid_ips
+            )
 
         return valid_ips[0]
 
@@ -682,7 +686,9 @@ class IPTablesManager(NVPComponent):
 
             if grp_name in enforce_blocks:
                 # We should update the list of blocked ips:
-                self.update_blocked_ip_list(BLOCKED_SET, self.get_all_ref_ips(grp), not in_schedule)
+                self.update_blocked_ip_list(
+                    BLOCKED_SET, self.get_all_ref_ips(grp), not in_schedule
+                )
 
             if in_schedule:
                 for elem in grp:
@@ -740,6 +746,7 @@ class IPTablesManager(NVPComponent):
         mac_pattern = re.compile(r"^\s*hardware\s+ethernet\s+([a-fA-F0-9:]+);")
         ip_pattern = re.compile(r"^\s*fixed-address\s+([0-9.]+);")
 
+        i = 0
         while i < len(lines):
             line = lines[i].strip()
             host_match = host_pattern.match(line)
@@ -763,9 +770,9 @@ class IPTablesManager(NVPComponent):
                     j += 1
 
                 if mac and ip:
-                    hstr = f"{hostname.lower()}_{mac.lower()}_{ip}"
-                    self.info("Found host in DHCP: %s", hstr)
-                    found_hosts.append(hstr)
+                    hstr = f"{hostname.lower()}|{mac.lower()}|{ip}"
+                    # self.info("Found host in DHCP: %s", hstr)
+                    found_hosts.add(hstr)
 
                 i = j
             else:
@@ -777,6 +784,101 @@ class IPTablesManager(NVPComponent):
         """Update the dhcp devices."""
         dhcp_file = "/etc/dhcp/dhcpd.conf"
         found_hosts = self.parse_dhcp_config(dhcp_file)
+
+        # Also collect the same list of entries from our devices:
+        cur_hosts = set()
+        hosts = {}
+        for hname, desc in self.devices.items():
+            mac = desc["mac"]
+            ip = desc["ip"]
+            if isinstance(mac, list):
+                mac = mac[0]
+            if isinstance(ip, list):
+                ip = ip[0]
+
+            hstr = f"{hname.lower()}|{mac.lower()}|{ip}"
+            hosts[hname.lower()] = (mac.lower(), ip)
+            cur_hosts.add(hstr)
+
+        added_hosts = cur_hosts - found_hosts
+        removed_hosts = found_hosts - cur_hosts
+
+        update_needed = False
+        if len(removed_hosts) != 0:
+            self.info("Removing hosts: %s", removed_hosts)
+            update_needed = True
+        if len(added_hosts) != 0:
+            self.info("Adding hosts: %s", added_hosts)
+            update_needed = True
+
+        if update_needed:
+            # Rewrite the DCHP config file:
+            header_file = self.ctx.resolve_path(self.config["dhcp_header"])
+            # self.info("Should read header from: %s", header_file)
+
+            header = self.read_text_file(header_file)
+
+            # Now write the host lines:
+            lines = [header]
+            for hname, desc in hosts.items():
+                lines.append(f"host {hname} " + "{")
+                lines.append(f"  hardware ethernet {desc[0]};")
+                lines.append(f"  fixed-address {desc[1]};")
+                lines.append("}")
+
+            content = "\n".join(lines)
+
+            # self.info("Should write content: %s", content)
+
+            # Write the file in the home dir:
+            dst_file = self.get_path(self.ctx.get_home_dir(), "dhcpd.conf")
+            self.info("Writing file %s...", dst_file)
+            self.write_text_file(content, dst_file)
+
+            # Backup previous file:
+            self.info("Backing up %s...", dhcp_file)
+            cmd = ["sudo", "mv", dhcp_file, dhcp_file + ".bak"]
+            _, stderr, returncode = self.execute_command(cmd)
+
+            if returncode != 0:
+                logger.error("Failed to backup dhcpd config: %s", stderr)
+                return
+
+            # Move new file:
+            self.info("Moving file %s...", dst_file)
+            cmd = ["sudo", "mv", dst_file, dhcp_file]
+            _, stderr, returncode = self.execute_command(cmd)
+
+            if returncode != 0:
+                logger.error("Failed to move dhcpd config: %s", stderr)
+                return
+
+            # Updating rights:
+            self.info("Updating rights on %s...", dhcp_file)
+            cmd = ["sudo", "chown", "root:root", dhcp_file]
+            _, stderr, returncode = self.execute_command(cmd)
+
+            if returncode != 0:
+                logger.error("Failed to change rights on dhcpd config: %s", stderr)
+                return
+
+            self.info("Restarting DHCPD service...")
+            self.restart_dhcpd_service()
+            self.info("Done restarting DHCPD service.")
+        else:
+            self.info("No update needed for dhcpd service.")
+
+    def restart_dhcpd_service(self):
+        """Restart dhcpd service."""
+        cmd = ["sudo", "service", "isc-dhcp-server", "restart"]
+        stdout, stderr, returncode = self.execute_command(cmd)
+
+        if returncode != 0:
+            logger.error("Failed to restart dhcpd: %s", stderr)
+            return None
+
+        # Otherwise print the output:
+        return stdout
 
 
 if __name__ == "__main__":
@@ -792,15 +894,15 @@ if __name__ == "__main__":
 
     psr = context.build_parser("save")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
-        "File where to save the IPtable rules."
-    )
+    psr.add_str(
+        "-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}"
+    )("File where to save the IPtable rules.")
 
     psr = context.build_parser("load")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
-        "File where to load the IPtable rules from."
-    )
+    psr.add_str(
+        "-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}"
+    )("File where to load the IPtable rules from.")
 
     # This will not work for now:
     # psr = context.build_parser("monitor")
