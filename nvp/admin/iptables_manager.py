@@ -115,6 +115,10 @@ class IPTablesManager(NVPComponent):
             self.create_ntp_list()
             return True
 
+        if cmd == "update_dhcp_devices":
+            self.update_dhcp_devices()
+            return True
+
         # if cmd == "monitor":
         #     iname = self.get_param("intf_name")
         #     self.monitor_traffic(iname)
@@ -720,6 +724,60 @@ class IPTablesManager(NVPComponent):
             # logger.info("Updated IP whitelist: %s", content)
             logger.info("Updated IP whitelist contains %d elements.", len(content))
 
+    def parse_dhcp_config(self, dhcp_config_file):
+        """Parse DHCP config file and extract host entries."""
+        try:
+            with open(dhcp_config_file, "r") as f:
+                lines = f.readlines()
+        except FileNotFoundError:
+            print(f"Error: DHCP config file '{dhcp_config_file}' not found.")
+            return None
+
+        found_hosts = set()
+
+        # Pattern to match host entries
+        host_pattern = re.compile(r"^\s*host\s+(\S+)\s*\{")
+        mac_pattern = re.compile(r"^\s*hardware\s+ethernet\s+([a-fA-F0-9:]+);")
+        ip_pattern = re.compile(r"^\s*fixed-address\s+([0-9.]+);")
+
+        while i < len(lines):
+            line = lines[i].strip()
+            host_match = host_pattern.match(line)
+
+            if host_match:
+                hostname = host_match.group(1)
+                mac = None
+                ip = None
+
+                # Look for MAC and IP in the next few lines
+                j = i + 1
+                while j < len(lines) and not lines[j].strip().startswith("}"):
+                    mac_match = mac_pattern.match(lines[j])
+                    ip_match = ip_pattern.match(lines[j])
+
+                    if mac_match:
+                        mac = mac_match.group(1).lower()
+                    if ip_match:
+                        ip = ip_match.group(1)
+
+                    j += 1
+
+                if mac and ip:
+                    hstr = f"{hostname.lower()}_{mac.lower()}_{ip}"
+                    self.info("Found host in DHCP: %s", hstr)
+                    found_hosts.append(hstr)
+
+                i = j
+            else:
+                i += 1
+
+        return found_hosts
+
+    def update_dhcp_devices(self):
+        """Update the dhcp devices."""
+        dhcp_file = "/etc/dhcp/dhcpd.conf"
+        found_hosts = self.parse_dhcp_config(dhcp_file)
+
 
 if __name__ == "__main__":
     # Create the context:
@@ -749,6 +807,8 @@ if __name__ == "__main__":
     # psr.add_str("-i", dest="intf_name")("Interface to monitor.")
 
     psr = context.build_parser("update_ntp_list")
+
+    psr = context.build_parser("update_dhcp_devices")
 
     psr = context.build_parser("update_mac_whitelist")
     # psr.add_str("config_name")("Config to write.")
