@@ -465,6 +465,8 @@ libraries:
   - name: clipper2
     version: git-20250217
     git: git@github.com:roche-emmanuel/Clipper2.git
+  - name: ffmpeg-lgpl-shared
+    version: 20250626
 
 # list of available projects:
 projects: []
