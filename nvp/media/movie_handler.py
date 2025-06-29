@@ -11,6 +11,7 @@ from functools import wraps
 
 import cv2
 import ffmpeg
+import librosa
 
 # from moviepy.editor import *
 import moviepy.editor as mpe
@@ -86,6 +87,19 @@ class MovieHandler(NVPComponent):
             file = self.get_param("input_file")
 
             return self.process_webcam_view(file)
+
+        if cmd == "find-silences":
+            file = self.get_param("input_file")
+
+            self.find_silences(file)
+            return True
+
+        if cmd == "cut-silences":
+            file = self.get_param("input_file")
+            sfile = self.get_param("seg_file")
+
+            self.cut_silences(file, sfile)
+            return True
 
         if cmd == "add-video-dates":
             cwd = self.get_cwd()
@@ -753,6 +767,118 @@ class MovieHandler(NVPComponent):
                 logger.info("Removing empty temp folder %s", fname)
                 self.remove_folder(fpath)
 
+    def find_silences(self, input_file):
+        """Find the silences in a given input file."""
+        # folder = self.get_parent_folder(input_file)
+        out_file = self.set_path_extension(input_file, "_silences.json")
+        # self.info("Should write silence files %s", out_file)
+        sthres = self.get_param("silence_threshold")
+        mindur = self.get_param("min_silence_duration")
+        minspeech = self.get_param("min_speech_duration")
+        self.info("Detecting silences in %s...", input_file)
+        segs = self.detect_segments_to_keep(input_file, sthres, mindur, minspeech)
+
+        self.info("Writing %d speech segments in %s.", len(segs), out_file)
+        self.write_json(segs, out_file)
+
+    def cut_silences(self, input_file, seg_file):
+        """Remove silences from input file."""
+        ext = self.get_path_extension(input_file)
+        out_file = self.set_path_extension(input_file, f"_cleaned{ext}")
+
+        self.info("Removing silences from %s...", input_file)
+
+    def detect_segments_to_keep(
+        self, audio_path, silence_threshold=-40, min_silence_duration=0.5, min_speech_duration=0.5
+    ):
+        """Detect silences."""
+        # Load audio
+        y, sr = librosa.load(audio_path)
+
+        # Calculate RMS energy
+        rms = librosa.feature.rms(y=y)[0]
+
+        # Convert to dB
+        rms_db = librosa.amplitude_to_db(rms)
+
+        self.info("Using silence threshold: %fdB", silence_threshold)
+        self.info("Using silence min duration: %fsecs", min_silence_duration)
+
+        self.info(f"RMS dB range: {rms_db.min():.1f} to {rms_db.max():.1f}")
+        self.info(f"RMS dB mean: {rms_db.mean():.1f}")
+        self.info(f"RMS dB median: {np.median(rms_db):.1f}")
+
+        # Detect speech frames
+        speech_frames = rms_db > silence_threshold
+
+        ratio = np.count_nonzero(speech_frames) / rms_db.size
+        self.info("Speech ratio is: %.3f%%", ratio * 100.0)
+
+        # Convert frame indices to time
+        frame_times = librosa.frames_to_time(np.arange(len(speech_frames)), sr=sr)
+
+        # Find speech segments
+        segments_to_keep = []
+        in_speech = False
+        start_time = None
+
+        for i, has_speech in enumerate(speech_frames):
+            current_time = frame_times[i]
+
+            if has_speech and not in_speech:
+                # Start of speech segment
+                start_time = current_time
+                in_speech = True
+
+            elif not has_speech and in_speech:
+                # End of speech segment - but check if silence is long enough
+                # Look ahead to see when speech resumes
+                silence_start = current_time
+                silence_end = None
+
+                # Find the end of this silence period
+                for j in range(i + 1, len(speech_frames)):
+                    if speech_frames[j]:
+                        silence_end = frame_times[j]
+                        break
+
+                if silence_end is None:
+                    # Silence continues to end of file
+                    segments_to_keep.append({"start": float(start_time), "end": float(silence_start)})
+                    in_speech = False
+                else:
+                    # Check if silence is long enough to split segments
+                    silence_duration = silence_end - silence_start
+                    if silence_duration >= min_silence_duration:
+                        # Long silence - end current segment
+                        segments_to_keep.append({"start": float(start_time), "end": float(silence_start)})
+                        in_speech = False
+                    # If silence is short, we continue the current segment
+
+        # Handle case where file ends during speech
+        if in_speech and start_time is not None:
+            segments_to_keep.append({"start": float(start_time), "end": float(frame_times[-1])})
+
+        # Compute total duration of the non silence:
+        dur = 0.0
+        dcount = 0
+        final_segments = []
+        for seg in segments_to_keep:
+            sdur = seg["end"] - seg["start"]
+            if sdur > min_speech_duration:
+                dur += sdur
+                final_segments.append(seg)
+            else:
+                dcount += 1
+                # self.info("Discarding too short speech segment of %.3f secs", sdur)
+
+        if dcount > 0:
+            self.info("Discarding %d too short speech segments (< %.2f secs)", dcount, min_speech_duration)
+
+        self.info("Total speech duration: %.2f mins", dur / 60.0)
+
+        return final_segments
+
 
 if __name__ == "__main__":
     # Create the context:
@@ -798,5 +924,15 @@ if __name__ == "__main__":
 
     psr = context.build_parser("process-webcam-view")
     psr.add_str("-i", "--input", dest="input_file")("Input file where to process the webcam view")
+
+    psr = context.build_parser("find-silences")
+    psr.add_str("-i", "--input", dest="input_file")("Input file to process")
+    psr.add_float("-t", "--threshold", dest="silence_threshold", default=-75)("Silence threshold.")
+    psr.add_float("-d", "--min-dur", dest="min_silence_duration", default=0.5)("Silence min duration.")
+    psr.add_float("-s", "--min-speech", dest="min_speech_duration", default=1.0)("Speech min duration.")
+
+    psr = context.build_parser("cut-silences")
+    psr.add_str("-i", "--input", dest="input_file")("Input file to process")
+    psr.add_str("-s", "--segments", dest="seg_file")("Segment file")
 
     comp.run()

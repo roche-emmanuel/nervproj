@@ -693,6 +693,20 @@ scripts:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/movie_handler.py extract-audio
     python_path: ["${NVP_ROOT_DIR}"]
 
+  find-silences:
+    notify: false
+    help: Should find silences from a given audio file
+    custom_python_env: media_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/movie_handler.py find-silences
+    python_path: ["${NVP_ROOT_DIR}"]
+
+  cut-silences:
+    notify: false
+    help: Should cut silences from a given video file
+    custom_python_env: media_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/movie_handler.py cut-silences
+    python_path: ["${NVP_ROOT_DIR}"]
+
   add-vid-dates:
     notify: false
     help: Add the video dates to the filenames.
@@ -919,6 +933,10 @@ custom_python_envs:
       - torchvision
       - torchaudio
       - facenet_pytorch
+      - librosa
+      - soundfile
+      - numpy
+      - scipy
 
     additional_modules:
       cairo.dll: http://files.nervtech.org/nvp_packages/modules/cairo.dll
