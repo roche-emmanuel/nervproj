@@ -90,8 +90,11 @@ class MovieHandler(NVPComponent):
 
         if cmd == "find-silences":
             file = self.get_param("input_file")
+            sthres = self.get_param("silence_threshold")
+            mindur = self.get_param("min_silence_duration")
+            minspeech = self.get_param("min_speech_duration")
 
-            self.find_silences(file)
+            self.find_silences(file, sthres, mindur, minspeech)
             return True
 
         if cmd == "cut-silences":
@@ -99,6 +102,14 @@ class MovieHandler(NVPComponent):
             sfile = self.get_param("seg_file")
 
             self.cut_silences(file, sfile)
+            return True
+
+        if cmd == "preprocess-rushes":
+            sthres = self.get_param("silence_threshold")
+            mindur = self.get_param("min_silence_duration")
+            minspeech = self.get_param("min_speech_duration")
+
+            self.preprocess_rushes(sthres, mindur, minspeech)
             return True
 
         if cmd == "add-video-dates":
@@ -767,14 +778,11 @@ class MovieHandler(NVPComponent):
                 logger.info("Removing empty temp folder %s", fname)
                 self.remove_folder(fpath)
 
-    def find_silences(self, input_file):
+    def find_silences(self, input_file, sthres, mindur, minspeech):
         """Find the silences in a given input file."""
         # folder = self.get_parent_folder(input_file)
         out_file = self.set_path_extension(input_file, "_silences.json")
         # self.info("Should write silence files %s", out_file)
-        sthres = self.get_param("silence_threshold")
-        mindur = self.get_param("min_silence_duration")
-        minspeech = self.get_param("min_speech_duration")
         self.info("Detecting silences in %s...", input_file)
         segs = self.detect_segments_to_keep(input_file, sthres, mindur, minspeech)
 
@@ -1008,6 +1016,112 @@ class MovieHandler(NVPComponent):
 
         return final_segments
 
+    def is_video_file(self, filename):
+        """Check if a file is a video file."""
+        ext = self.get_path_extension(filename).lower()
+        return ext in [".mkv", ".mp4"]
+
+    def preprocess_rushes(self, sthres, mindur, minspeech):
+        """Method used to preprocess all the available rushes."""
+        # Find all the mkv/mp4 files in the current folder:
+        folder = self.get_cwd()
+        self.info("Processing files in %s", folder)
+        all_files = self.get_all_files(folder)
+        # self.info("Found files %s", all_files)
+
+        video_files = [self.get_path(folder, file) for file in all_files if self.is_video_file(file)]
+        self.make_folder("processed")
+
+        def has_cleaned(flist):
+            for fname in flist:
+                if "_cleaned." in fname:
+                    return True
+
+            return False
+
+        def select_sound_source(flist):
+            selected = flist[0]
+            for fname in flist:
+                if "_cleaned" in fname or "_centered" in fname:
+                    continue
+                selected = fname
+            return selected
+
+        def select_centered_file(flist):
+            for fname in flist:
+                if "_centered" in fname:
+                    return fname
+            return None
+
+        # We expect the videos to come with the "partX_" prefix
+        part_idx = 1
+        while True:
+            prefix = f"part{part_idx}_"
+            webcam_prefix = f"{prefix}webcam_"
+            mainscreen_prefix = f"{prefix}mainscreen_"
+            webcam_files = [file for file in video_files if self.get_filename(file).startswith(webcam_prefix)]
+            screen_files = [file for file in video_files if self.get_filename(file).startswith(mainscreen_prefix)]
+
+            # If we have no file for this part we stop here:
+            if len(webcam_files) == 0 and len(screen_files) == 0:
+                break
+
+            # if both are already cleaned, we move to the next part.
+            if has_cleaned(webcam_files) and has_cleaned(screen_files):
+                self.info("Part %d already cleaned.", part_idx)
+                part_idx += 1
+                continue
+
+            # We need to perform the processing so we need the silence json file:
+            sound_src = select_sound_source(webcam_files)
+
+            # Extrat the audio:
+            self.info("Extracting audio from %s...", sound_src)
+            self.extract_audio(sound_src, "mp3")
+
+            audio_file = f"{sound_src}.mp3"
+
+            # Extract the silences:
+            self.info("Detecting silences from %s...", audio_file)
+            self.find_silences(audio_file, sthres, mindur, minspeech)
+
+            seg_file = self.set_path_extension(audio_file, "_silences.json")
+
+            # Now find the centered webcam file:
+            if not has_cleaned(webcam_files):
+                # Check if we have the centered webcam file:
+                centered_file = select_centered_file(webcam_files)
+                if centered_file is None:
+                    self.check(len(webcam_files) == 1, "Expected only one file in list: %s", webcam_files)
+                    vfile = webcam_files[0]
+                    self.process_webcam_view(vfile)
+                    dstfile = self.get_path(folder, "processed", self.get_filename(vfile))
+                    self.move_path(vfile, dstfile)
+
+                self.info("Removing silences from %s...", centered_file)
+                self.cut_silences(centered_file, seg_file)
+
+                dstfile = self.get_path(folder, "processed", self.get_filename(centered_file))
+                self.move_path(centered_file, dstfile)
+
+            if not has_cleaned(screen_files):
+                self.check(len(screen_files) == 1, "Expected only one file in list: %s", screen_files)
+                vfile = screen_files[0]
+                self.info("Removing silences from %s...", vfile)
+                self.cut_silences(vfile, seg_file)
+
+                dstfile = self.get_path(folder, "processed", self.get_filename(vfile))
+                self.move_path(vfile, dstfile)
+
+            # cleanup:
+            self.remove_file(seg_file)
+            self.remove_file(audio_file)
+
+            # Move to the next part:
+            part_idx += 1
+
+        self.info("Done processing %d rush parts.", part_idx - 1)
+
 
 if __name__ == "__main__":
     # Create the context:
@@ -1064,6 +1178,9 @@ if __name__ == "__main__":
     psr.add_str("-i", "--input", dest="input_file")("Input file to process")
     psr.add_str("-s", "--segments", dest="seg_file")("Segment file")
 
-    # psr = context.build_parser("preprocess-rushes")
+    psr = context.build_parser("preprocess-rushes")
+    psr.add_float("-t", "--threshold", dest="silence_threshold", default=-75)("Silence threshold.")
+    psr.add_float("-d", "--min-dur", dest="min_silence_duration", default=0.5)("Silence min duration.")
+    psr.add_float("-s", "--min-speech", dest="min_speech_duration", default=1.0)("Speech min duration.")
 
     comp.run()

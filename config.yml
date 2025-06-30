@@ -707,6 +707,13 @@ scripts:
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/movie_handler.py cut-silences
     python_path: ["${NVP_ROOT_DIR}"]
 
+  process-rushes:
+    notify: false
+    help: Should process video rushes
+    custom_python_env: media_env
+    cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/media/movie_handler.py preprocess-rushes
+    python_path: ["${NVP_ROOT_DIR}"]
+
   add-vid-dates:
     notify: false
     help: Add the video dates to the filenames.
