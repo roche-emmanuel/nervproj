@@ -1196,6 +1196,6 @@ if __name__ == "__main__":
     psr.add_float("-t", "--threshold", dest="silence_threshold", default=-75)("Silence threshold.")
     psr.add_float("-d", "--min-dur", dest="min_silence_duration", default=0.5)("Silence min duration.")
     psr.add_float("-s", "--min-speech", dest="min_speech_duration", default=1.0)("Speech min duration.")
-    psr.add_float("-p", "--post-dur", dest="post_duration", default=1.0)("Post speech duration.")
+    psr.add_float("-p", "--post-dur", dest="post_speech_duration", default=5.0)("Post speech duration.")
 
     comp.run()
