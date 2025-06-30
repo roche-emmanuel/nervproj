@@ -786,7 +786,136 @@ class MovieHandler(NVPComponent):
         ext = self.get_path_extension(input_file)
         out_file = self.set_path_extension(input_file, f"_cleaned{ext}")
 
+        tools: ToolsManager = self.get_component("tools")
+        ffmpeg_path = tools.get_tool_path("ffmpeg")
+        # folder = self.get_parent_folder(ffmpeg_path)
+        # ffprobe_path = self.get_path(folder, "ffprobe.exe")
+
+        # os.environ["FFMPEG_BINARY"] = ffmpeg_path
+        # os.environ["FFPROBE_BINARY"] = ffprobe_path
+
+        # try:
+        #     probe = ffmpeg.probe("test", cmd=ffmpeg_path)
+        # except FileNotFoundError:
+        #     print("FFmpeg not found at the specified path")
+        #     return
+        # except:
+        #     print("FFmpeg found and working")
+
         self.info("Removing silences from %s...", input_file)
+        segments = self.read_json(seg_file)
+
+        batch_size = 50
+        temp_files = []
+
+        folder = self.get_parent_folder(input_file)
+        temp_dir = self.get_path(folder, "ffmpeg_files")
+
+        self.make_folder(temp_dir)
+
+        # Process segments in batches
+        for batch_start in range(0, len(segments), batch_size):
+            batch_segments = segments[batch_start : batch_start + batch_size]
+
+            # Create temporary file for this batch
+            temp_file = self.get_path(temp_dir, f"chunk_{len(temp_files)}.mkv")
+            temp_files.append(temp_file)
+
+            # Process this batch
+            input_stream = ffmpeg.input(input_file)  # NO cmd parameter here
+            segment_streams = []
+
+            for segment in batch_segments:
+                start_time = segment["start"]
+                duration = segment["end"] - segment["start"]
+
+                video_seg = input_stream.video.filter("trim", start=start_time, duration=duration).filter(
+                    "setpts", "PTS-STARTPTS"
+                )
+                audio_seg = input_stream.audio.filter("atrim", start=start_time, duration=duration).filter(
+                    "asetpts", "PTS-STARTPTS"
+                )
+
+                segment_streams.append([video_seg, audio_seg])
+
+            # Concatenate this batch
+            if len(segment_streams) > 1:
+                video_streams = [seg[0] for seg in segment_streams]
+                audio_streams = [seg[1] for seg in segment_streams]
+
+                # NO cmd parameter in filter calls
+                concat_video = ffmpeg.filter(video_streams, "concat", n=len(video_streams), v=1, a=0)
+                concat_audio = ffmpeg.filter(audio_streams, "concat", n=len(audio_streams), v=0, a=1)
+
+                # NO cmd parameter in output call
+                # Note: cannot jsut copy the streams here.
+                batch_output = ffmpeg.output(concat_video, concat_audio, temp_file, vcodec="libx264", acodec="aac")
+                # batch_output = ffmpeg.output(concat_video, concat_audio, temp_file, vcodec="copy", acodec="copy")
+            else:
+                video_seg, audio_seg = segment_streams[0]
+                # NO cmd parameter in output call
+                batch_output = ffmpeg.output(video_seg, audio_seg, temp_file, vcodec="libx264", acodec="aac")
+                # batch_output = ffmpeg.output(video_seg, audio_seg, temp_file, vcodec="copy", acodec="copy")
+
+            # Add error handling and verbose output
+            try:
+                # First, let's see what command will be executed
+                # cmd = ffmpeg.compile(batch_output)
+                # self.info("FFmpeg command: %s", " ".join(cmd))
+
+                # ONLY use cmd parameter with ffmpeg.run()
+                ffmpeg.run(batch_output, overwrite_output=True, quiet=False, cmd=ffmpeg_path)
+                self.info(
+                    f"Processed batch {batch_start//batch_size + 1}/{(len(segments) + batch_size - 1)//batch_size}"
+                )
+
+            except ffmpeg.Error as e:
+                self.error("FFmpeg error occurred:")
+                self.error("stdout: %s", e.stdout.decode("utf-8") if e.stdout else "None")
+                self.error("stderr: %s", e.stderr.decode("utf-8") if e.stderr else "None")
+                raise
+
+        # Concatenate all batch files
+        if len(temp_files) > 1:
+            # Concat the media files:
+            self.concat_media(temp_files, out_file)
+
+            # # NO cmd parameter in input calls
+            # input_streams = [ffmpeg.input(temp_file) for temp_file in temp_files]
+            # video_streams = [stream.video for stream in input_streams]
+            # audio_streams = [stream.audio for stream in input_streams]
+
+            # # NO cmd parameter in filter calls
+            # final_video = ffmpeg.filter(video_streams, "concat", n=len(video_streams), v=1, a=0)
+            # final_audio = ffmpeg.filter(audio_streams, "concat", n=len(audio_streams), v=0, a=1)
+
+            # # NO cmd parameter in output call
+            # # final_output = ffmpeg.output(final_video, final_audio, out_file, vcodec="libx264", acodec="aac")
+            # final_output = ffmpeg.output(final_video, final_audio, out_file, vcodec="copy", acodec="copy")
+
+            # try:
+            #     # ONLY use cmd parameter with ffmpeg.run()
+            #     ffmpeg.run(final_output, overwrite_output=True, quiet=False, cmd=ffmpeg_path)
+            # except ffmpeg.Error as e:
+            #     self.error("FFmpeg final concatenation error:")
+            #     self.error("stdout: %s", e.stdout.decode("utf-8") if e.stdout else "None")
+            #     self.error("stderr: %s", e.stderr.decode("utf-8") if e.stderr else "None")
+            #     raise
+        else:
+            # Just rename the single temp file
+            os.rename(temp_files[0], out_file)
+            temp_files.remove(temp_files[0])
+
+        self.info(f"Final video saved to: {out_file}")
+
+        # Clean up temporary files
+        for temp_file in temp_files:
+            if os.path.exists(temp_file):
+                self.info("Removing temp file %s", temp_file)
+                os.remove(temp_file)
+
+        if os.path.exists(temp_dir):
+            self.remove_folder(temp_dir)
 
     def detect_segments_to_keep(
         self, audio_path, silence_threshold=-40, min_silence_duration=0.5, min_speech_duration=0.5
@@ -934,5 +1063,7 @@ if __name__ == "__main__":
     psr = context.build_parser("cut-silences")
     psr.add_str("-i", "--input", dest="input_file")("Input file to process")
     psr.add_str("-s", "--segments", dest="seg_file")("Segment file")
+
+    # psr = context.build_parser("preprocess-rushes")
 
     comp.run()
