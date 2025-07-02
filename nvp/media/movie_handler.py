@@ -86,7 +86,8 @@ class MovieHandler(NVPComponent):
         if cmd == "process-webcam-view":
             file = self.get_param("input_file")
 
-            return self.process_webcam_view(file)
+            self.process_webcam_view(file)
+            return True
 
         if cmd == "find-silences":
             file = self.get_param("input_file")
@@ -315,7 +316,7 @@ class MovieHandler(NVPComponent):
         processed_clip.write_videofile(output_path, audio=True)
 
         logger.info("Processing done.")
-        return True
+        return output_path
 
     def get_creation_date(self, fullpath):
         """Get the creation date from a binary file or None"""
@@ -1108,9 +1109,10 @@ class MovieHandler(NVPComponent):
                 if centered_file is None:
                     self.check(len(webcam_files) == 1, "Expected only one file in list: %s", webcam_files)
                     vfile = webcam_files[0]
-                    self.process_webcam_view(vfile)
+                    centered_file = self.process_webcam_view(vfile)
                     dstfile = self.get_path(folder, "processed", self.get_filename(vfile))
                     self.move_path(vfile, dstfile)
+                     
 
                 self.info("Removing silences from %s...", centered_file)
                 self.cut_silences(centered_file, seg_file)
