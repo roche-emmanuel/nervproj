@@ -43,6 +43,7 @@ class IPTablesManager(NVPComponent):
         NVPComponent.__init__(self, ctx)
         self.ipv = 4
         self.dryrun = False
+        self.state = None
         self.config = ctx.get_config().get("iptables")
         if self.config is None:
             self.config = self.ctx.get_project("NervHome").get_config().get("iptables")
@@ -395,9 +396,7 @@ class IPTablesManager(NVPComponent):
         arp_output = self.run_arp("-n")
 
         # Regular expression to match IP, MAC, and Interface
-        pattern = re.compile(
-            r"(\d+\.\d+\.\d+\.\d+)\s+(?:ether\s+([\da-f:]+)\s+)?\S*\s+(\S+)"
-        )
+        pattern = re.compile(r"(\d+\.\d+\.\d+\.\d+)\s+(?:ether\s+([\da-f:]+)\s+)?\S*\s+(\S+)")
 
         # Extracted data
         devices = []
@@ -542,20 +541,36 @@ class IPTablesManager(NVPComponent):
                 logger.info("Blocking ip address %s", ip)
                 self.add_to_set(set_name, ip)
 
+    def get_entry(self, sname, defval):
+        """Retrieve a state value."""
+        if self.state is None:
+            state_file = self.get_path(self.ctx.get_home_dir(), ".nvp", "state_iptables.json")
+            self.state = {}
+            if self.file_exists(state_file):
+                self.state = self.read_json(state_file) or {}
+
+        return self.state.get(sname, defval)
+
+    def set_entry(self, sname, val):
+        """assign a state value."""
+        state_file = self.get_path(self.ctx.get_home_dir(), ".nvp", "state_iptables.json")
+        if self.state is None:
+            self.state = {}
+            if self.file_exists(state_file):
+                self.state = self.read_json(state_file) or {}
+
+        self.state[sname] = val
+        self.write_json(self.state, state_file)
+
     def flush_ip_neighbours(self):
         """Flush the IP neighbours."""
-        state_file = self.get_path(self.ctx.get_home_dir(), ".nvp", "state_iptables.json")
-        state = {}
-        if self.file_exists(state_file):
-            state = self.read_json(state_file)
 
-        last_flush_time = state.get("last_flush_time", 0)
+        last_flush_time = self.get_entry("last_flush_time", 0)
         cur_time = time.time()
 
         # Use a delay of 10 minutes:
         if (cur_time - last_flush_time) > 600:
-            state["last_flush_time"] = cur_time
-            self.write_json(state, state_file)
+            self.set_entry("last_flush_time", cur_time)
             logger.info("Flushing IP neighbours.")
 
             utl.send_rocketchat_message(":warning: Flushing IP neighbours.")
@@ -629,9 +644,11 @@ class IPTablesManager(NVPComponent):
             return (None, None)
 
         if len(valid_ips) > 1:
-            logger.warning(
-                "Found multiple valid ips for same device (%s): %s", dev_name, valid_ips
-            )
+            count = self.get_entry("multiple_valid_ips_warning_count", 0)
+            if count % 10 == 0:
+                logger.warning("Found multiple valid ips for same device (%s): %s", dev_name, valid_ips)
+            count += 1
+            self.set_entry("multiple_valid_ips_warning_count", count)
 
         return valid_ips[0]
 
@@ -686,9 +703,7 @@ class IPTablesManager(NVPComponent):
 
             if grp_name in enforce_blocks:
                 # We should update the list of blocked ips:
-                self.update_blocked_ip_list(
-                    BLOCKED_SET, self.get_all_ref_ips(grp), not in_schedule
-                )
+                self.update_blocked_ip_list(BLOCKED_SET, self.get_all_ref_ips(grp), not in_schedule)
 
             if in_schedule:
                 for elem in grp:
@@ -894,15 +909,15 @@ if __name__ == "__main__":
 
     psr = context.build_parser("save")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str(
-        "-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}"
-    )("File where to save the IPtable rules.")
+    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
+        "File where to save the IPtable rules."
+    )
 
     psr = context.build_parser("load")
     psr.add_int("-v", "--ip-version", dest="ip_version", default=4)("IP version.")
-    psr.add_str(
-        "-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}"
-    )("File where to load the IPtable rules from.")
+    psr.add_str("-f", "--file", dest="filename", default="${HOME}/.nvp/iptable_rules.v${IPV}")(
+        "File where to load the IPtable rules from."
+    )
 
     # This will not work for now:
     # psr = context.build_parser("monitor")
