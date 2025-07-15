@@ -98,7 +98,7 @@ class BuildManager(NVPComponent):
                         vers = self.get_package_version(lib)
                         comp_dir = self.get_path(base_lib_dir, flavor, f"{lib['name']}-{vers}")
                         if self.path_exists(comp_dir):
-                            compiler = NVPCompiler(self.ctx, {"type": "clang", "root_dir": comp_dir})
+                            compiler = NVPCompiler(self.ctx, {"type": "clang", "root_dir": comp_dir, "version": vers})
                             self.compilers.append(compiler)
 
             # Check if we have tools providing compilers:
@@ -108,8 +108,11 @@ class BuildManager(NVPComponent):
             for tdesc in all_tools:
                 if tdesc["name"] == "clang":
                     vers = self.get_package_version(tdesc)
+                    root_dir = tdesc.get("root_dir", None)
+                    if root_dir is None:
+                        root_dir = self.get_path(tools_dir, f"{tdesc['name']}-{vers}")
                     compiler = NVPCompiler(
-                        self.ctx, {"type": "clang", "root_dir": self.get_path(tools_dir, f"{tdesc['name']}-{vers}")}
+                        self.ctx, {"type": "clang", "root_dir": root_dir, "version": vers}
                     )
                     self.compilers.append(compiler)
 

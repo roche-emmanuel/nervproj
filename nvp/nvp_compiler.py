@@ -122,9 +122,10 @@ class NVPCompiler(NVPObject):
             # self.linkflags = "-stdlib=libc++ -nodefaultlibs -lc++ -lc++abi -lm -lc -lgcc_s -lpthread"
 
             # extract the version number from the root_dir:
-            parts = self.root_dir.split("-")
-            assert len(parts) >= 2, f"Invalid root dir format for compiler {self.root_dir}"
-            self.version = parts[-1]
+            # parts = self.root_dir.split("-")
+            # assert len(parts) >= 2, f"Invalid root dir format for compiler {self.root_dir}"
+            # self.version = parts[-1]
+            self.version = desc["version"]
 
         parts = self.version.split(".")
         assert len(parts) == 3, f"Invalid compiler version {self.version}"
