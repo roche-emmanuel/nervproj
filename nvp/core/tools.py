@@ -75,8 +75,15 @@ class ToolsManager(NVPComponent):
                 else:
                     full_name = f"{tname}-{desc['version']}"
                     install_path = self.get_path(self.tools_dir, full_name)
+
+                    # Check if we have a root dir, which should replace the install path
+                    # if provided:
+                    if "root_dir" in desc:
+                        install_path = desc["root_dir"]
+
                     tpath = self.get_path(install_path, desc["sub_path"])
-                    if not self.file_exists(tpath):
+                    if not self.path_exists(tpath):
+                        # self.warn("File %s doesn't exist.", tpath)
                         if "build_mode" in desc:
                             # This tool should be built from sources:
                             self.build_tool(full_name, desc)

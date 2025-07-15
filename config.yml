@@ -137,7 +137,7 @@ linux_tools:
     path: par2
   - name: clang
     sub_path: bin/clang++
-    root_dir: /usr/bin/llvm-20
+    root_dir: /usr/lib/llvm-20
     # urls:
     # - /mnt/array1/dev/compilers/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz
     # - http://files.nervtech.org/nvp_packages/tools/clang+llvm-13.0.1-x86_64-linux-gnu-ubuntu-18.04.tar.xz
