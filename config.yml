@@ -280,7 +280,8 @@ libraries:
   - name: spdlog
     url: git@github.com:roche-emmanuel/spdlog.git
     # git: https://github.com/gabime/spdlog.git
-    version: git-03072024
+    # version: git-03072024
+    version: git-20250717
   - name: fmt
     url: git@github.com:roche-emmanuel/fmt.git
     version: 9.1.1
