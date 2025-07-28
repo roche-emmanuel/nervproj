@@ -31,6 +31,19 @@ class GitlabManager(NVPComponent):
         self.access_token = None
         self.proj_id = None
 
+        # Read tokens from our main config before override:
+        self.tokens = self.config.get("gitlab_access_tokens", {})
+
+        self.config = ctx.get_config().get("gitlab")
+        if self.config is None:
+            self.config = self.ctx.get_project("NervHome").get_config().get("gitlab")
+
+        self.label_sets = self.load_config_entry("label_sets")
+        # self.info("Label sets: %s", self.label_sets)
+
+        self.project_descs = self.load_config_entry("projects")
+        # self.info("Gitlab project descs: %s", self.project_descs)
+
     def send_request(self, req_type, url, data=None, max_retries=5, auth=True):
         """Method used to send a generic request to the server."""
 
@@ -225,9 +238,7 @@ class GitlabManager(NVPComponent):
         sname = remote_cfg["server"]
 
         # Check if we have an access token for that server:
-        tokens = self.config.get("gitlab_access_tokens", {})
-
-        if sname not in tokens:
+        if sname not in self.tokens:
             self.error("No access token available for gitlab server %s", sname)
             return False
 
@@ -235,7 +246,7 @@ class GitlabManager(NVPComponent):
 
         # store the base_url and access_token:
         self.base_url = f"https://{sname}/api/v4"
-        self.access_token = tokens[sname]
+        self.access_token = self.tokens[sname]
 
         # We should now URL encode the project name:
         self.proj_id = self.url_encode_path(remote_cfg["sub_path"].replace(".git", ""))
@@ -338,7 +349,25 @@ class GitlabManager(NVPComponent):
         }
 
         res = self.get(f"/projects/{self.proj_id}/labels", data)
-        self.info("Got labels: %s", self.pretty_print(res))
+        # self.info("Got labels: %s", self.pretty_print(res))
+
+        # Write a proper dict of labels:
+        labels = {}
+        for lbl in res:
+            name = lbl["name"]
+            if name in labels:
+                self.error("Found duplicated label %s", name)
+                continue
+            labels[name] = {
+                "color": lbl["color"],
+                "description": lbl["description"],
+                "priority": lbl["priority"],
+            }
+
+        self.info("Found labels: %s", labels)
+        self.check(len(labels) < 100, "Too many labels found!")
+
+        return labels
 
     def update_file(self, data, project=None):
         """Send an update to a single file given the input data.

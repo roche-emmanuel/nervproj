@@ -57,27 +57,6 @@ class IPTablesManager(NVPComponent):
         self.check(self.config is not None, "Invalid iptables config.")
         # logger.info("iptables configs: %s", self.config)
 
-    def load_config_entry(self, ename):
-        """Load a config entry as direct entry or list of elements."""
-        entry = self.config[ename]
-        if isinstance(entry, list):
-            return self.load_config_elements(entry)
-        return entry
-
-    def load_config_elements(self, device_files):
-        """Load config elements from a list of files."""
-        # Iterate on each file:
-        config = {}
-        for fname in device_files:
-            # Fill the placeholders if needed:
-            full_path = self.ctx.resolve_path(fname)
-            if self.file_exists(full_path):
-                # self.info("Reading config elements from %s", full_path)
-                cfg = self.read_yaml(full_path) or {}
-                config.update(cfg)
-
-        return config
-
     def process_cmd_path(self, cmd):
         """Re-implementation of process_cmd_path"""
 

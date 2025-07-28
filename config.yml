@@ -594,6 +594,7 @@ scripts:
     python_path:
       - ${NVP_ROOT_DIR}
   gitlab:
+    notify: false
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/core/gitlab_manager.py
     help: Run a gitlab command
     python_path:

@@ -1,4 +1,5 @@
 """Collection of filesystem utility functions"""
+
 import logging
 
 from nvp.nvp_context import NVPContext
@@ -27,6 +28,27 @@ class NVPComponent(NVPObject):
     def platform(self):
         """retrieve the platform from the context."""
         return self.ctx.get_platform()
+
+    def load_config_entry(self, ename):
+        """Load a config entry as direct entry or list of elements."""
+        entry = self.config[ename]
+        if isinstance(entry, list):
+            return self.load_config_elements(entry)
+        return entry
+
+    def load_config_elements(self, device_files):
+        """Load config elements from a list of files."""
+        # Iterate on each file:
+        config = {}
+        for fname in device_files:
+            # Fill the placeholders if needed:
+            full_path = self.ctx.resolve_path(fname)
+            if self.file_exists(full_path):
+                # self.info("Reading config elements from %s", full_path)
+                cfg = self.read_yaml(full_path) or {}
+                config.update(cfg)
+
+        return config
 
     def set_construct_frame(self, frame):
         """Assign a construct frame to this component"""
