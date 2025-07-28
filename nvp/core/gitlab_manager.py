@@ -26,7 +26,6 @@ class GitlabManager(NVPComponent):
         """Gitlab commands manager constructor"""
         NVPComponent.__init__(self, ctx)
 
-        self.proj = None
         self.base_url = None
         self.access_token = None
         self.proj_id = None
@@ -136,6 +135,11 @@ class GitlabManager(NVPComponent):
             self.list_labels()
             return True
 
+        if cmd == "update.labels":
+            pname = self.get_param("project_name", None)
+            self.update_labels(pname)
+            return True
+
         return False
 
     def read_git_config(self, *parts):
@@ -200,6 +204,10 @@ class GitlabManager(NVPComponent):
     def setup_gitlab_api(self, project=None):
         """Setup the elements required for the gitlab API usage.
         return True on success, False otherwise."""
+        if self.proj_id is not None:
+            # Setup already done.
+            return True
+
         proj_dir = None
 
         pname = self.get_param("project_name", None)
@@ -243,16 +251,19 @@ class GitlabManager(NVPComponent):
             return False
 
         # self.info("Should use access token %s for %s", self.access_token, sname)
+        self.setup_token(sname, remote_cfg["sub_path"].replace(".git", ""))
 
+        # self.info("Using project URL encoded path: %s", self.proj_id)
+        return True
+
+    def setup_token(self, sname, url):
+        """Setup the token."""
         # store the base_url and access_token:
         self.base_url = f"https://{sname}/api/v4"
         self.access_token = self.tokens[sname]
 
         # We should now URL encode the project name:
-        self.proj_id = self.url_encode_path(remote_cfg["sub_path"].replace(".git", ""))
-
-        # self.info("Using project URL encoded path: %s", self.proj_id)
-        return True
+        self.proj_id = self.url_encode_path(url)
 
     def find_milestone_by_title(self, title, project=None):
         """Find a milestone by title"""
@@ -309,7 +320,7 @@ class GitlabManager(NVPComponent):
         res = self.put(f"/projects/{self.proj_id}/milestones/{mid}", data)
         self.info("Closed milestone: %s", self.pretty_print(res))
 
-    def add_label(self, name, color, desc=None, priority=None, project=None):
+    def add_label(self, name, color, desc=None, priority=None, project=None, update=False):
         """Add a label to the given project using the provided data"""
         if not self.setup_gitlab_api(project):
             return
@@ -324,20 +335,28 @@ class GitlabManager(NVPComponent):
         assert color is not None, "Color is mandatory to create a label."
 
         data = {
-            "name": name,
             "color": color,
         }
+
+        if not update:
+            data["name"] = name
 
         if desc is not None:
             data["description"] = desc
         if priority is not None:
             data["priority"] = priority
 
-        res = self.post(f"/projects/{self.proj_id}/labels", data)
+        url = f"/projects/{self.proj_id}/labels"
+
+        if update:
+            res = self.put(f"{url}/{name}", data)
+        else:
+            res = self.post(url, data)
+
         # self.info("Got result: %s", self.pretty_print(res))
         if res is not None:
             lbl_id = res["id"]
-            self.info("Created label '%s' with id=%s", data["name"], lbl_id)
+            self.info("Created/Updated label '%s' with id=%s", name, lbl_id)
 
     def list_labels(self, project=None):
         """Get the list of labels for a project."""
@@ -364,10 +383,59 @@ class GitlabManager(NVPComponent):
                 "priority": lbl["priority"],
             }
 
-        self.info("Found labels: %s", labels)
+        # self.info("Found labels: %s", labels)
         self.check(len(labels) < 100, "Too many labels found!")
 
         return labels
+
+    def update_labels(self, pname=None):
+        """Update all the project labels."""
+        if pname == "all":
+            # Iterate on each project in this case:
+            for pname in self.project_descs:
+                self.update_labels(pname)
+            return
+
+        if pname is None:
+            # Get the project name from current folder:
+            proj = self.ctx.get_current_project(True)
+            if proj is None:
+                self.error("Cannot resolved git project from folder %s", self.get_cwd())
+                return
+
+            pname = proj.get_name()
+            self.info("Resolved project: %s", pname)
+
+        self.check(pname in self.project_descs, "Cannot update labels for %s", pname)
+
+        pdesc = self.project_descs[pname]
+        self.setup_token(pdesc["server"], pdesc["url"])
+        self.info("Updating labels here for %s", pname)
+
+        # self.info("Should update labels here for %s", pname)
+        labels = self.list_labels(pname)
+
+        # Get the set of labels to use for this project:
+        tgt_labels = {}
+        for lset_name in pdesc["labels"]:
+            # Get the label set:
+            lset = self.label_sets[lset_name]
+            for lname, desc in lset.items():
+                data = {
+                    "color": desc[0],
+                    "description": desc[1],
+                    "priority": str(desc[2]) if len(desc) >= 3 else None,
+                }
+                tgt_labels[lname] = data
+
+        # Iterate on those labels:
+        for lname, desc in tgt_labels.items():
+            if lname not in labels:
+                self.info("Adding label %s to %s...", lname, pname)
+                self.add_label(lname, desc["color"], desc["description"])
+            elif labels[lname] != desc:
+                self.info("Updating label %s in %s...", lname, pname)
+                self.add_label(lname, desc["color"], desc["description"], update=True)
 
     def update_file(self, data, project=None):
         """Send an update to a single file given the input data.
@@ -503,5 +571,8 @@ if __name__ == "__main__":
     psr.add_str("label_color")("Label color")
     psr.add_str("-d", "--description", dest="description")("Label description")
     psr.add_int("-p", "--priority", dest="label_priority")("Label priority")
+
+    psr = context.build_parser("update.labels")
+    psr.add_str("-p", "--project", dest="project_name")("Project name")
 
     comp.run()
