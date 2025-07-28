@@ -107,6 +107,20 @@ class GitlabManager(NVPComponent):
             return True
 
         if cmd == "milestone.close":
+            self.process_milestone_close()
+            return True
+
+        if cmd == "label.add":
+            lbl_name = self.get_param("label_name")
+            lbl_desc = self.get_param("description")
+            lbl_color = self.get_param("label_color")
+            lbl_priority = self.get_param("label_priority")
+
+            self.add_label(lbl_name, lbl_color, lbl_desc, lbl_priority)
+            return True
+
+        if cmd == "label.list":
+            self.list_labels()
             return True
 
         return False
@@ -214,7 +228,7 @@ class GitlabManager(NVPComponent):
         tokens = self.config.get("gitlab_access_tokens", {})
 
         if sname not in tokens:
-            self.error("No access token availble for gitlab server %s", sname)
+            self.error("No access token available for gitlab server %s", sname)
             return False
 
         # self.info("Should use access token %s for %s", self.access_token, sname)
@@ -283,6 +297,52 @@ class GitlabManager(NVPComponent):
 
         res = self.put(f"/projects/{self.proj_id}/milestones/{mid}", data)
         self.info("Closed milestone: %s", self.pretty_print(res))
+
+    def add_label(self, name, color, desc=None, priority=None, project=None):
+        """Add a label to the given project using the provided data"""
+        if not self.setup_gitlab_api(project):
+            return
+
+        # Data should contain:
+        # name (str)
+        # color (str) ex: "#FFAABB"
+        # description (str)
+        # priority (int>=0)
+
+        assert name is not None, "Name is mandatory to create a label."
+        assert color is not None, "Color is mandatory to create a label."
+
+        data = {
+            "name": name,
+            "color": color,
+        }
+
+        if desc is not None:
+            data["description"] = desc
+        if priority is not None:
+            data["priority"] = priority
+
+        # self.info("Project url: %s", self.proj_id)
+        res = self.post(f"/projects/{self.proj_id}/labels", data)
+        # res = self.post(f"/projects/10/milestones", data)
+        self.info("Got result: %s", self.pretty_print(res))
+        if res is not None:
+            lbl_id = res["id"]
+            self.info("Created label '%s' with id=%s", data["name"], lbl_id)
+
+    def list_labels(self, project=None):
+        """Get the list of labels for a project."""
+        if not self.setup_gitlab_api(project):
+            return
+
+        data = {
+            "per_page": 100,
+        }
+
+        # self.info("Project url: %s", self.proj_id)
+        res = self.get(f"/projects/{self.proj_id}/labels", data)
+        # res = self.post(f"/projects/10/milestones", data)
+        self.info("Got labels: %s", self.pretty_print(res))
 
     def update_file(self, data, project=None):
         """Send an update to a single file given the input data.
@@ -411,20 +471,12 @@ if __name__ == "__main__":
     psr.add_str("-t", "--title", dest="title")("Title of the milestone to close")
     psr.add_int("--id", dest="milestone_id")("ID for the milestone to close")
 
-    # context.define_subparsers("main", {"milestone": ["add", "list", "close"]})
+    psr = context.build_parser("label.list")
 
-    # psr = context.get_parser("main.milestone.add")
-    # psr.add_argument("-p", "--project", dest="project", type=str, default="none", help="Select the current sub-project")
-    # psr.add_argument("-t", "--title", dest="title", type=str, help="Title for the new milestone")
-    # psr.add_argument("-d", "--desc", dest="description", type=str, help="Description for the new milestone")
-    # psr.add_argument("-s", "--start", dest="start_date", type=str, help="Start date for the new milestone")
-    # psr.add_argument("-e", "--end", dest="end_date", type=str, help="End date for the new milestone")
-
-    # psr = context.get_parser("main.milestone.list")
-    # psr.add_argument("-t", "--title", dest="title", type=str, help="Title of the listed milestone")
-
-    # psr = context.get_parser("main.milestone.close")
-    # psr.add_argument("-t", "--title", dest="title", type=str, help="Title for the milestone to close")
-    # psr.add_argument("--id", dest="milestone_id", type=int, help="ID for the milestone to close")
+    psr = context.build_parser("label.add")
+    psr.add_str("label_name")("Label name")
+    psr.add_str("label_color")("Label color")
+    psr.add_str("-d", "--description", dest="description")("Label description")
+    psr.add_int("-p", "--priority", dest="label_priority")("Label priority")
 
     comp.run()
