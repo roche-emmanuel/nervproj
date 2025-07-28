@@ -91,10 +91,14 @@ class RocketChat(NVPComponent):
         while max_retries <= 0 or try_count < max_retries:
             try:
                 if req_type == "GET":
-                    response = requests.request(req_type, self.base_url + url, params=data, headers=headers)
+                    response = requests.request(
+                        req_type, self.base_url + url, params=data, headers=headers, timeout=4.0
+                    )
                 else:
                     payload = json.dumps(data)
-                    response = requests.request(req_type, self.base_url + url, data=payload, headers=headers)
+                    response = requests.request(
+                        req_type, self.base_url + url, data=payload, headers=headers, timeout=4.0
+                    )
                 res = json.loads(response.text)
                 return res
             except requests.exceptions.RequestException as err:
