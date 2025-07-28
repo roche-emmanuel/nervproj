@@ -322,10 +322,8 @@ class GitlabManager(NVPComponent):
         if priority is not None:
             data["priority"] = priority
 
-        # self.info("Project url: %s", self.proj_id)
         res = self.post(f"/projects/{self.proj_id}/labels", data)
-        # res = self.post(f"/projects/10/milestones", data)
-        self.info("Got result: %s", self.pretty_print(res))
+        # self.info("Got result: %s", self.pretty_print(res))
         if res is not None:
             lbl_id = res["id"]
             self.info("Created label '%s' with id=%s", data["name"], lbl_id)
@@ -339,9 +337,7 @@ class GitlabManager(NVPComponent):
             "per_page": 100,
         }
 
-        # self.info("Project url: %s", self.proj_id)
         res = self.get(f"/projects/{self.proj_id}/labels", data)
-        # res = self.post(f"/projects/10/milestones", data)
         self.info("Got labels: %s", self.pretty_print(res))
 
     def update_file(self, data, project=None):
