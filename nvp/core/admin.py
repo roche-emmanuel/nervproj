@@ -69,14 +69,24 @@ class AdminManager(NVPComponent):
 
     def install_python_requirements(self):
         """Install the requirements for the main python environment using pip"""
+        base_cmd = [sys.executable, "-m", "pip"]
+
+        # Check if we have a valid cache dir:
+        opts = ["--no-warn-script-location"]
+        cache_dir = self.ctx.get_config().get("pip_cache_dir", None)
+        if cache_dir is not None:
+            cache_dir = self.ctx.select_first_valid_path(cache_dir)
+            self.info("Using PIP cache dir: %s", cache_dir)
+            opts += ["--cache-dir", cache_dir]
 
         logger.info("Upgrading pip...")
-        cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "pip", "--no-warn-script-location"]
+        cmd = base_cmd + ["install", "--upgrade", "pip"] + opts
+
         self.execute(cmd)
 
         logger.info("Installing python requirements...")
         reqfile = self.get_path(self.ctx.get_root_dir(), "tools/requirements.txt")
-        cmd = [sys.executable, "-m", "pip", "install", "-r", reqfile, "--no-warn-script-location"]
+        cmd = base_cmd + ["install", "-r", reqfile] + opts
         # logger.info("Executing command: %s", cmd)
         self.execute(cmd)
         logger.info("Done installing python requirements.")

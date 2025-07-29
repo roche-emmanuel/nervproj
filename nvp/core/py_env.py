@@ -137,6 +137,20 @@ class PyEnvManager(NVPComponent):
         # Return all the modules:
         return mods
 
+    def run_pip(self, py_path, args, env=None):
+        """Run pip with the given args."""
+        cmd = [py_path, "-m", "pip"]
+
+        opts = ["--no-warn-script-location"]
+        # Check if we have a valid cache dir:
+        cache_dir = self.ctx.get_config().get("pip_cache_dir", None)
+        if cache_dir is not None:
+            cache_dir = self.ctx.select_first_valid_path(cache_dir)
+            self.info("Using PIP cache dir: %s", cache_dir)
+            opts += ["--cache-dir", cache_dir]
+
+        self.execute(cmd + args + opts, env=env)
+
     def update_package(self, env_name, pkg_name):
         """Update a given python package in a given environment"""
         desc = self.get_py_env_desc(env_name)
@@ -154,7 +168,7 @@ class PyEnvManager(NVPComponent):
         py_path = self.get_path(dest_folder, pdesc["sub_path"])
 
         logger.info("Updating %s...", pkg_name)
-        self.execute([py_path, "-m", "pip", "install", "--upgrade", pkg_name, "--no-warn-script-location"])
+        self.run_pip(py_path, ["install", "--upgrade", pkg_name])
 
     def install_python_packages(self, py_path, packages, req_file, upgrade):
         """Install python packages in a given environment"""
@@ -169,12 +183,12 @@ class PyEnvManager(NVPComponent):
         env = os.environ.copy()
         env = self.prepend_env_list([git_dir], env, "PATH")
 
-        cmd = [py_path, "-m", "pip", "install"]
+        cmd = ["install"]
         if upgrade:
             cmd.append("--upgrade")
-        cmd += ["-r", req_file, "--no-warn-script-location"]
+        cmd += ["-r", req_file]
 
-        self.execute(cmd, env=env)
+        self.run_pip(py_path, cmd, env=env)
 
     def setup_py_env(self, env_name):
         """Setup a given python environment"""
@@ -231,7 +245,7 @@ class PyEnvManager(NVPComponent):
         if new_env or self.get_param("update_pip"):
             # trigger the update of pip:
             logger.info("Updating pip...")
-            self.execute([py_path, "-m", "pip", "install", "--upgrade", "pip", "--no-warn-script-location"])
+            self.run_pip(py_path, ["install", "--upgrade", "pip"])
 
         # Next we should prepare the requirements file:
         req_file = self.get_path(dest_folder, "requirements.txt")
@@ -240,7 +254,7 @@ class PyEnvManager(NVPComponent):
         content = "wheel"
         self.write_text_file(content, req_file)
         logger.info("Installing base packages...")
-        self.execute([py_path, "-m", "pip", "install", "-r", req_file, "--no-warn-script-location"])
+        self.run_pip(py_path, ["install", "-r", req_file])
 
         # ensure the base packages are installed first:
 
