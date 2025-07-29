@@ -380,7 +380,7 @@ class GitlabManager(NVPComponent):
             labels[name] = {
                 "color": lbl["color"],
                 "description": lbl["description"],
-                "priority": lbl["priority"],
+                "priority": int(lbl["priority"]) if lbl["priority"] is not None else None,
             }
 
         # self.info("Found labels: %s", labels)
@@ -424,7 +424,7 @@ class GitlabManager(NVPComponent):
                 data = {
                     "color": desc[0],
                     "description": desc[1],
-                    "priority": str(desc[2]) if len(desc) >= 3 else None,
+                    "priority": desc[2] if len(desc) >= 3 else None,
                 }
                 tgt_labels[lname] = data
 
