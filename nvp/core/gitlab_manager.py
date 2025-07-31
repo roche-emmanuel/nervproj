@@ -1,9 +1,9 @@
 """Collection of gitlab utility functions"""
 
 import json
-import logging
 import re
 import time
+from datetime import datetime
 
 import requests
 
@@ -138,6 +138,11 @@ class GitlabManager(NVPComponent):
         if cmd == "update.labels":
             pname = self.get_param("project_name", None)
             self.update_labels(pname)
+            return True
+
+        if cmd == "update.milestones":
+            pname = self.get_param("project_name", None)
+            self.update_milestones(pname)
             return True
 
         return False
@@ -410,7 +415,7 @@ class GitlabManager(NVPComponent):
 
         pdesc = self.project_descs[pname]
         self.setup_token(pdesc["server"], pdesc["url"])
-        self.info("Updating labels here for %s", pname)
+        self.info("Updating labels for %s", pname)
 
         # self.info("Should update labels here for %s", pname)
         labels = self.list_labels(pname)
@@ -436,6 +441,92 @@ class GitlabManager(NVPComponent):
             elif labels[lname] != desc:
                 self.info("Updating label %s in %s...", lname, pname)
                 self.add_label(lname, desc["color"], desc["description"], update=True)
+
+    def get_milestone_ids(self):
+        """Retrieve the milestone ids."""
+        now = datetime.now()
+
+        # Current year and month
+        cur_year = now.year % 100  # Get last 2 digits of year
+        cur_month = now.month
+
+        # Previous month
+        if cur_month == 1:
+            prev_year = (now.year - 1) % 100
+            prev_month = 12
+        else:
+            prev_year = cur_year
+            prev_month = cur_month - 1
+
+        # Next month
+        if cur_month == 12:
+            next_year = (now.year + 1) % 100
+            next_month = 1
+        else:
+            next_year = cur_year
+            next_month = cur_month + 1
+
+        return {
+            "prev": (prev_year, prev_month),
+            "cur": (cur_year, cur_month),
+            "next": (next_year, next_month),
+        }
+
+    def update_milestones(self, pname=None):
+        """Update the project default milestones."""
+        if pname == "all":
+            # Iterate on each project in this case:
+            for pname in self.project_descs:
+                self.update_milestones(pname)
+            return
+
+        if pname is None:
+            # Get the project name from current folder:
+            proj = self.ctx.get_current_project(True)
+            if proj is None:
+                self.error("Cannot resolved git project from folder %s", self.get_cwd())
+                return
+
+            pname = proj.get_name()
+            self.info("Resolved project: %s", pname)
+
+        self.check(pname in self.project_descs, "Cannot update milestones for %s", pname)
+
+        pdesc = self.project_descs[pname]
+
+        if pdesc.get("update_milestones", True) is not True:
+            self.info("Ignoring milestones update for %s", pname)
+            return
+
+        self.setup_token(pdesc["server"], pdesc["url"])
+        self.info("Updating milestones for %s", pname)
+
+        # Figure out what are the previous/current/next milestone numbers:
+        mids = self.get_milestone_ids()
+        fmt = pdesc.get("milestone_format", "v%d.%d")
+
+        for mtype, ids in mids.items():
+            # Create the milestone if it doesn't exist yet:
+            yn, mn = ids[0], ids[1]
+            mname = fmt % (yn, mn)
+
+            if self.find_milestone_by_title(mname) is None:
+                self.info("Creating milestone '%s'", mname)
+                data = {"title": mname}
+                self.add_milestone(data)
+
+            if mtype == "prev":
+                mstone = self.find_milestone_by_title(mname)
+                if mstone is None:
+                    self.warn("No milestone found with title %s", mname)
+                    continue
+
+                if mstone["state"] == "active":
+                    mid = mstone["id"]
+
+                    # Close that milestone:
+                    self.info("Closing milestone %s", mname)
+                    self.close_milestone(mid)
 
     def update_file(self, data, project=None):
         """Send an update to a single file given the input data.
@@ -534,7 +625,7 @@ class GitlabManager(NVPComponent):
             assert title is not None, "Title or id are required to close a milestone."
             mstone = self.find_milestone_by_title(title)
             if mstone is None:
-                self.warning("No milestone found with title %s", title)
+                self.warn("No milestone found with title %s", title)
                 return
             mid = mstone["id"]
 
@@ -573,6 +664,9 @@ if __name__ == "__main__":
     psr.add_int("-p", "--priority", dest="label_priority")("Label priority")
 
     psr = context.build_parser("update.labels")
+    psr.add_str("-p", "--project", dest="project_name")("Project name")
+
+    psr = context.build_parser("update.milestones")
     psr.add_str("-p", "--project", dest="project_name")("Project name")
 
     comp.run()
