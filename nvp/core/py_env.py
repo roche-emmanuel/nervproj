@@ -146,8 +146,11 @@ class PyEnvManager(NVPComponent):
         cache_dir = self.ctx.get_config().get("pip_cache_dir", None)
         if cache_dir is not None:
             cache_dir = self.ctx.select_first_valid_path(cache_dir)
-            self.info("Using PIP cache dir: %s", cache_dir)
-            opts += ["--cache-dir", cache_dir]
+            if cache_dir is not None:
+                self.info("Using PIP cache dir: %s", cache_dir)
+                opts += ["--cache-dir", cache_dir]
+            else:
+                self.warn("Could not resolve PIP cache dir.")
 
         self.execute(cmd + args + opts, env=env)
 
