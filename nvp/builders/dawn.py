@@ -94,6 +94,33 @@ class DawnBuilder(NVPBuilder):
             # "-DBUILD_SHARED_LIBS=OFF",
         ]
 
+        if self.compiler.is_clang():
+            # Added the following for build with clang >= v18 of Dawn >= v20250810
+            flags += [
+                # "-DCMAKE_CXX_STANDARD=17",
+                # "-DCMAKE_CXX_STANDARD_REQUIRED=ON",
+                # "-D__cpp_lib_any=201606L",
+                "-DDAWN_BUILD_TESTS=OFF",
+                "-DTINT_BUILD_TESTS=OFF",
+            ]
+            # self.compiler.append_cxxflag("-std=c++17")
+            # self.compiler.append_cxxflag("-stdlib=libc++")
+            # self.patch_file(
+            #     self.get_path(build_dir, "third_party/googletest/CMakeLists.txt"),
+            #     "enable_testing()",
+            #     "enable_testing()\nset(CMAKE_CXX_STANDARD 17)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)",
+            # )
+            # self.patch_file(
+            #     self.get_path(build_dir, "third_party/googletest/googletest/CMakeLists.txt"),
+            #     "include(cmake/internal_utils.cmake)",
+            #     "include(cmake/internal_utils.cmake)\nset(CMAKE_CXX_STANDARD 17)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)",
+            # )
+            # self.patch_file(
+            #     self.get_path(build_dir, "third_party/googletest/googlemock/CMakeLists.txt"),
+            #     "LANGUAGES CXX C)",
+            #     "LANGUAGES CXX C)\nset(CMAKE_CXX_STANDARD 17)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)",
+            # )
+
         self.run_cmake(build_dir, prefix, flags=flags)
 
         logger.info("Executing ninja...")
