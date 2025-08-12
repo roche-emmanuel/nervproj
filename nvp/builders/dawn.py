@@ -121,6 +121,28 @@ class DawnBuilder(NVPBuilder):
             #     "LANGUAGES CXX C)\nset(CMAKE_CXX_STANDARD 17)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)",
             # )
 
+        # Patch for CompareObjectHandles:
+        self.patch_file(
+            self.get_path(build_dir, "src/dawn/native/d3d11/SharedFenceD3D11.cpp"),
+            "return ::CompareObjectHandles(handle, other);",
+            """// Try to dynamically load CompareObjectHandles if available
+    static auto compareObjectHandles = []() {
+        HMODULE kernelbase = GetModuleHandleA("kernelbase.dll");
+        if (kernelbase) {
+            return reinterpret_cast<BOOL(WINAPI*)(HANDLE, HANDLE)>(
+                GetProcAddress(kernelbase, "CompareObjectHandles"));
+        }
+        return static_cast<BOOL(WINAPI*)(HANDLE, HANDLE)>(nullptr);
+    }();
+
+    if (compareObjectHandles) {
+        return compareObjectHandles(handle, other);
+    }
+
+    // Fallback: assume they're different if direct comparison failed
+    return false;""",
+        )
+
         self.run_cmake(build_dir, prefix, flags=flags)
 
         logger.info("Executing ninja...")
