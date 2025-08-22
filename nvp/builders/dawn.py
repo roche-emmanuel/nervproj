@@ -230,7 +230,7 @@ class DawnBuilder(NVPBuilder):
         self.install_files("src/tint", r"\.a$", "lib", "library", recurse=True)
         absl_libs = self.install_files("third_party", r"absl_.*\.a$", "lib", "library", recurse=True)
         self.install_files("third_party", r"SPIRV-Tools.*\.a$", "lib", "library", recurse=True)
-        self.install_files("gen/include/dawn", r"\.h$", "include/dawn", "header", flatten=False, recurse=True)
+        self.install_files("gen/include", r"\.h$", "include", "header", flatten=False, recurse=True)
         self.install_files("include", r"\.h$", "include", "header", src_dir=build_dir, flatten=False, recurse=True)
         self.install_files(".", "tint$", "bin", "app", recurse=True)
         self.install_files(".", "tint_info$", "bin", "app", recurse=True)
