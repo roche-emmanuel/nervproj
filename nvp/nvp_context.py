@@ -106,7 +106,7 @@ class NVPContext(NVPObject):
         verbose = os.getenv("NVP_VERBOSE", "0")
         lvl = logging.DEBUG if verbose == "1" else logging.INFO
         # print("Sys args: %s" % sys.argv)
-        if sys.argv[1] == "get_dir":
+        if len(sys.argv) >= 2 and sys.argv[1] == "get_dir":
             lvl = logging.ERROR
 
         logging.basicConfig(
