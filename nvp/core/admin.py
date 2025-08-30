@@ -73,7 +73,13 @@ class AdminManager(NVPComponent):
 
         # Check if we have a valid cache dir:
         opts = ["--no-warn-script-location"]
-        cache_dir = self.ctx.get_config().get("pip_cache_dir", None)
+        cache_dir = os.environ.get("PIP_CACHE_DIR", None)
+
+        if cache_dir is None:
+            cache_dir = self.ctx.get_config().get("pip_cache_dir", None)
+        else:
+            cache_dir = [cache_dir]
+
         if cache_dir is not None:
             cache_dir = self.ctx.select_first_valid_path(cache_dir)
             self.info("Using PIP cache dir: %s", cache_dir)
