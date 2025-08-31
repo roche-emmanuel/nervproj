@@ -168,6 +168,10 @@ class NVPObject(object):
                     # re-raise the exception:
                     raise err
 
+    def sleep_s(self, delay):
+        """Sleep for a moment."""
+        time.sleep(delay)
+
     def pretty_print(self, obj):
         """Pretty print an object"""
         if obj is None:
