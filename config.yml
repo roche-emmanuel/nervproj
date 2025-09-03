@@ -389,9 +389,9 @@ libraries:
     # version: git-20250623a
     # windows_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20250623a-windows.7z
     # linux_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20250623a-linux.tar.xz
-    version: git-20250623b
-    windows_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20250623b-windows.7z
-    linux_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20250623b-linux.tar.xz
+    # version: git-20250623b
+    # windows_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20250623b-windows.7z
+    # linux_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20250623b-linux.tar.xz
     # version: git-20250624
     # windows_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20250624-windows.7z
     # linux_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20250624-linux.tar.xz
@@ -410,6 +410,9 @@ libraries:
     # version: git-20250822
     # windows_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20250822-windows.7z
     # linux_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20250822-linux.tar.xz
+    version: git-20250901
+    windows_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20250901-windows.7z
+    linux_url: http://files.nervtech.org/nvp_packages/sources/dawn-git-20250901-linux.tar.xz
   # - name: emdawnwebgpu
   #   version: 20250519
   # cf. https://github.com/google/dawn/releases

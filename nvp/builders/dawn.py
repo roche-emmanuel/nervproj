@@ -91,6 +91,7 @@ class DawnBuilder(NVPBuilder):
             f"-DPython_EXECUTABLE={py_path}",
             f"-DPython3_EXECUTABLE={py_path}",
             "-DDAWN_ENABLE_PIC=ON",
+            "-DDAWN_FORCE_SYSTEM_COMPONENT_LOAD=ON",
             # "-DBUILD_SHARED_LIBS=OFF",
         ]
 
