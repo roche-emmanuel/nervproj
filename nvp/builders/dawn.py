@@ -101,64 +101,64 @@ class DawnBuilder(NVPBuilder):
         )
 
         sub_dir = self.get_path(build_dir, "release_build")
+        self.make_folder(sub_dir)
 
-        if self.compiler.is_clang():
-            # Get the MSVC compiler:
-            bman = self.ctx.get_component("builder")
-            msvc_comp = bman.get_compiler("msvc")
-            msvc_dir = msvc_comp.get_root_dir()
-            logger.info("GN using MSVC root dir: %s", msvc_dir)
-            self.env["GYP_MSVS_OVERRIDE_PATH"] = msvc_dir
-            self.env["vs2022_install"] = msvc_dir
+        # Run cmake:
+        logger.info("Executing cmake...")
+        # Need to add python executable path:
+        py_path = self.tools.get_tool_path("python")
+        flags = [
+            "-S",
+            ".",
+            "-B",
+            "release_build",
+            f"-DPYTHON_EXECUTABLE={py_path}",
+            f"-DPython_EXECUTABLE={py_path}",
+            f"-DPython3_EXECUTABLE={py_path}",
+            "-DDAWN_ENABLE_PIC=ON",
+            "-DDAWN_USE_BUILT_DXC=ON",
+            "-DDAWN_DXC_ENABLE_ASSERTS_IN_NDEBUG=OFF",
+            "-DDAWN_FORCE_SYSTEM_COMPONENT_LOAD=OFF",
+            # "-DBUILD_SHARED_LIBS=OFF",
+            "-DDAWN_BUILD_TESTS=OFF",
+            "-DTINT_BUILD_TESTS=OFF",
+        ]
+        self.run_cmake(build_dir, prefix, flags=flags)
 
-            install_dir = prefix.replace("\\", "/")
-            args = [
-                "is_clang = true",
-                "is_debug = false",
-                "dawn_complete_static_libs = true",
-                # "dawn_complete_static_libs = false",
-                "dawn_use_built_dxc = true",
-                "dawn_force_system_component_load = false",
-                f'install_prefix = "{install_dir}"',
-                # Should set 'is_official_build' to true for max perfs:
-                "is_official_build = false",
-                "symbol_level = -1",
-                "tint_build_benchmarks = false",
-                "tint_build_unittests = false",
-            ]
-            content = "\n".join(args)
-            self.write_text_file(content, self.get_path(sub_dir, "args.gn"))
+        # if self.compiler.is_clang():
+        # Experimental GN build path:
+        # # Get the MSVC compiler:
+        # bman = self.ctx.get_component("builder")
+        # msvc_comp = bman.get_compiler("msvc")
+        # msvc_dir = msvc_comp.get_root_dir()
+        # logger.info("GN using MSVC root dir: %s", msvc_dir)
+        # self.env["GYP_MSVS_OVERRIDE_PATH"] = msvc_dir
+        # self.env["vs2022_install"] = msvc_dir
 
-            logger.info("Executing gn...")
-            self.make_folder(sub_dir)
-            self.run_gn(build_dir, ["gen", "release_build"])
+        # install_dir = prefix.replace("\\", "/")
+        # args = [
+        #     "is_clang = true",
+        #     "is_debug = false",
+        #     "dawn_complete_static_libs = true",
+        #     # "dawn_complete_static_libs = false",
+        #     "dawn_use_built_dxc = true",
+        #     "dawn_force_system_component_load = false",
+        #     f'install_prefix = "{install_dir}"',
+        #     # Should set 'is_official_build' to true for max perfs:
+        #     "is_official_build = false",
+        #     # "symbol_level = -1",
+        #     "symbol_level = 2",
+        #     "tint_build_benchmarks = false",
+        #     "tint_build_unittests = false",
+        # ]
+        # content = "\n".join(args)
+        # self.write_text_file(content, self.get_path(sub_dir, "args.gn"))
 
-            # logger.info("Available GN args:")
-            # self.run_gn(build_dir, ["args", "--list", "release_build"])
-        else:
-            # This is MSVC compiler:
+        # logger.info("Executing gn...")
+        # self.run_gn(build_dir, ["gen", "release_build"])
 
-            # Run cmake:
-            logger.info("Executing cmake...")
-            # Need to add python executable path:
-            py_path = self.tools.get_tool_path("python")
-            flags = [
-                "-S",
-                ".",
-                "-B",
-                "release_build",
-                f"-DPYTHON_EXECUTABLE={py_path}",
-                f"-DPython_EXECUTABLE={py_path}",
-                f"-DPython3_EXECUTABLE={py_path}",
-                "-DDAWN_ENABLE_PIC=ON",
-                "-DDAWN_USE_BUILT_DXC=ON",
-                "-DDAWN_DXC_ENABLE_ASSERTS_IN_NDEBUG=OFF",
-                "-DDAWN_FORCE_SYSTEM_COMPONENT_LOAD=ON",
-                # "-DBUILD_SHARED_LIBS=OFF",
-                # "-DDAWN_BUILD_TESTS=OFF",
-                # "-DTINT_BUILD_TESTS=OFF",
-            ]
-            self.run_cmake(build_dir, prefix, flags=flags)
+        # logger.info("Available GN args:")
+        # self.run_gn(build_dir, ["args", "--list", "release_build"])
 
         logger.info("Executing ninja...")
         # self.run_ninja(sub_dir)
@@ -184,6 +184,7 @@ class DawnBuilder(NVPBuilder):
         )
         self.install_files(".", r"\.exe$", "bin", "app", excluded=["CMake", "unittests"], recurse=True)
         self.install_files(".", r"\.dll$", "bin", "dll", excluded=["CMake", "unittests"], recurse=True)
+        # self.install_files(".", r"\.lib$", "lib", "library", recurse=True, excluded=["gmock", "gtest"])
 
         # Write the list of absl libs to file:
         absl_libs = [self.get_filename(elem) for elem in absl_libs]
