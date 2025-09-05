@@ -37,6 +37,9 @@ windows_tools:
   - name: ninja
     sub_path: ninja.exe
     version: 1.10.2
+  - name: gn
+    sub_path: gn.exe
+    version: "250904"
   - name: cmake
     sub_path: bin/cmake.exe
     # urls: https://github.com/Kitware/CMake/releases/download/v3.22.3/cmake-3.22.3-windows-x86_64.zip
@@ -639,6 +642,9 @@ scripts:
     help: Run a gitlab command
     python_path:
       - ${NVP_ROOT_DIR}
+  gn:
+    cmd: ${GN} --script-executable=${PYTHON}
+    help: Run a gn command
   ninja:
     cmd: ${NINJA}
     help: Run a ninja command

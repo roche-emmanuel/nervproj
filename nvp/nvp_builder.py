@@ -145,6 +145,14 @@ class NVPBuilder(NVPObject):
         self.exec_make(build_dir)
         self.exec_make(build_dir, ["install"])
 
+    def run_gn(self, build_dir, args, **kwargs):
+        """Run gn."""
+        python_path = self.tools.get_tool_path("python")
+        cmd = [self.tools.get_tool_path("gn"), f"--script-executable={python_path}"] + args
+
+        # logger.info("GN command: %s", cmd)
+        self.check_execute(cmd, cwd=build_dir, env=self.env, **kwargs)
+
     def run_cmake(self, build_dir, prefix, src_dir=None, flags=None, generator="Ninja", **kwargs):
         """Execute Standard cmake configuration command"""
         build_type = kwargs.get("build_type", "Release")
@@ -264,7 +272,11 @@ class NVPBuilder(NVPObject):
             pdir = self.get_parent_folder(dst)
             self.make_folder(pdir)
 
-            self.check(not self.file_exists(dst), "File %s already exists.", dst)
+            if self.file_exists(dst):
+                self.warn("File %s already exists, removing it.", dst)
+                self.remove_file(dst)
+
+            # self.check(not self.file_exists(dst), "File %s already exists.", dst)
             self.copy_file(src, dst)
             res.append(elem)
 

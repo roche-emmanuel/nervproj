@@ -269,6 +269,9 @@ class ScriptRunner(NVPComponent):
         if tools.has_tool("ninja"):
             hlocs["${NINJA}"] = tools.get_tool_path("ninja")
 
+        if tools.has_tool("gn"):
+            hlocs["${GN}"] = tools.get_tool_path("gn")
+
         if "nodejs_env" in desc:
             nodejs = self.get_component("nodejs")
             env_name = desc["nodejs_env"]

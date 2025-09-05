@@ -78,50 +78,6 @@ class DawnBuilder(NVPBuilder):
         logger.info("Executing gclient sync...")
         self.execute(cmd, cwd=build_dir, env=self.env)
 
-        # Run cmake:
-        logger.info("Executing cmake...")
-        # Need to add python executable path:
-        py_path = self.tools.get_tool_path("python")
-        flags = [
-            "-S",
-            ".",
-            "-B",
-            "release_build",
-            f"-DPYTHON_EXECUTABLE={py_path}",
-            f"-DPython_EXECUTABLE={py_path}",
-            f"-DPython3_EXECUTABLE={py_path}",
-            "-DDAWN_ENABLE_PIC=ON",
-            "-DDAWN_FORCE_SYSTEM_COMPONENT_LOAD=ON",
-            # "-DBUILD_SHARED_LIBS=OFF",
-        ]
-
-        if self.compiler.is_clang():
-            # Added the following for build with clang >= v18 of Dawn >= v20250810
-            flags += [
-                # "-DCMAKE_CXX_STANDARD=17",
-                # "-DCMAKE_CXX_STANDARD_REQUIRED=ON",
-                # "-D__cpp_lib_any=201606L",
-                "-DDAWN_BUILD_TESTS=OFF",
-                "-DTINT_BUILD_TESTS=OFF",
-            ]
-            # self.compiler.append_cxxflag("-std=c++17")
-            # self.compiler.append_cxxflag("-stdlib=libc++")
-            # self.patch_file(
-            #     self.get_path(build_dir, "third_party/googletest/CMakeLists.txt"),
-            #     "enable_testing()",
-            #     "enable_testing()\nset(CMAKE_CXX_STANDARD 17)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)",
-            # )
-            # self.patch_file(
-            #     self.get_path(build_dir, "third_party/googletest/googletest/CMakeLists.txt"),
-            #     "include(cmake/internal_utils.cmake)",
-            #     "include(cmake/internal_utils.cmake)\nset(CMAKE_CXX_STANDARD 17)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)",
-            # )
-            # self.patch_file(
-            #     self.get_path(build_dir, "third_party/googletest/googlemock/CMakeLists.txt"),
-            #     "LANGUAGES CXX C)",
-            #     "LANGUAGES CXX C)\nset(CMAKE_CXX_STANDARD 17)\nset(CMAKE_CXX_STANDARD_REQUIRED ON)",
-            # )
-
         # Patch for CompareObjectHandles:
         self.patch_file(
             self.get_path(build_dir, "src/dawn/native/d3d11/SharedFenceD3D11.cpp"),
@@ -144,17 +100,76 @@ class DawnBuilder(NVPBuilder):
     return false;""",
         )
 
-        self.run_cmake(build_dir, prefix, flags=flags)
+        sub_dir = self.get_path(build_dir, "release_build")
+
+        if self.compiler.is_clang():
+            # Get the MSVC compiler:
+            bman = self.ctx.get_component("builder")
+            msvc_comp = bman.get_compiler("msvc")
+            msvc_dir = msvc_comp.get_root_dir()
+            logger.info("GN using MSVC root dir: %s", msvc_dir)
+            self.env["GYP_MSVS_OVERRIDE_PATH"] = msvc_dir
+            self.env["vs2022_install"] = msvc_dir
+
+            install_dir = prefix.replace("\\", "/")
+            args = [
+                "is_clang = true",
+                "is_debug = false",
+                "dawn_complete_static_libs = true",
+                # "dawn_complete_static_libs = false",
+                "dawn_use_built_dxc = true",
+                "dawn_force_system_component_load = false",
+                f'install_prefix = "{install_dir}"',
+                # Should set 'is_official_build' to true for max perfs:
+                "is_official_build = false",
+                "symbol_level = -1",
+                "tint_build_benchmarks = false",
+                "tint_build_unittests = false",
+            ]
+            content = "\n".join(args)
+            self.write_text_file(content, self.get_path(sub_dir, "args.gn"))
+
+            logger.info("Executing gn...")
+            self.make_folder(sub_dir)
+            self.run_gn(build_dir, ["gen", "release_build"])
+
+            # logger.info("Available GN args:")
+            # self.run_gn(build_dir, ["args", "--list", "release_build"])
+        else:
+            # This is MSVC compiler:
+
+            # Run cmake:
+            logger.info("Executing cmake...")
+            # Need to add python executable path:
+            py_path = self.tools.get_tool_path("python")
+            flags = [
+                "-S",
+                ".",
+                "-B",
+                "release_build",
+                f"-DPYTHON_EXECUTABLE={py_path}",
+                f"-DPython_EXECUTABLE={py_path}",
+                f"-DPython3_EXECUTABLE={py_path}",
+                "-DDAWN_ENABLE_PIC=ON",
+                "-DDAWN_USE_BUILT_DXC=ON",
+                "-DDAWN_DXC_ENABLE_ASSERTS_IN_NDEBUG=OFF",
+                "-DDAWN_FORCE_SYSTEM_COMPONENT_LOAD=ON",
+                # "-DBUILD_SHARED_LIBS=OFF",
+                # "-DDAWN_BUILD_TESTS=OFF",
+                # "-DTINT_BUILD_TESTS=OFF",
+            ]
+            self.run_cmake(build_dir, prefix, flags=flags)
 
         logger.info("Executing ninja...")
-        sub_dir = self.get_path(build_dir, "release_build")
         # self.run_ninja(sub_dir)
         self.exec_ninja(sub_dir)
 
-        # logger.info("Installing dawn libraries...")
+        logger.info("Installing dawn libraries...")
 
         self.set_install_context(sub_dir, prefix)
 
+        self.install_files("obj/src/dawn", r"\.lib$", "lib", "library", recurse=True, excluded=["gmock", "gtest"])
+        self.install_files("obj/src/tint", r"\.lib$", "lib", "library", recurse=True, excluded=["gmock", "gtest"])
         self.install_files("src/dawn", r"\.lib$", "lib", "library", recurse=True)
         self.install_files("src/tint", r"\.lib$", "lib", "library", recurse=True)
         absl_libs = self.install_files("third_party", r"absl_.*\.lib$", "lib", "library", recurse=True)
@@ -168,6 +183,7 @@ class DawnBuilder(NVPBuilder):
             "src/tint", r"\.h$", "include/internals/tint", "tint_header", src_dir=build_dir, flatten=False, recurse=True
         )
         self.install_files(".", r"\.exe$", "bin", "app", excluded=["CMake", "unittests"], recurse=True)
+        self.install_files(".", r"\.dll$", "bin", "dll", excluded=["CMake", "unittests"], recurse=True)
 
         # Write the list of absl libs to file:
         absl_libs = [self.get_filename(elem) for elem in absl_libs]
