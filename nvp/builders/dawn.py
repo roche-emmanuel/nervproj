@@ -112,10 +112,11 @@ class DawnBuilder(NVPBuilder):
             ".",
             "-B",
             "release_build",
-            f"-DPYTHON_EXECUTABLE={py_path}",
-            f"-DPython_EXECUTABLE={py_path}",
+            # f"-DPYTHON_EXECUTABLE={py_path}",
+            # f"-DPython_EXECUTABLE={py_path}",
             f"-DPython3_EXECUTABLE={py_path}",
             "-DDAWN_ENABLE_PIC=ON",
+            "-DDAWN_USE_GLFW=ON",
             "-DDAWN_USE_BUILT_DXC=ON",
             "-DDAWN_DXC_ENABLE_ASSERTS_IN_NDEBUG=OFF",
             "-DDAWN_FORCE_SYSTEM_COMPONENT_LOAD=OFF",
@@ -125,40 +126,107 @@ class DawnBuilder(NVPBuilder):
         ]
         self.run_cmake(build_dir, prefix, flags=flags)
 
-        # if self.compiler.is_clang():
-        # Experimental GN build path:
-        # # Get the MSVC compiler:
-        # bman = self.ctx.get_component("builder")
-        # msvc_comp = bman.get_compiler("msvc")
-        # msvc_dir = msvc_comp.get_root_dir()
-        # logger.info("GN using MSVC root dir: %s", msvc_dir)
-        # self.env["GYP_MSVS_OVERRIDE_PATH"] = msvc_dir
-        # self.env["vs2022_install"] = msvc_dir
+        if self.compiler.is_clang():
+            # Experimental GN build path:
+            # # Get the MSVC compiler:
+            # bman = self.ctx.get_component("builder")
+            # msvc_comp = bman.get_compiler("msvc")
+            # msvc_dir = msvc_comp.get_root_dir()
+            # logger.info("GN using MSVC root dir: %s", msvc_dir)
+            # self.env["GYP_MSVS_OVERRIDE_PATH"] = msvc_dir
+            # self.env["vs2022_install"] = msvc_dir
 
-        # install_dir = prefix.replace("\\", "/")
-        # args = [
-        #     "is_clang = true",
-        #     "is_debug = false",
-        #     "dawn_complete_static_libs = true",
-        #     # "dawn_complete_static_libs = false",
-        #     "dawn_use_built_dxc = true",
-        #     "dawn_force_system_component_load = false",
-        #     f'install_prefix = "{install_dir}"',
-        #     # Should set 'is_official_build' to true for max perfs:
-        #     "is_official_build = false",
-        #     # "symbol_level = -1",
-        #     "symbol_level = 2",
-        #     "tint_build_benchmarks = false",
-        #     "tint_build_unittests = false",
-        # ]
-        # content = "\n".join(args)
-        # self.write_text_file(content, self.get_path(sub_dir, "args.gn"))
+            # install_dir = prefix.replace("\\", "/")
+            # args = [
+            #     "is_clang = true",
+            #     "is_debug = false",
+            #     "dawn_complete_static_libs = true",
+            #     # "dawn_complete_static_libs = false",
+            #     "dawn_use_built_dxc = true",
+            #     "dawn_force_system_component_load = false",
+            #     f'install_prefix = "{install_dir}"',
+            #     # Should set 'is_official_build' to true for max perfs:
+            #     "is_official_build = false",
+            #     # "symbol_level = -1",
+            #     "symbol_level = 2",
+            #     "tint_build_benchmarks = false",
+            #     "tint_build_unittests = false",
+            # ]
+            # content = "\n".join(args)
+            # self.write_text_file(content, self.get_path(sub_dir, "args.gn"))
 
-        # logger.info("Executing gn...")
-        # self.run_gn(build_dir, ["gen", "release_build"])
+            # logger.info("Executing gn...")
+            # self.run_gn(build_dir, ["gen", "release_build"])
 
-        # logger.info("Available GN args:")
-        # self.run_gn(build_dir, ["args", "--list", "release_build"])
+            # logger.info("Available GN args:")
+            # self.run_gn(build_dir, ["args", "--list", "release_build"])
+
+            # Install the patches:
+            etw_src_dir = self.get_path(build_dir, "third_party/gn/dxc/win_build_output/mc/include/dxc/Tracing/dxcetw")
+            etw_src_dir = etw_src_dir.replace("\\", "/")
+
+            # etw_dst_dir = self.get_path(build_dir, "third_party/dxc/tools/clang/tools/dxcompiler")
+
+            # for fname in ["dxcetw.h", "dxcetw.rc", "dxcetw_MSG00001.bin", "dxcetwTEMP.BIN"]:
+            #     self.copy_file(self.get_path(etw_src_dir, fname), self.get_path(etw_dst_dir, fname))
+            # Patch main dxc tools cmakelist.txt:
+            lines = [
+                f'include_directories("{etw_src_dir}")',
+                "add_subdirectory(driver)",
+            ]
+
+            self.patch_file(
+                self.get_path(build_dir, "third_party/dxc/tools/clang/tools/CMakeLists.txt"),
+                "add_subdirectory(driver)",
+                "\n".join(lines),
+            )
+
+            dia_inc = "D:/Softs/VisualStudio/VS2022/DIA SDK/include"
+            dia_lib = "D:/Softs/VisualStudio/VS2022/DIA SDK/lib/amd64/diaguids.lib"
+
+            # Patch dxcompiler cmakelist file:
+            lines = [
+                "add_clang_library(dxcompiler SHARED ${SOURCES})",
+                f'target_include_directories(dxcompiler PUBLIC "{dia_inc}")',
+                f'target_link_libraries(dxcompiler PUBLIC "{dia_lib}")',
+            ]
+
+            self.patch_file(
+                self.get_path(build_dir, "third_party/dxc/tools/clang/tools/dxcompiler/CMakeLists.txt"),
+                "add_clang_library(dxcompiler SHARED ${SOURCES})",
+                "\n".join(lines),
+            )
+
+            self.patch_file(
+                self.get_path(build_dir, "third_party/dxc/tools/clang/tools/dxcompiler/CMakeLists.txt"),
+                "(MSVC)",
+                "(WIN32)",
+            )
+
+            # Patch dxclib cmakelist file:
+            lines = [
+                f'target_include_directories(dxclib PUBLIC "{dia_inc}")',
+                f'target_link_libraries(dxclib PUBLIC "{dia_lib}")',
+                "target_compile_definitions(dxclib",
+            ]
+
+            self.patch_file(
+                self.get_path(build_dir, "third_party/dxc/tools/clang/tools/dxclib/CMakeLists.txt"),
+                "target_compile_definitions(dxclib",
+                "\n".join(lines),
+            )
+
+            self.patch_file(
+                self.get_path(build_dir, "third_party/dxc/tools/clang/tools/dxclib/CMakeLists.txt"),
+                "(MSVC)",
+                "(WIN32)",
+            )
+
+            self.patch_file(
+                self.get_path(build_dir, "third_party/dxc/lib/DxilDia/CMakeLists.txt"),
+                "(MSVC)",
+                "(WIN32)",
+            )
 
         logger.info("Executing ninja...")
         # self.run_ninja(sub_dir)
