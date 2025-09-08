@@ -53,7 +53,7 @@ class GitManager(NVPComponent):
 
         # Install the ssh config:
         cfg_file = self.get_path(ssh_dir, "config")
-        if not self.file_exists(cfg_file):
+        if not self.file_exists(cfg_file) and "config_urls" in ssh_cfg:
             logger.info("Installing ssh config in %s", ssh_dir)
             urls = ssh_cfg["config_urls"]
             src = self.ctx.select_first_valid_path(urls)
