@@ -306,11 +306,15 @@ libraries:
   #   version: 2023.02
   #   url: hg@https://hg.mozilla.org/projects/nss
   - name: QT6
-    version: 6.4.2
-    # windows_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.zip
-    windows_url: http://files.nervtech.org/nvp_packages/sources/qt-everywhere-src-6.4.2.zip
-    linux_url: http://files.nervtech.org/nvp_packages/sources/qt-everywhere-src-6.4.2.tar.xz
-    # linux_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.tar.xz
+    # version: 6.4.2
+    # # windows_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.zip
+    # windows_url: http://files.nervtech.org/nvp_packages/sources/qt-everywhere-src-6.4.2.zip
+    # # linux_url: https://download.qt.io/official_releases/qt/6.4/6.4.2/single/qt-everywhere-src-6.4.2.tar.xz
+    # linux_url: http://files.nervtech.org/nvp_packages/sources/qt-everywhere-src-6.4.2.tar.xz
+
+    version: 6.9.2
+    windows_url: http://files.nervtech.org/nvp_packages/sources/qt-everywhere-src-6.9.2.zip
+    linux_url: http://files.nervtech.org/nvp_packages/sources/qt-everywhere-src-6.9.2.tar.xz
 
   - name: QT6_7
     version: 6.7.1
