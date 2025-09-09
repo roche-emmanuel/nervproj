@@ -153,6 +153,19 @@ class GitlabManager(NVPComponent):
             self.upload_package(pname, package_name, package_version, file_name, file_name)
             return True
 
+        if cmd == "package.list":
+            pname = self.get_param("project_name", None)
+            res = self.list_packages(pname)
+            self.info("List of packages for %s: %s", pname, self.pretty_print(res))
+            return True
+
+        if cmd == "package.list-files":
+            pname = self.get_param("project_name")
+            pid = self.get_param("package_id")
+            res = self.list_package_files(pname, pid)
+            self.info("List of packages files for %s: %s", pname, self.pretty_print(res))
+            return True
+
         return False
 
     def read_git_config(self, *parts):
@@ -418,11 +431,38 @@ class GitlabManager(NVPComponent):
 
         if res is not None and "id" in res:
             project_id = res["id"]
-            self.info("Found project ID %d for '%s'", project_id, project_name_or_path)
+            # self.info("Found project ID %d for '%s'", project_id, project_name_or_path)
             return project_id
         else:
             self.error("Could not find project ID for '%s'", project_name_or_path)
             return None
+
+    def list_packages(self, proj_name):
+        """List available packages for a given project."""
+        self.check(proj_name in self.project_descs, "Cannot list packages for %s", proj_name)
+
+        pdesc = self.project_descs[proj_name]
+        self.setup_token(pdesc["server"], pdesc["url"])
+
+        # Construct the API URL
+        pid = self.get_project_id_from_name(pdesc["url"])
+        url = f"/projects/{pid}/packages"
+
+        res = self.get(url)
+        return res
+
+    def list_package_files(self, proj_name, package_id):
+        """List available package files for a given project."""
+        self.check(proj_name in self.project_descs, "Cannot list packages for %s", proj_name)
+
+        pdesc = self.project_descs[proj_name]
+        self.setup_token(pdesc["server"], pdesc["url"])
+
+        # Construct the API URL
+        pid = self.get_project_id_from_name(pdesc["url"])
+        url = f"/projects/{pid}/packages/{package_id}/package_files"
+        res = self.get(url)
+        return res
 
     def upload_package(self, proj_name, package_name, package_version, file_name, source_file):
         """Upload a package file to GitLab's generic package registry.
@@ -803,5 +843,12 @@ if __name__ == "__main__":
     psr.add_str("package_name")("Package name")
     psr.add_str("package_version")("Package version")
     psr.add_str("file_name")("File name")
+
+    psr = context.build_parser("package.list")
+    psr.add_str("project_name")("Project name")
+
+    psr = context.build_parser("package.list-files")
+    psr.add_str("project_name")("Project name")
+    psr.add_int("package_id")("Package_id")
 
     comp.run()
