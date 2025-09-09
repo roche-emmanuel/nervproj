@@ -145,6 +145,14 @@ class GitlabManager(NVPComponent):
             self.update_milestones(pname)
             return True
 
+        if cmd == "package.upload":
+            package_name = self.get_param("package_name")
+            package_version = self.get_param("package_version")
+            file_name = self.get_param("file_name")
+            pname = self.get_param("project_name", None)
+            self.upload_package(pname, package_name, package_version, file_name, file_name)
+            return True
+
         return False
 
     def read_git_config(self, *parts):
@@ -392,6 +400,127 @@ class GitlabManager(NVPComponent):
         self.check(len(labels) < 100, "Too many labels found!")
 
         return labels
+
+    def get_project_id_from_name(self, project_name_or_path):
+        """Get the numeric project ID from a project name or URL-encoded path.
+
+        Args:
+            project_name_or_path (str): Project name, path, or URL-encoded path
+
+        Returns:
+            int: Numeric project ID, or None if not found
+        """
+        # URL encode the project name/path in case it contains special characters
+        encoded_name = self.url_encode_path(project_name_or_path)
+
+        # Use the projects API endpoint to get project details
+        res = self.get(f"/projects/{encoded_name}")
+
+        if res is not None and "id" in res:
+            project_id = res["id"]
+            self.info("Found project ID %d for '%s'", project_id, project_name_or_path)
+            return project_id
+        else:
+            self.error("Could not find project ID for '%s'", project_name_or_path)
+            return None
+
+    def upload_package(self, proj_name, package_name, package_version, file_name, source_file):
+        """Upload a package file to GitLab's generic package registry.
+
+        Args:
+            proj_name (str): Project name
+            package_name (str): Name of the package
+            package_version (str): Version of the package
+            file_name (str): Name of the file as it will appear in the registry
+            source_file (str): Path to the local file to upload
+
+        Returns:
+            dict: Response from GitLab API if successful, None if failed
+        """
+        if proj_name is None:
+            # Get the project name from current folder:
+            proj = self.ctx.get_current_project(True)
+            if proj is None:
+                self.error("Cannot resolved git project from folder %s", self.get_cwd())
+                return
+
+            proj_name = proj.get_name()
+            self.info("Resolved project: %s", proj_name)
+
+        self.check(proj_name in self.project_descs, "Cannot upload package for %s", proj_name)
+
+        pdesc = self.project_descs[proj_name]
+        self.setup_token(pdesc["server"], pdesc["url"])
+
+        # Validate inputs
+        assert package_name is not None, "Package name is mandatory"
+        assert package_version is not None, "Package version is mandatory"
+        assert file_name is not None, "File name is mandatory"
+        assert source_file is not None, "Source file path is mandatory"
+
+        # Check if source file exists
+        if not self.file_exists(source_file):
+            self.error("Source file does not exist: %s", source_file)
+            return None
+
+        # URL encode the file name to handle special characters
+        # encoded_file_name = self.url_encode_path(file_name)
+        encoded_file_name = file_name.replace("\\", "/")
+
+        # Construct the API URL
+        pid = self.get_project_id_from_name(pdesc["url"])
+        # url = f"/projects/{self.proj_id}/packages/generic/{package_name}/{package_version}/{encoded_file_name}"
+        url = f"/projects/{pid}/packages/generic/{package_name}/{package_version}/{encoded_file_name}"
+        # url = f"/projects/{pdesc['url']}/packages/generic/{package_name}/{package_version}/{encoded_file_name}"
+
+        self.info("Using url: '%s'", url)
+        try:
+            # Prepare headers
+            headers = {
+                "PRIVATE-TOKEN": self.access_token,
+                "cache-control": "no-cache",
+                "content-type": "application/octet-stream",
+                # "content-type": "application/zip",
+            }
+
+            # Open and upload the file
+            with open(source_file, "rb") as file_data:
+                response = requests.put(
+                    self.base_url + url,
+                    headers=headers,
+                    data=file_data,
+                    timeout=600.0 * 3,  # Longer timeout for file uploads: 30mins
+                )
+
+            if response.status_code == 201:
+                self.info("Successfully uploaded package file: %s/%s/%s", package_name, package_version, file_name)
+
+                # Try to parse JSON response, but handle cases where it might not be JSON
+                try:
+                    return response.json()
+                except json.JSONDecodeError:
+                    # Return a simple success indicator if response isn't JSON
+                    return {"status": "success", "status_code": 201}
+            else:
+                # Handle error responses
+                try:
+                    error_data = response.json()
+                    self.error("Failed to upload package file. Status: %d, Error: %s", response.status_code, error_data)
+                except json.JSONDecodeError:
+                    self.error(
+                        "Failed to upload package file. Status: %d, Response: %s", response.status_code, response.text
+                    )
+                return None
+
+        except requests.exceptions.RequestException as err:
+            self.error("Request exception during package upload: %s", str(err))
+            return None
+        except IOError as err:
+            self.error("File I/O error during package upload: %s", str(err))
+            return None
+        except Exception as err:
+            self.error("Unexpected error during package upload: %s", str(err))
+            return None
 
     def update_labels(self, pname=None):
         """Update all the project labels."""
@@ -668,5 +797,11 @@ if __name__ == "__main__":
 
     psr = context.build_parser("update.milestones")
     psr.add_str("-p", "--project", dest="project_name")("Project name")
+
+    psr = context.build_parser("package.upload")
+    psr.add_str("-p", "--project", dest="project_name")("Project name")
+    psr.add_str("package_name")("Package name")
+    psr.add_str("package_version")("Package version")
+    psr.add_str("file_name")("File name")
 
     comp.run()
