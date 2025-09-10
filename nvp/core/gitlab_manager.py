@@ -159,6 +159,12 @@ class GitlabManager(NVPComponent):
             self.info("List of packages for %s: %s", pname, self.pretty_print(res))
             return True
 
+        if cmd == "package.remove":
+            pname = self.get_param("project_name")
+            pid = self.get_param("package_id")
+            self.remove_package(pname, pid)
+            return True
+
         if cmd == "package.list-files":
             pname = self.get_param("project_name")
             pid = self.get_param("package_id")
@@ -462,6 +468,19 @@ class GitlabManager(NVPComponent):
         pid = self.get_project_id_from_name(pdesc["url"])
         url = f"/projects/{pid}/packages/{package_id}/package_files"
         res = self.get(url)
+        return res
+
+    def remove_package(self, proj_name, package_id):
+        """Remove a given package."""
+        self.check(proj_name in self.project_descs, "Cannot list packages for %s", proj_name)
+
+        pdesc = self.project_descs[proj_name]
+        self.setup_token(pdesc["server"], pdesc["url"])
+
+        # Construct the API URL
+        pid = self.get_project_id_from_name(pdesc["url"])
+        url = f"/projects/{pid}/packages/{package_id}"
+        res = self.delete(url)
         return res
 
     def upload_package(self, proj_name, package_name, package_version, file_name, source_file):
@@ -849,6 +868,10 @@ if __name__ == "__main__":
 
     psr = context.build_parser("package.list")
     psr.add_str("project_name")("Project name")
+
+    psr = context.build_parser("package.remove")
+    psr.add_str("project_name")("Project name")
+    psr.add_int("package_id")("Package id")
 
     psr = context.build_parser("package.list-files")
     psr.add_str("project_name")("Project name")
