@@ -4,6 +4,7 @@ import copy
 import logging
 import os
 import re
+import sys
 import time
 from pathlib import Path
 
@@ -47,8 +48,9 @@ class ScriptRunner(NVPComponent):
             proj = self.ctx.get_current_project()
             sname = self.get_param("script_name")
             script_args = self.ctx.get_additional_args()
-            self.run_script(sname, proj, script_args)
-            return True
+            rcode = self.run_script(sname, proj, script_args)
+            # Exit with the underlying exit code:
+            sys.exit(rcode)
 
         return False
 
