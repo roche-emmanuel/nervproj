@@ -465,4 +465,7 @@ class ScriptRunner(NVPComponent):
         if lockfile is not None:
             self.remove_file(lockfile)
 
+        if rcode != 0:
+            logger.info("NVP runner ending with rcode=%d", rcode)
+
         return rcode
