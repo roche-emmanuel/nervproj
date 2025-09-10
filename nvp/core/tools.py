@@ -521,13 +521,19 @@ class ToolsManager(NVPComponent):
             cmd = ["tar", "cJf", dest_file, "-C", self.get_parent_folder(src_path), self.get_filename(src_path)]
         elif package_name.endswith(".zip"):
             zip_file = self.get_path(dest_folder, package_name)
-            src_dir = self.get_parent_folder(src_path)
             with zipfile.ZipFile(zip_file, "w", zipfile.ZIP_DEFLATED) as zipf:
-                for root, _, files in os.walk(src_dir):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        relative_path = os.path.relpath(file_path, src_dir)
-                        zipf.write(file_path, relative_path)
+                if self.file_exists(src_path):
+                    # Just zipping one file:
+                    relative_path = self.get_filename(src_path)
+                    zipf.write(src_path, relative_path)
+                else:
+                    # Zipping a folder:
+                    src_dir = self.get_parent_folder(src_path)
+                    for root, _, files in os.walk(src_path):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            relative_path = os.path.relpath(file_path, src_dir)
+                            zipf.write(file_path, relative_path)
         else:
             # Generate a 7zip package:
             cmd = [
