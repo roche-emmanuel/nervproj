@@ -513,13 +513,16 @@ class GitlabManager(NVPComponent):
         url = f"/projects/{pid}/packages/generic/{package_name}/{package_version}/{encoded_file_name}"
         # url = f"/projects/{pdesc['url']}/packages/generic/{package_name}/{package_version}/{encoded_file_name}"
 
-        self.info("Using url: '%s'", url)
+        # self.info("Using url: '%s'", url)
+        ext = self.get_path_extension(file_name)
+        is_text = ext in [".txt", ".log"]
+
         try:
             # Prepare headers
             headers = {
                 "PRIVATE-TOKEN": self.access_token,
                 "cache-control": "no-cache",
-                "content-type": "application/octet-stream",
+                "content-type": "text/plain" if is_text else "application/octet-stream",
                 # "content-type": "application/zip",
             }
 
