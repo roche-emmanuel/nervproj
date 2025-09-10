@@ -46,7 +46,8 @@ class ScriptRunner(NVPComponent):
         if cmd == "run":
             proj = self.ctx.get_current_project()
             sname = self.get_param("script_name")
-            self.run_script(sname, proj)
+            script_args = self.ctx.get_additional_args()
+            self.run_script(sname, proj, script_args)
             return True
 
         return False
@@ -124,10 +125,10 @@ class ScriptRunner(NVPComponent):
 
         return desc
 
-    def run_script(self, script_name: str, proj: NVPProject | None):
+    def run_script(self, script_name: str, proj: NVPProject | None, script_args):
         """Run a given script given by name on a given project"""
         desc = self.get_script_desc(script_name, proj)
-        self.run_script_desc(desc, script_name, proj)
+        return self.run_script_desc(desc, script_name, proj, script_args)
 
     def fill_placeholders(self, content, hlocs):
         """Re-implementation of fill_placeholders to handle processing of tool paths"""
@@ -167,12 +168,12 @@ class ScriptRunner(NVPComponent):
 
         return content
 
-    def run_script_desc(self, desc, script_name: str, proj: NVPProject | None):
+    def run_script_desc(self, desc, script_name: str, proj: NVPProject | None, script_args=None):
         """Run a given script desc on a given project"""
 
         if desc is None:
             logger.warning("No script named %s found", script_name)
-            return
+            return 1
 
         # If the desc contains a "script" entry, then we should retrive the corresponding script and
         # extend it with the settings we have in the current desc:
@@ -195,7 +196,7 @@ class ScriptRunner(NVPComponent):
 
             if desc2 is None:
                 logger.warning("No script named %s found", sname)
-                return
+                return 1
 
             # We should adapt the subscript desc and then run it:
             desc2 = copy.deepcopy(desc2)
@@ -218,8 +219,7 @@ class ScriptRunner(NVPComponent):
                             desc2[key] += f" {args}"
 
             # Finally we run that script and return:
-            self.run_script_desc(desc2, sname, proj)
-            return
+            return self.run_script_desc(desc2, sname, proj, script_args)
 
         cmd = self.ctx.resolve_object(desc, "cmd")
 
@@ -359,12 +359,11 @@ class ScriptRunner(NVPComponent):
             env["PWD"] = cwd
 
         # Check if we have additional args to pass to the command:
-        args = self.ctx.get_additional_args()
         # Manually collect the additional args: (same results as above)
         # idx = sys.argv.index(script_name)
         # args = sys.argv[idx+1:]
-        if len(args) > 0:
-            cmd += args
+        if script_args is not None and len(script_args) > 0:
+            cmd += script_args
 
         if self.get_param("show_script_help", False):
             cmd += ["--help"]
@@ -382,7 +381,7 @@ class ScriptRunner(NVPComponent):
 
         if lockfile is not None and self.file_exists(lockfile):
             logger.warning("'%s' prevented: lock file exists (%s). ", script_name, lockfile)
-            return
+            return 1
 
         # Create the lockfile otherwise if applicable:
         if lockfile is not None:
@@ -404,7 +403,7 @@ class ScriptRunner(NVPComponent):
                 success, rcode, outputs = self.execute(cmd, cwd=cwd, env=env, outfile=logfile, encoding=encoding)
             except Exception:
                 logger.error("Exception trying to execute '%s' in cwd='%s'", cmd, cwd)
-                return
+                return 1
 
             if not success:
                 outs = "".join(outputs)
@@ -463,3 +462,5 @@ class ScriptRunner(NVPComponent):
         # Remove the lock file if any:
         if lockfile is not None:
             self.remove_file(lockfile)
+
+        return rcode
