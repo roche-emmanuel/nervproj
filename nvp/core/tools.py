@@ -534,6 +534,8 @@ class ToolsManager(NVPComponent):
                             file_path = os.path.join(root, file)
                             relative_path = os.path.relpath(file_path, src_dir)
                             zipf.write(file_path, relative_path)
+            logger.debug("Done generating package %s", package_name)
+            return True
         else:
             # Generate a 7zip package:
             cmd = [
