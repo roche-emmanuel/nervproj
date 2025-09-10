@@ -43,6 +43,7 @@ cd /D %cdir%
 
 @REM call the python app with the provided arguments:
 %PYTHON% %NVP_DIR%\cli.py %*
+if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 goto common_exit
 
 :install_reqs
