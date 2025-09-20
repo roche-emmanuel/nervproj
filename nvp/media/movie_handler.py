@@ -95,13 +95,28 @@ class MovieHandler(NVPComponent):
             mindur = self.get_param("min_silence_duration")
             minspeech = self.get_param("min_speech_duration")
             post_dur = self.get_param("post_speech_duration")
+            pre_dur = self.get_param("pre_speech_duration")
 
-            self.find_silences(file, sthres, mindur, minspeech, post_dur)
+            self.find_silences(file, sthres, mindur, minspeech, post_dur, pre_dur)
             return True
 
         if cmd == "cut-silences":
             file = self.get_param("input_file")
             sfile = self.get_param("seg_file")
+            if sfile is None:
+                # Start with finding the silences:
+                self.info("Extracting audio from %s...", file)
+                self.extract_audio(file, "mp3")
+
+                audio_file = f"{file}.mp3"
+
+                sthres = self.get_param("silence_threshold")
+                mindur = self.get_param("min_silence_duration")
+                minspeech = self.get_param("min_speech_duration")
+                post_dur = self.get_param("post_speech_duration")
+                pre_dur = self.get_param("pre_speech_duration")
+
+                sfile = self.find_silences(audio_file, sthres, mindur, minspeech, post_dur, pre_dur)
 
             self.cut_silences(file, sfile)
             return True
@@ -111,8 +126,9 @@ class MovieHandler(NVPComponent):
             mindur = self.get_param("min_silence_duration")
             minspeech = self.get_param("min_speech_duration")
             post_dur = self.get_param("post_speech_duration")
+            pre_dur = self.get_param("pre_speech_duration")
 
-            self.preprocess_rushes(sthres, mindur, minspeech, post_dur)
+            self.preprocess_rushes(sthres, mindur, minspeech, post_dur, pre_dur)
             return True
 
         if cmd == "add-video-dates":
@@ -781,16 +797,17 @@ class MovieHandler(NVPComponent):
                 logger.info("Removing empty temp folder %s", fname)
                 self.remove_folder(fpath)
 
-    def find_silences(self, input_file, sthres, mindur, minspeech, post_dur):
+    def find_silences(self, input_file, sthres, mindur, minspeech, post_dur, pre_dur):
         """Find the silences in a given input file."""
         # folder = self.get_parent_folder(input_file)
         out_file = self.set_path_extension(input_file, "_silences.json")
         # self.info("Should write silence files %s", out_file)
         self.info("Detecting silences in %s...", input_file)
-        segs = self.detect_segments_to_keep(input_file, sthres, mindur, minspeech, post_dur)
+        segs = self.detect_segments_to_keep(input_file, sthres, mindur, minspeech, post_dur, pre_dur)
 
         self.info("Writing %d speech segments in %s.", len(segs), out_file)
         self.write_json(segs, out_file)
+        return out_file
 
     def cut_silences(self, input_file, seg_file):
         """Remove silences from input file."""
@@ -929,7 +946,13 @@ class MovieHandler(NVPComponent):
             self.remove_folder(temp_dir)
 
     def detect_segments_to_keep(
-        self, audio_path, silence_threshold=-40, min_silence_duration=0.5, min_speech_duration=0.5, post_dur=5.0
+        self,
+        audio_path,
+        silence_threshold=-40,
+        min_silence_duration=0.5,
+        min_speech_duration=0.5,
+        post_dur=2.0,
+        pre_dur=2.0,
     ):
         """Detect silences."""
         # Load audio
@@ -1015,6 +1038,15 @@ class MovieHandler(NVPComponent):
                 next_start_t = segments_to_keep[i + 1]["start"]
                 post_time = min(max(next_start_t - end_t, 0.0), post_dur)
                 end_t += post_time
+            else:
+                end_t += post_dur
+
+            if i == 0:
+                start_t = max(start_t - pre_dur, 0.0)
+            else:
+                prev_end_t = segments_to_keep[i - 1]["end"]
+                pre_time = min(max(start_t - prev_end_t, 0.0), pre_dur)
+                start_t -= pre_time
 
             sdur = end_t - start_t
             if sdur > min_speech_duration:
@@ -1036,7 +1068,7 @@ class MovieHandler(NVPComponent):
         ext = self.get_path_extension(filename).lower()
         return ext in [".mkv", ".mp4"]
 
-    def preprocess_rushes(self, sthres, mindur, minspeech, post_dur):
+    def preprocess_rushes(self, sthres, mindur, minspeech, post_dur, pre_dur):
         """Method used to preprocess all the available rushes."""
         # Find all the mkv/mp4 files in the current folder:
         folder = self.get_cwd()
@@ -1098,7 +1130,7 @@ class MovieHandler(NVPComponent):
 
             # Extract the silences:
             self.info("Detecting silences from %s...", audio_file)
-            self.find_silences(audio_file, sthres, mindur, minspeech, post_dur)
+            self.find_silences(audio_file, sthres, mindur, minspeech, post_dur, pre_dur)
 
             seg_file = self.set_path_extension(audio_file, "_silences.json")
 
@@ -1112,7 +1144,6 @@ class MovieHandler(NVPComponent):
                     centered_file = self.process_webcam_view(vfile)
                     dstfile = self.get_path(folder, "processed", self.get_filename(vfile))
                     self.move_path(vfile, dstfile)
-                     
 
                 self.info("Removing silences from %s...", centered_file)
                 self.cut_silences(centered_file, seg_file)
@@ -1189,15 +1220,23 @@ if __name__ == "__main__":
     psr.add_float("-t", "--threshold", dest="silence_threshold", default=-75)("Silence threshold.")
     psr.add_float("-d", "--min-dur", dest="min_silence_duration", default=0.5)("Silence min duration.")
     psr.add_float("-s", "--min-speech", dest="min_speech_duration", default=1.0)("Speech min duration.")
+    psr.add_float("--post-dur", dest="post_speech_duration", default=2.0)("Post speech duration.")
+    psr.add_float("--pre-dur", dest="pre_speech_duration", default=2.0)("Pre speech duration.")
 
     psr = context.build_parser("cut-silences")
     psr.add_str("-i", "--input", dest="input_file")("Input file to process")
-    psr.add_str("-s", "--segments", dest="seg_file")("Segment file")
+    psr.add_str("--segs", dest="seg_file")("Segment file")
+    psr.add_float("-t", "--threshold", dest="silence_threshold", default=-75)("Silence threshold.")
+    psr.add_float("-d", "--min-dur", dest="min_silence_duration", default=0.5)("Silence min duration.")
+    psr.add_float("-s", "--min-speech", dest="min_speech_duration", default=1.0)("Speech min duration.")
+    psr.add_float("--post-dur", dest="post_speech_duration", default=2.0)("Post speech duration.")
+    psr.add_float("--pre-dur", dest="pre_speech_duration", default=2.0)("Pre speech duration.")
 
     psr = context.build_parser("preprocess-rushes")
     psr.add_float("-t", "--threshold", dest="silence_threshold", default=-75)("Silence threshold.")
     psr.add_float("-d", "--min-dur", dest="min_silence_duration", default=0.5)("Silence min duration.")
     psr.add_float("-s", "--min-speech", dest="min_speech_duration", default=1.0)("Speech min duration.")
-    psr.add_float("-p", "--post-dur", dest="post_speech_duration", default=5.0)("Post speech duration.")
+    psr.add_float("--post-dur", dest="post_speech_duration", default=2.0)("Post speech duration.")
+    psr.add_float("--pre-dur", dest="pre_speech_duration", default=2.0)("Pre speech duration.")
 
     comp.run()
