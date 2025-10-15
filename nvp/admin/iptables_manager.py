@@ -666,6 +666,7 @@ class IPTablesManager(NVPComponent):
                     logger.info("Adding IP %s for MAC %s on %s", ip, mac, intf)
                     self.add_to_set(WHITELIST_SET, ip)
                     changes = True
+                    prev_list.append(ip)
                 else:
                     found.append(ip)
 
