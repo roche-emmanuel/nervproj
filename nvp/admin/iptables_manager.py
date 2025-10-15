@@ -654,10 +654,10 @@ class IPTablesManager(NVPComponent):
         changes = False
         found = []
 
-        # First we add all the IPs that are not on the eno2/eno1 interfaces:
+        # First we add all the IPs that are not on the eno2/eno1/macvlan-shim interfaces:
         for mac, ips in mac_map.items():
             for ip, intf in ips:
-                if intf in ["eno1", "eno2"]:
+                if intf in ["eno1", "eno2", "macvlan-shim"]:
                     continue
 
                 if ip not in prev_list:
