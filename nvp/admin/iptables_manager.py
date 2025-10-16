@@ -730,8 +730,8 @@ class IPTablesManager(NVPComponent):
                 
                 # We have an entry on arp, so we check that the mac we expect is
                 # indeed what we see:
-                cur_macs = [mac for mac,_ in ip_map[ip]]
-                valid_mac = any(mac in cur_macs for mac in macs)
+                cur_macs = set([mac for mac,_ in ip_map[ip]])
+                valid_mac = any(mac.upper() in cur_macs for mac in macs)
 
                 if not valid_mac:
                     msg = f"Detected invalid MACs {cur_macs} for IP {ip})"
