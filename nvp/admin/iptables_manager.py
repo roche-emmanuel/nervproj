@@ -657,6 +657,14 @@ class IPTablesManager(NVPComponent):
 
         return valid_ips[0]
 
+    def get_device_group(self, dev_name):
+        """Get the group name for a given device."""
+        for grp_name, devs in self.mac_groups.items():
+            if dev_name in devs:
+                return grp_name
+
+        return None
+
     def is_in_schedule(self, dev_name):
         """Check if a given device name is current in schedule."""
         # Get the group containing this device:
