@@ -710,7 +710,7 @@ class IPTablesManager(NVPComponent):
         final_allowed_ips = set()
 
         # Add all the non-user interface IPs from ARP:
-        user_interfaces = ["eno1", "eno2", "macvlan-shim"]
+        user_interfaces = ["eno1", "eno2", "eno3", "macvlan-shim"]
         for ip, milist in ip_map.items():
             for mac, intf in milist:
                 if intf not in user_interfaces:
@@ -727,6 +727,7 @@ class IPTablesManager(NVPComponent):
         for ip, macs in allowed_ips.items():
             # Check if we currently have an arp entry for this IP:
             if ip in ip_map:
+                
                 # We have an entry on arp, so we check that the mac we expect is
                 # indeed what we see:
                 cur_macs = [mac for mac,_ in ip_map[ip]]
@@ -782,6 +783,9 @@ class IPTablesManager(NVPComponent):
                 else:
                     # Add a new set:
                     allowed_ips[ip] = device_macs
+
+        # Manually add the router here:
+        allowed_ips["192.168.4.1"] = ["74:24:9F:27:C3:61"]
 
         allowed_ips = self.consolidate_allowed_ips(allowed_ips)
 
