@@ -370,6 +370,32 @@ class IPTablesManager(NVPComponent):
                 for rname, values in rdesc.items():
                     self.write_rule(rname, values, hlocs)
 
+    def get_arp_ip_mapping(self):
+        """Get the IP mapping with arp"""
+        arp_output = self.run_arp("-n")
+
+        # Regular expression to match IP, MAC, and Interface
+        pattern = re.compile(r"(\d+\.\d+\.\d+\.\d+)\s+(?:ether\s+([\da-f:]+)\s+)?\S*\s+(\S+)")
+
+        # Extracted data:
+        ip_map = {}
+
+        for match in pattern.finditer(arp_output):
+            ip = match.group(1)
+            mac = match.group(2) if match.group(2) else "INCOMPLETE"
+            if mac == "INCOMPLETE":
+                # Ignore this entry:
+                continue
+
+            interface = match.group(3)
+            if ip in ip_map:
+                # add the MAC to the list:
+                ip_map[ip].append((mac.upper(), interface))
+            else:
+                ip_map[ip] =[(mac.upper(), interface)]
+
+        return ip_map
+    
     def get_mac_ip_mapping(self):
         """Get the MAC/IP mapping with arp"""
         arp_output = self.run_arp("-n")
@@ -631,7 +657,154 @@ class IPTablesManager(NVPComponent):
 
         return valid_ips[0]
 
+    def is_in_schedule(self, dev_name):
+        """Check if a given device name is current in schedule."""
+        # Get the group containing this device:
+        grp_name = self.get_device_group(dev_name)
+
+        if grp_name is None:
+            # Device is not in a group
+            msg = f"No group found for device {dev_name}"
+            self.warn(msg)
+            utl.send_rocketchat_message(f":warning: {msg}")
+            # Consider in schedule by default.
+            return True, False
+    
+        # Check if there is a schedule for that group:
+        sch = self.internet_schedule
+        if grp_name not in sch:
+            msg = f"No schedule specified for group {grp_name}"
+            self.warn(msg)
+            utl.send_rocketchat_message(f":warning: {msg}")
+            return True, False
+        
+
+        if self.check_in_schedule(sch[grp_name]):
+            # In schdule
+            return True, False
+        
+        # We should also check here if we should enforce blocking this IP
+        enforce_blocks = self.config.get("enforce_blocking", [])
+
+        if grp_name in enforce_blocks:
+            return False, True
+        
+        return False, False
+
+    def consolidate_allowed_ips(self, allowed_ips):
+        """Consolidate the allowed IPS."""
+        # Once we have the list of allowed/blocked IPS we still need to check 
+        # if we have any MAC address mismatch reported by arp:
+        ip_map = self.get_arp_ip_mapping()
+
+        # For each IP we get a list of (MAC, intf) elements:
+        # Check each entry from our allowed list:
+        final_allowed_ips = set()
+
+        # Add all the non-user interface IPs from ARP:
+        user_interfaces = ["eno1", "eno2", "macvlan-shim"]
+        for ip, milist in ip_map.items():
+            for mac, intf in milist:
+                if intf not in user_interfaces:
+                    # We expect the IP to start with 172.
+                    if not ip.startswith("172."):
+                        msg = f"Unexpected {ip} on interface {intf} (mac={mac})"
+                        self.warn(msg)
+                        utl.send_rocketchat_message(f":warning: {msg}")
+                        continue
+
+                    final_allowed_ips.add(ip)
+                    break
+
+        for ip, macs in allowed_ips.items():
+            # Check if we currently have an arp entry for this IP:
+            if ip in ip_map:
+                # We have an entry on arp, so we check that the mac we expect is
+                # indeed what we see:
+                cur_macs = [mac for mac,_ in ip_map[ip]]
+                valid_mac = any(mac in cur_macs for mac in macs)
+
+                if not valid_mac:
+                    msg = f"Detected invalid MACs {cur_macs} for IP {ip})"
+                    self.warn(msg)
+                    utl.send_rocketchat_message(f":warning: {msg}")
+
+                # Note: may not add the IP as allowed here ?
+            
+            # Add the IP as valid:
+            final_allowed_ips.add(ip)
+
+        return final_allowed_ips
+
+    def collect_allowed_ips(self):
+        """Collect the list of currently allowed and blocked IPs."""
+        allowed_ips = {}
+        # and for each IP we map the corresponding allowed set of MAC addresses:
+
+        blocked_ips = set()
+
+        for dname, desc in self.devices.items():
+            device_ips = desc["ip"] if isinstance(desc["ip"], list) else [desc["ip"]]
+
+            # Given the device name, we can figure out here if it should be whitelisted or not:
+            is_allowed, is_blocked = self.is_in_schedule(dname)
+
+            if not is_allowed:
+                # Check if we should block those IPs:
+                if is_blocked:
+                    # Add the corresponding IPs to the blocked list:
+                    blocked_ips.update(set(device_ips))
+
+                # Should not add the IPs to the allowed list:
+                continue
+            
+            # Otherwise we add one entry for each IP with the corresponding list of MACs:
+            device_macs = set(desc["mac"] if  isinstance(desc["mac"], list) else [desc["mac"]])
+
+            for ip in device_ips:
+                if ip in blocked_ips:
+                    msg = f"Cannot allow IP {ip} as it is also in the enforced blocked list."
+                    self.warn(msg)
+                    utl.send_rocketchat_message(f":warning: {msg}")
+                    continue
+
+                if ip in allowed_ips:
+                    # Update the existing set of MACs:
+                    allowed_ips[ip].update(device_macs)
+                else:
+                    # Add a new set:
+                    allowed_ips[ip] = device_macs
+
+        allowed_ips = self.consolidate_allowed_ips(allowed_ips)
+
+        return allowed_ips, blocked_ips
+    
+    def replace_set_content(self, set_name, new_ips, hint):
+        """Replace a set content."""
+        prev_content = set(self.get_set_content(set_name))
+
+        to_add = new_ips - prev_content
+        to_remove = prev_content - new_ips
+
+        for ip in to_add:
+            logger.info("%s ip address %s", hint, ip)
+            self.add_to_set(set_name, ip)
+        for ip in to_remove:
+            logger.info("Un-%s ip address %s", hint, ip)
+            self.remove_from_set(set_name, ip)
+
     def update_mac_wl(self):
+        """Update the whitelisted IPs"""
+        # create the set if needed:
+        self.create_ipsets()
+
+        # Get the list of allowed/blocked IPs:
+        allowed_ips, blocked_ips = self.collect_allowed_ips()
+
+        self.replace_set_content(WHITELIST_SET, allowed_ips, "WhiteListing")
+        self.replace_set_content(BLOCKED_SET, blocked_ips, "Blocking")
+
+    def update_mac_wl_v0(self):
         """Update the WAN access rule"""
         grps = self.mac_groups
         # logger.info("Found MAC groups:: %s", grps)
