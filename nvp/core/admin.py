@@ -29,6 +29,10 @@ class AdminManager(NVPComponent):
         # Check if an $HOME folder is provider:
         home_dir = os.getenv("HOME")
         if home_dir is None:
+            if self.is_windows:
+                logger.info("NVP environment initialized.")
+                return
+
             logger.error("Cannot install cli alias: no $HOME environment variable detected.")
             return
 
@@ -426,7 +430,7 @@ class AdminManager(NVPComponent):
     def process_cmd_path(self, cmd):
         """Check if this component can process the given command"""
 
-        if cmd == "install.cli":
+        if cmd == "install.cli" or cmd == "setup":
             self.install_cli()
             return True
 
@@ -576,7 +580,7 @@ if __name__ == "__main__":
     # Add our component:
     comp = context.get_component("admin")
 
-    context.define_subparsers("main", ["install.cli", "install.reqs", "install.repo"])
+    context.define_subparsers("main", ["setup", "install.cli", "install.reqs", "install.repo"])
 
     psr = context.build_parser("init")
     psr.add_str("project_name", nargs="?", default=None)("Project to init")
