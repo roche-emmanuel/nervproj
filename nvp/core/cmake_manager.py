@@ -682,7 +682,9 @@ class CMakeManager(NVPComponent):
             elif vtype == "root_dir":
                 # Should handle here the case where the lib_name also contain a fixed
                 # version number like: "dawn==git-20250320"
-                if bman.has_library(lib_name):
+                if self.ctx.has_project(lib_name):
+                    var_val = self.ctx.get_project(lib_name).get_root_dir()
+                elif bman.has_library(lib_name):
                     var_val = bman.get_library_root_dir(lib_name)
                 else:
                     var_val = tool.get_tool_root_dir(lib_name)
