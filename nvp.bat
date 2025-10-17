@@ -37,6 +37,7 @@ IF /i "%~1" == "--install-py-reqs" goto install_reqs
 IF /i "%~1" == "--pre-commit" goto pre_commit
 IF /i "%~1" == "python" goto run_python
 IF /i "%~1" == "pip" goto run_pip
+IF /i "%~1" == "" goto ready
 
 @REM Get back into the source folder:
 cd /D %cdir%
@@ -57,6 +58,10 @@ goto common_exit
 goto common_exit
 
 @REM cannot rely on %* when we use shift below:
+
+:ready
+echo NVP env ready. Use "nvp list-scripts" to get available scripts.
+goto common_exit
 
 :run_python
 shift
