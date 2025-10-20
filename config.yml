@@ -291,7 +291,8 @@ libraries:
     version: git-20250717
   - name: fmt
     url: git@github.com:roche-emmanuel/fmt.git
-    version: 9.1.1
+    # version: 9.1.1
+    version: 12.0.0
   - name: Vulkan
     version: 1.3.224.1
   - name: glslang
