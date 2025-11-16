@@ -125,3 +125,37 @@ class NVPComponent(NVPObject):
         """Call an handler specific to this component, should be found
         in a sub folder called 'handlers'"""
         return self.call_handler(f"{self.handlers_path}.{hname}", self, *args, **kwargs)
+
+    def execute_nvp(self, *args, **kwargs):
+        """Execute an nvp script."""
+        root_dir = self.ctx.get_root_dir()
+
+        # runner = self.get_component("runner")
+        # cmd = " ".join(args)
+
+        successRequired = kwargs.get("required", True)
+
+        # script_name = args[0]
+        # args = list(args)[1:]
+        # rcode = runner.run_script(script_name, None, args)
+
+        cmd = [self.get_path(root_dir, "nvp.bat")] + list(args)
+
+        # _stdout, stderr, returncode = self.execute_command(cmd)
+        success, _rcode, outputs = self.execute(cmd, **kwargs)
+
+        # if rcode != 0:
+        if not success:
+            outputs = outputs or ["<no outputs>"]
+            lines = [line.strip() for line in outputs if line.strip() != ""]
+            msg = "\n".join(lines)
+
+            # msg = f"Failed to execute nvp command {cmd} (rcode={rcode}): check the logs for details."
+            msg = f"Failed to execute nvp command {cmd}:\n{msg}"
+            utl.send_rocketchat_message(":x: " + msg)
+
+            if successRequired:
+                # Stop execution here:
+                self.throw(msg)
+
+        return success

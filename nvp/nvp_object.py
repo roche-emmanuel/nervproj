@@ -581,6 +581,10 @@ class NVPObject(object):
                 self.remove_file(dst_file)
             else:
                 return False
+
+        folder = self.get_parent_folder(dst_file)
+        self.make_folder(folder)
+
         if progress_threhold >= 0 and self.get_file_size(src_file) > progress_threhold:
             self.copy_file_with_progress(src_file, dst_file)
         else:
