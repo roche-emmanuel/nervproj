@@ -2,6 +2,7 @@
 
 import logging
 
+import nvp.core.utils as utl
 from nvp.nvp_context import NVPContext
 from nvp.nvp_object import NVPObject
 
