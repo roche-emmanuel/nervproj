@@ -518,6 +518,9 @@ libraries:
     git: git@github.com:roche-emmanuel/Clipper2.git
   - name: ffmpeg-lgpl-shared
     version: 20250626
+  - name: nervsdk
+    # version: 251117
+    version: 251201
 
 # list of available projects:
 projects: []
