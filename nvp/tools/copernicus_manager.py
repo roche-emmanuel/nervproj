@@ -16,7 +16,9 @@ Downloads the global 30m resolution Digital Elevation Model from Copernicus.
 
 # Note: scale=10.0 is good for unreal engine for instance as 1 unit = 10cm
 
-# To check: https://github.com/mdbartos/pysheds
+# To check: 
+# https://github.com/mdbartos/pysheds
+# https://richdem.readthedocs.io/en/latest/
 
 import math
 import numpy as np
