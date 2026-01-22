@@ -16,12 +16,15 @@ Downloads the global 30m resolution Digital Elevation Model from Copernicus.
 
 # Note: scale=10.0 is good for unreal engine for instance as 1 unit = 10cm
 
+# To check: https://github.com/mdbartos/pysheds
 
 import math
 import numpy as np
 from PIL import Image
 from noise import snoise2
 import pyfastnoisesimd as fns
+from landlab import RasterModelGrid
+from landlab.components import FlowAccumulator, StreamPowerEroder
 
 import rasterio
 from rasterio.warp import reproject, Resampling
@@ -232,6 +235,36 @@ class CopernicusManager(NVPComponent):
 
         return heightmap + noise_map * amplitude
 
+    # Note: the method below is way too slow (even at 4k resolution it will take ages.)
+    def apply_erosion(self, heightmap, size, lat0):
+        """Apply erosion with landlab."""
+        # After creating your initial heightmap
+        shape = heightmap.shape
+
+        # Convert degrees to meters
+        # At the equator: 1 degree ≈ 111,320 meters
+        # For latitude adjustment:
+        meters_per_degree_lat = 111320  # roughly constant
+        meters_per_degree_lon = 111320 * np.cos(np.radians(lat0 + size[1]/2))  # varies with latitude
+
+        dx = (size[0] * meters_per_degree_lon) / shape[0]  # meters per pixel in x
+        dy = (size[1] * meters_per_degree_lat) / shape[1]  # meters per pixel in y
+
+
+        grid = RasterModelGrid(shape, xy_spacing=(dx, dy))
+        grid.add_field('topographic__elevation', heightmap.flatten().astype(float), at='node')
+
+        fa = FlowAccumulator(grid)
+        sp = StreamPowerEroder(grid, K_sp=0.001)
+
+        for i in range(100):  # erosion timesteps
+            self.info("Running erosion step %d/100...", i+1)
+            fa.run_one_step()
+            sp.run_one_step(dt=1000)
+
+        heightmap = grid.at_node['topographic__elevation'].reshape(shape).astype(np.float32)
+        return heightmap
+
     def generate_heightmap(self):
         lat0 = float(self.get_param("lat"))
         lon0 = float(self.get_param("lon"))
@@ -317,6 +350,9 @@ class CopernicusManager(NVPComponent):
             self.warn("Final heightmap has no valid data")
             
         heightmap = np.nan_to_num(target, nan=0.0)*scale
+
+        # self.info("Adding erosion...")
+        # heightmap = self.apply_erosion(heightmap, [xsize, ysize], lat0 + ysize*0.5)
 
         self.info("Adding fractal noise...")
         heightmap = self.add_fractal_noise(heightmap, scale=1.0, amplitude=50.0, octaves=6)
