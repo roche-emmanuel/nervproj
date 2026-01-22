@@ -2,12 +2,11 @@
 Copernicus GLO-30 DEM Dataset Downloader
 Downloads the global 30m resolution Digital Elevation Model from Copernicus.
 """
+# Example command to download with aws:
+# nvp aws s3 cp --no-sign-request s3://copernicus-dem-30m/Copernicus_DSM_COG_10_S90_00_W176_00_DEM/Copernicus_DSM_COG_10_S90_00_W176_00_DEM.tif .
 
-import requests
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Tuple
-import time
+# Example command to download tiles:
+# nvp copernicus --lat=-22,-20 --lon=55,56
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -18,15 +17,137 @@ class CopernicusManager(NVPComponent):
     def __init__(self, ctx: NVPContext):
         """class constructor"""
         NVPComponent.__init__(self, ctx)
+        # self.base_url = "https://copernicus-dem-30m.s3.amazonaws.com"
+        self.base_url = "s3://copernicus-dem-30m"
 
     def process_cmd_path(self, cmd):
         """Check if this component can process the given command"""
 
         if cmd == "download":
-            self.info("Should download copernicus data here.")
+            self.download_data()
             return True
         
         return False
+
+    def generate_tile_list(self, lat_range, lon_range):
+        """
+        Generate list of all GLO-30 tile names.
+        Tiles are named like: Copernicus_DSM_COG_10_N00_00_E006_00_DEM
+        Coverage: 90N to 90S, 180W to 180E in 1-degree tiles
+        """
+        tiles = []
+        
+        # Latitude: 90N to 90S (but actual coverage is ~85N to 90S)
+        for lat in range(lat_range[0], lat_range[1]):  # 85N to 90S
+            lat_hem = 'N' if lat >= 0 else 'S'
+            lat_str = f"{abs(lat):02d}_00"
+            
+            # Longitude: 180W to 180E
+            for lon in range(lon_range[0], lon_range[1]):
+                lon_hem = 'E' if lon >= 0 else 'W'
+                lon_str = f"{abs(lon):03d}_00"
+                
+                tile_name = f"Copernicus_DSM_COG_10_{lat_hem}{lat_str}_{lon_hem}{lon_str}_DEM"
+                tiles.append(tile_name)
+        
+        return tiles
+
+    def get_tile_url(self, tile_name: str) -> str:
+        """Get the download URL for a specific tile."""
+        # Construct S3 URL path
+        url = f"{self.base_url}/{tile_name}/{tile_name}.tif"
+        return url
+
+    def download_tile(self, tile_name, out_dir):
+        """Download a given tile."""
+        output_file = self.get_path(out_dir , f"{tile_name}.tif")
+        
+        # Skip if already downloaded
+        if self.file_exists(output_file):
+            self.info("File %s already exists.", output_file)
+            return
+
+        url = self.get_tile_url(tile_name)
+        self.info("Downloading %s...", url)
+        # tools = self.get_component("tools")
+        # tools.download_file(url, output_file)
+        self.execute_nvp("aws", "s3", "cp", "--no-sign-request", url, output_file)
+
+    def get_available_tiles(self, out_dir):
+        """
+        Load available tile list from JSON cache, or fetch from S3 if missing.
+        """
+        json_file = self.get_path(out_dir, "available_tiles.json")
+
+        if self.file_exists(json_file):
+            self.info("Loading available tiles from %s", json_file)
+            return set(self.read_json(json_file))
+
+        self.info("Fetching available tiles from S3...")
+        tiles = self.fetch_available_tiles_from_s3()
+
+        self.write_json(sorted(list(tiles)), json_file)
+        self.info("Saved %d available tiles to %s", len(tiles), json_file)
+
+        return tiles
+
+    def execute_nvp(self, *args):
+        """Execute an nvp script."""
+        root_dir = self.ctx.get_root_dir()
+
+        cmd = [self.get_path(root_dir, "nvp.bat")] + list(args)
+
+        return self.execute_command(cmd)
+
+    def fetch_available_tiles_from_s3(self):
+        """
+        Run `aws s3 ls` on the bucket root and extract tile folder names.
+        """
+        outputs, _errs, rcode = self.execute_nvp(
+            "aws", "s3", "ls", "--no-sign-request", self.base_url
+        )
+
+        self.check(rcode==0, "Cannot fetch tiles from S3.")
+        
+        return self.parse_s3_ls_output(outputs)
+
+    def parse_s3_ls_output(self, output):
+        """
+        Parse aws s3 ls output and extract folder names.
+        Expected format:
+            PRE Copernicus_DSM_COG_10_N00_00_E006_00_DEM/
+        """
+        tiles = set()
+
+        for line in output.splitlines():
+            line = line.strip()
+            if line.startswith("PRE"):
+                name = line.split()[-1].rstrip("/")
+                tiles.add(name)
+
+        return tiles
+    
+    def download_data(self):
+        """Download the copernicus dataset."""
+        lats =  [int(k) for k in self.get_param("lat_range").split(",")]
+        lons =  [int(k) for k in self.get_param("lon_range").split(",")]
+
+        out_dir = self.get_param("output_dir")
+        if out_dir is None:
+            out_dir = self.get_cwd()
+
+        available_tiles = self.get_available_tiles(out_dir)
+        self.info("Found %d available tiles", len(available_tiles))
+
+        tile_names = self.generate_tile_list(lats, lons)
+        self.info("Generated %d tile names", len(tile_names))
+
+        for tname in tile_names:
+            if tname not in available_tiles:
+                self.debug("Tile %s not available, skipping", tname)
+                continue
+    
+            self.download_tile(tname, out_dir)
 
 if __name__ == "__main__":
     # Create the context:
@@ -36,202 +157,9 @@ if __name__ == "__main__":
     comp = context.register_component("CopernicusManager", CopernicusManager(context))
 
     psr = context.build_parser("download")
+    psr.add_str("--lat", dest="lat_range", default="-85,90")("Latitude range")
+    psr.add_str("--lon", dest="lon_range", default="-180,180")("Longitude range")
+    psr.add_str("-o","--output-dir", dest="output_dir")("Output directory")
     # psr.add_str("-p", "--pattern", dest="pattern", default=r"\.nc$")("Input file pattern")
 
     comp.run()
-
-
-#!/usr/bin/env python3
-
-class GLO30Downloader:
-    def __init__(self, output_dir: str = "./glo30_data", max_workers: int = 4):
-        """
-        Initialize the downloader.
-        
-        Args:
-            output_dir: Directory to save downloaded files
-            max_workers: Number of parallel download threads
-        """
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.max_workers = max_workers
-        self.base_url = "https://copernicus-dem-30m.s3.amazonaws.com"
-        
-    def generate_tile_list(self) -> List[str]:
-        """
-        Generate list of all GLO-30 tile names.
-        Tiles are named like: Copernicus_DSM_COG_10_N00_00_E006_00_DEM
-        Coverage: 90N to 90S, 180W to 180E in 1-degree tiles
-        """
-        tiles = []
-        
-        # Latitude: 90N to 90S (but actual coverage is ~85N to 90S)
-        for lat in range(85, -91, -1):  # 85N to 90S
-            lat_hem = 'N' if lat >= 0 else 'S'
-            lat_str = f"{abs(lat):02d}_00"
-            
-            # Longitude: 180W to 180E
-            for lon in range(-180, 180):
-                lon_hem = 'E' if lon >= 0 else 'W'
-                lon_str = f"{abs(lon):03d}_00"
-                
-                tile_name = f"Copernicus_DSM_COG_10_{lat_hem}{lat_str}_{lon_hem}{lon_str}_DEM"
-                tiles.append(tile_name)
-        
-        return tiles
-    
-    def get_tile_url(self, tile_name: str) -> str:
-        """Get the download URL for a specific tile."""
-        # Extract coordinates from tile name
-        parts = tile_name.split('_')
-        lat_part = parts[4]  # e.g., N00
-        lon_part = parts[5]  # e.g., E006
-        
-        # Construct S3 URL path
-        url = f"{self.base_url}/{tile_name}/{tile_name}.tif"
-        return url
-    
-    def download_tile(self, tile_name: str, retries: int = 3) -> Tuple[str, bool, str]:
-        """
-        Download a single tile.
-        
-        Args:
-            tile_name: Name of the tile to download
-            retries: Number of retry attempts
-            
-        Returns:
-            Tuple of (tile_name, success, message)
-        """
-        url = self.get_tile_url(tile_name)
-        output_file = self.output_dir / f"{tile_name}.tif"
-        
-        # Skip if already downloaded
-        if output_file.exists():
-            return (tile_name, True, "Already exists")
-        
-        for attempt in range(retries):
-            try:
-                response = requests.get(url, stream=True, timeout=30)
-                
-                # 404 means tile doesn't exist (ocean or no data area)
-                if response.status_code == 404:
-                    return (tile_name, False, "No data (404)")
-                
-                response.raise_for_status()
-                
-                # Download with progress
-                total_size = int(response.headers.get('content-length', 0))
-                
-                with open(output_file, 'wb') as f:
-                    if total_size == 0:
-                        f.write(response.content)
-                    else:
-                        downloaded = 0
-                        for chunk in response.iter_content(chunk_size=8192):
-                            if chunk:
-                                f.write(chunk)
-                                downloaded += len(chunk)
-                
-                return (tile_name, True, f"Downloaded ({total_size / 1024 / 1024:.1f} MB)")
-                
-            except Exception as e:
-                if attempt < retries - 1:
-                    time.sleep(2 ** attempt)  # Exponential backoff
-                    continue
-                else:
-                    # Clean up partial download
-                    if output_file.exists():
-                        output_file.unlink()
-                    return (tile_name, False, f"Error: {str(e)}")
-        
-        return (tile_name, False, "Max retries exceeded")
-    
-    def download_all(self, region: str = "global"):
-        """
-        Download all tiles or a specific region.
-        
-        Args:
-            region: "global" or specify lat/lon bounds (future enhancement)
-        """
-        print(f"Generating tile list for {region} coverage...")
-        tiles = self.generate_tile_list()
-        print(f"Total tiles to check: {len(tiles)}")
-        print(f"Using {self.max_workers} parallel workers")
-        print(f"Output directory: {self.output_dir}")
-        print("\nStarting download...\n")
-        
-        downloaded = 0
-        skipped = 0
-        failed = 0
-        
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            # Submit all download tasks
-            future_to_tile = {
-                executor.submit(self.download_tile, tile): tile 
-                for tile in tiles
-            }
-            
-            # Process completed downloads
-            for i, future in enumerate(as_completed(future_to_tile), 1):
-                tile_name, success, message = future.result()
-                
-                if success:
-                    if "Already exists" in message:
-                        skipped += 1
-                        status = "SKIP"
-                    else:
-                        downloaded += 1
-                        status = "OK"
-                else:
-                    if "404" not in message:  # Don't count 404s as failures
-                        failed += 1
-                        status = "FAIL"
-                    else:
-                        status = "N/A"
-                
-                # Progress output
-                if i % 100 == 0 or status in ["OK", "FAIL"]:
-                    print(f"[{i}/{len(tiles)}] {status:4s} {tile_name}: {message}")
-        
-        print(f"\n{'='*60}")
-        print(f"Download complete!")
-        print(f"  Downloaded: {downloaded}")
-        print(f"  Skipped (existing): {skipped}")
-        print(f"  Failed: {failed}")
-        print(f"  No data tiles: {len(tiles) - downloaded - skipped - failed}")
-        print(f"{'='*60}")
-
-
-def main():
-    """Main entry point."""
-    import argparse
-    
-    parser = argparse.ArgumentParser(
-        description="Download Copernicus GLO-30 DEM dataset"
-    )
-    parser.add_argument(
-        "--output-dir", 
-        default="./glo30_data",
-        help="Output directory for downloaded tiles (default: ./glo30_data)"
-    )
-    parser.add_argument(
-        "--workers",
-        type=int,
-        default=4,
-        help="Number of parallel download workers (default: 4)"
-    )
-    parser.add_argument(
-        "--region",
-        default="global",
-        help="Region to download: 'global' (default: global)"
-    )
-    
-    args = parser.parse_args()
-    
-    downloader = GLO30Downloader(
-        output_dir=args.output_dir,
-        max_workers=args.workers
-    )
-    
-    downloader.download_all(region=args.region)
-

@@ -953,6 +953,12 @@ scripts:
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/tools/copernicus_manager.py download
     python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
 
+  aws:
+    notify: false
+    custom_python_env: aws_env
+    cmd: ${PYTHON} -m awscli
+    python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
+
 # Notify in case of script error:
 notify_script_errors: true
 
@@ -976,6 +982,10 @@ custom_python_envs:
     inherit: default_env
     packages:
       - requests-oauthlib
+  aws_env:
+    inherit: default_env
+    packages:
+      - awscli
 
   etopo_env:
     inherit: default_env
