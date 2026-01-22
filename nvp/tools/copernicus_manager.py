@@ -20,6 +20,8 @@ Downloads the global 30m resolution Digital Elevation Model from Copernicus.
 import math
 import numpy as np
 from PIL import Image
+from noise import snoise2
+import pyfastnoisesimd as fns
 
 import rasterio
 from rasterio.warp import reproject, Resampling
@@ -197,6 +199,39 @@ class CopernicusManager(NVPComponent):
 
         return tiles
     
+    def add_fractal_noise_v0(self, heightmap, scale=100.0, amplitude=5.0, octaves=4):
+        h, w = heightmap.shape
+        noise_map = np.zeros_like(heightmap, dtype=np.float32)
+
+        for y in range(h):
+            for x in range(w):
+                noise_map[y, x] = snoise2(
+                    x / scale,
+                    y / scale,
+                    octaves=octaves,
+                    persistence=0.5,
+                    lacunarity=2.0
+                )
+
+        return heightmap + noise_map * amplitude
+
+    def add_fractal_noise(self, heightmap, scale=1.0, amplitude=5.0, octaves=4):
+        seed = np.random.randint(2**31)
+        N_threads = None
+
+        perlin = fns.Noise(seed=seed, numWorkers=N_threads)
+        perlin.frequency = 0.02 * scale
+        # perlin.noiseType = fns.NoiseType.Perlin
+        perlin.noiseType = fns.NoiseType.PerlinFractal
+        perlin.fractalType = fns.FractalType.FBM
+        perlin.fractal.octaves = octaves
+        perlin.fractal.lacunarity = 2.1
+        perlin.fractal.gain = 0.45
+        perlin.perturb.perturbType = fns.PerturbType.NoPerturb
+        noise_map = perlin.genAsGrid(heightmap.shape)
+
+        return heightmap + noise_map * amplitude
+
     def generate_heightmap(self):
         lat0 = float(self.get_param("lat"))
         lon0 = float(self.get_param("lon"))
@@ -282,6 +317,11 @@ class CopernicusManager(NVPComponent):
             self.warn("Final heightmap has no valid data")
             
         heightmap = np.nan_to_num(target, nan=0.0)*scale
+
+        self.info("Adding fractal noise...")
+        heightmap = self.add_fractal_noise(heightmap, scale=1.0, amplitude=50.0, octaves=6)
+
+        self.info("Writing image file...")
         heightmap = np.clip(heightmap, 0, 65535).astype(np.uint16)
 
         img = Image.fromarray(heightmap, mode="I;16")
