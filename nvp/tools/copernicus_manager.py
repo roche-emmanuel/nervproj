@@ -6,7 +6,24 @@ Downloads the global 30m resolution Digital Elevation Model from Copernicus.
 # nvp aws s3 cp --no-sign-request s3://copernicus-dem-30m/Copernicus_DSM_COG_10_S90_00_W176_00_DEM/Copernicus_DSM_COG_10_S90_00_W176_00_DEM.tif .
 
 # Example command to download tiles:
-# nvp copernicus --lat=-22,-20 --lon=55,56
+# nvp copernicus_dl --lat=-22,-20 --lon=55,56
+
+# Example to generate an heightmap:
+# nvp copernicus_genmap --lat=-22.00 --lon=54.50 --xsize=2.0 --ysize=2.0 --xres=8192 --yres=8192 -o output.png --scale=10.0
+
+# or:
+# nvp copernicus_genmap --lat=-22.00 --lon=54.50 --size=2.0 --res=16384 -o output.png --scale=10.0
+
+# Note: scale=10.0 is good for unreal engine for instance as 1 unit = 10cm
+
+
+import math
+import numpy as np
+from PIL import Image
+
+import rasterio
+from rasterio.warp import reproject, Resampling
+from rasterio.transform import from_bounds
 
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
@@ -27,6 +44,10 @@ class CopernicusManager(NVPComponent):
             self.download_data()
             return True
         
+        if cmd == "gen_heightmap":
+            self.generate_heightmap()
+            return True
+    
         return False
 
     def generate_tile_list(self, lat_range, lon_range):
@@ -149,6 +170,125 @@ class CopernicusManager(NVPComponent):
     
             self.download_tile(tname, out_dir)
 
+    def get_tile_bounds(self, lat, lon):
+        """
+        Returns the integer tile origin for a given lat/lon.
+        """
+        return math.floor(lat), math.floor(lon)
+
+
+    def tiles_for_bbox(self, lat0, lon0, lat1, lon1):
+        """
+        Compute all Copernicus tile names intersecting a bbox.
+        """
+        tiles = []
+
+        for lat in range(math.floor(lat0), math.ceil(lat1)):
+            for lon in range(math.floor(lon0), math.ceil(lon1)):
+                lat_hem = 'N' if lat >= 0 else 'S'
+                lon_hem = 'E' if lon >= 0 else 'W'
+
+                tile = (
+                    f"Copernicus_DSM_COG_10_"
+                    f"{lat_hem}{abs(lat):02d}_00_"
+                    f"{lon_hem}{abs(lon):03d}_00_DEM"
+                )
+                tiles.append(tile)
+
+        return tiles
+    
+    def generate_heightmap(self):
+        lat0 = float(self.get_param("lat"))
+        lon0 = float(self.get_param("lon"))
+
+        size = self.get_param("size")
+        xsize = float(self.get_param("xsize", size))
+        ysize = float(self.get_param("ysize", size))
+
+        res = self.get_param("res")
+        xres = int(self.get_param("xres", res))
+        yres = int(self.get_param("yres", res))
+        scale = float(self.get_param("scale"))
+
+        out_file = self.get_param("output_file")
+        if out_file is None:
+            out_file = "heightmap.png"
+
+        lat1 = lat0 + ysize
+        lon1 = lon0 + xsize
+
+        self.info("Generating heightmap:")
+        self.info("  BBOX: lat [%f, %f], lon [%f, %f]", lat0, lat1, lon0, lon1)
+        self.info("  Resolution: %dx%d", xres, yres)
+
+        # Target grid
+        transform = from_bounds(lon0, lat0, lon1, lat1, xres, yres)
+
+        target = np.full((yres, xres), np.nan, dtype=np.float32)
+
+        tiles = self.tiles_for_bbox(lat0, lon0, lat1, lon1)
+        self.info("Using %d tiles", len(tiles))
+
+        for tile in tiles:
+            tif = self.get_path(self.get_cwd(), f"{tile}.tif")
+            if not self.file_exists(tif):
+                continue
+
+            self.info("Reading %s", tile)
+
+            with rasterio.open(tif) as src:
+                temp = np.full((yres, xres), np.nan, dtype=np.float32)
+
+                reproject(
+                    source=rasterio.band(src, 1),
+                    destination=temp,
+                    src_transform=src.transform,
+                    src_crs=src.crs,
+                    dst_transform=transform,
+                    dst_crs="EPSG:4326",
+                    resampling=Resampling.bilinear,
+                    src_nodata=src.nodata,
+                    dst_nodata=np.nan,
+                )
+
+                mask = ~np.isnan(temp)
+
+                valid = temp[mask]
+
+                if valid.size > 0:
+                    self.info(
+                        "Tile %s range: min=%.2f max=%.2f",
+                        tile,
+                        valid.min(),
+                        valid.max(),
+                    )
+                else:
+                    self.warn("Tile %s has no valid data in ROI", tile)
+                    
+                # Composite: only write valid pixels
+                target[mask] = temp[mask]
+
+
+        # Convert to uint16
+        valid = target[~np.isnan(target)]
+
+        if valid.size > 0:
+            self.info(
+                "Final heightmap range (meters): min=%.2f max=%.2f",
+                valid.min(),
+                valid.max(),
+            )
+        else:
+            self.warn("Final heightmap has no valid data")
+            
+        heightmap = np.nan_to_num(target, nan=0.0)*scale
+        heightmap = np.clip(heightmap, 0, 65535).astype(np.uint16)
+
+        img = Image.fromarray(heightmap, mode="I;16")
+        img.save(out_file)
+
+        self.info("Heightmap saved to %s", out_file)
+        
 if __name__ == "__main__":
     # Create the context:
     context = NVPContext()
@@ -160,6 +300,17 @@ if __name__ == "__main__":
     psr.add_str("--lat", dest="lat_range", default="-85,90")("Latitude range")
     psr.add_str("--lon", dest="lon_range", default="-180,180")("Longitude range")
     psr.add_str("-o","--output-dir", dest="output_dir")("Output directory")
-    # psr.add_str("-p", "--pattern", dest="pattern", default=r"\.nc$")("Input file pattern")
+
+    psr = context.build_parser("gen_heightmap")
+    psr.add_str("--lat")("Start latitude")
+    psr.add_str("--lon")("Start longitude")
+    psr.add_float("--size")("Default size (degrees)")
+    psr.add_str("--xsize")("Longitude size (degrees)")
+    psr.add_str("--ysize")("Latitude size (degrees)")
+    psr.add_int("--res")("Default Output size (pixels)")
+    psr.add_str("--xres")("Output width (pixels)")
+    psr.add_str("--yres")("Output height (pixels)")
+    psr.add_float("--scale", default=1.0)("Scale for height")
+    psr.add_str("-o", "--output-file", dest="output_file")("Output PNG file")
 
     comp.run()

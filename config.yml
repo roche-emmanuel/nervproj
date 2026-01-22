@@ -947,15 +947,21 @@ scripts:
     python_path: ["${NVP_ROOT_DIR}"]
     # Example: nvp resize_img -i world.topo.bathy.200406.3x21600x10800.png -s 8129x4096
 
-  copernicus:
+  copernicus_dl:
     notify: false
-    custom_python_env: media_env
+    custom_python_env: copernicus_env
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/tools/copernicus_manager.py download
+    python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
+
+  copernicus_genmap:
+    notify: false
+    custom_python_env: copernicus_env
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/tools/copernicus_manager.py gen_heightmap
     python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
 
   aws:
     notify: false
-    custom_python_env: aws_env
+    custom_python_env: copernicus_env
     cmd: ${PYTHON} -m awscli
     python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
 
@@ -982,10 +988,13 @@ custom_python_envs:
     inherit: default_env
     packages:
       - requests-oauthlib
-  aws_env:
+  copernicus_env:
     inherit: default_env
     packages:
       - awscli
+      - rasterio
+      - numpy
+      - pillow
 
   etopo_env:
     inherit: default_env
