@@ -947,6 +947,12 @@ scripts:
     python_path: ["${NVP_ROOT_DIR}"]
     # Example: nvp resize_img -i world.topo.bathy.200406.3x21600x10800.png -s 8129x4096
 
+  copernicus:
+    notify: false
+    custom_python_env: media_env
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/tools/copernicus_manager.py download
+    python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
+
 # Notify in case of script error:
 notify_script_errors: true
 
