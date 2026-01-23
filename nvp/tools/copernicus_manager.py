@@ -13,7 +13,10 @@ Downloads the global 30m resolution Digital Elevation Model from Copernicus.
 
 # or:
 # nvp copernicus_genmap --lat=-22.00 --lon=54.50 --size=2.0 --res=16384 -o output.png --scale=10.0 [obsolete]
-# nvp copernicus_genmap --lat-min=-21.3929 --lat-max=-20.8671 --lon-min=55.2131 --lon-max=55.8414 --res=8192 -o output.png --hscale=10.0 --noise-amp=60
+
+# For unreal engine terrain:
+# nvp copernicus_genmap --lat-min=-21.3929 --lat-max=-20.8671 --lon-min=55.2131 --lon-max=55.8414 --res=8129 -o output.png --hscale=10.0 --noise-amp=60
+# This generate a terrain of size=~69.942km so in unreal we need a scale factor of: 69942/8128 = 8.605068  -> 860.5068
 
 # Note: hscale=10.0 is good for unreal engine for instance as 1 unit = 10cm
 
@@ -258,8 +261,19 @@ class CopernicusManager(NVPComponent):
         perlin.perturb.lacunarity = 2.0
         perlin.perturb.gain = 0.5
 
-        noise_map = perlin.genAsGrid(heightmap.shape)
-        self.info("Noise map range: min=%.2f max=%.2f",  noise_map.min(), noise_map.max())
+        # Calculate next power of 2 for each dimension
+        def next_power_of_2(n):
+            return 2 ** int(np.ceil(np.log2(n)))
+        
+        noise_shape = tuple(next_power_of_2(dim) for dim in heightmap.shape)
+        
+        # Generate noise at power-of-2 size
+        noise_map = perlin.genAsGrid(noise_shape)
+        
+        # Crop to original heightmap size
+        noise_map = noise_map[:heightmap.shape[0], :heightmap.shape[1]]
+        
+        self.info("Noise map range: min=%.2f max=%.2f", noise_map.min(), noise_map.max())
 
         return heightmap + noise_map * amplitude
 
