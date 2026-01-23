@@ -1002,6 +1002,7 @@ custom_python_envs:
       # D:\Projects\NervProj\.pyenvs\copernicus_env>python -m pip install pyfastnoisesimd --no-build-isolation
       - pyfastnoisesimd
       - landlab
+      - scipy
 
   etopo_env:
     inherit: default_env

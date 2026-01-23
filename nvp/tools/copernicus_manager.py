@@ -16,6 +16,7 @@ Downloads the global 30m resolution Digital Elevation Model from Copernicus.
 
 # For unreal engine terrain:
 # nvp copernicus_genmap --lat-min=-21.3929 --lat-max=-20.8671 --lon-min=55.2131 --lon-max=55.8414 --res=8129 -o output.png --hscale=10.0 --noise-amp=60
+# nvp copernicus_genmap --lat-min=-21.3929 --lat-max=-20.8671 --lon-min=55.2131 --lon-max=55.8414 --res=8161 -o hf_reunion_8k_ue.png --hscale=10.0 --noise-amp=60
 # This generate a terrain of size=~69.942km so in unreal we need a scale factor of: 69942/8128 = 8.605068  -> 860.5068
 
 # Note: hscale=10.0 is good for unreal engine for instance as 1 unit = 10cm
@@ -31,6 +32,8 @@ from noise import snoise2
 import pyfastnoisesimd as fns
 from landlab import RasterModelGrid
 from landlab.components import FlowAccumulator, StreamPowerEroder
+
+from scipy.ndimage import gaussian_filter
 
 import rasterio
 from rasterio.warp import reproject, Resampling
@@ -307,14 +310,51 @@ class CopernicusManager(NVPComponent):
         heightmap = grid.at_node['topographic__elevation'].reshape(shape).astype(np.float32)
         return heightmap
 
+    def apply_underwater_blend(self, heightmap, undersea_height):
+        """
+        Blend underwater areas with a fixed undersea height using gaussian blur transition.
+        
+        Args:
+            heightmap: The heightmap array with noise already added
+            nodata_height: The sea level height value
+            scale: The height scale factor
+            
+        Returns:
+            The blended heightmap
+        """
+        blur_radius = self.get_param("underwater_blur_radius", 150.0)
+        blend_power = self.get_param("underwater_blend_power", 2.0)
+        
+        self.info("Applying underwater blend: blur_radius=%.1f, power=%.1f, undersea_height=%.1f", 
+                  blur_radius, blend_power, undersea_height)
+        
+        # Create mask: 1.0 for ground (>0), 0.0 for sea (<=0)
+        # Note: heightmap already has nodata_height added, so check against nodata_height*scale
+        ground_mask = (heightmap > 0.0).astype(np.float32)
+        
+        # Apply gaussian blur to the mask
+        blurred_mask = gaussian_filter(ground_mask, sigma=blur_radius)
+        
+        # Apply power to make values closer to 0 quickly
+        blurred_power = np.power(np.clip(blurred_mask*2.0, 0.0, 1.0), blend_power)
+        # blurred_power = np.power(blurred_mask, blend_power)
+        
+        # Create undersea height array
+        undersea_array = np.full_like(heightmap, undersea_height)
+        
+        # Blend heightmap with undersea height
+        blended = heightmap * blurred_power + undersea_array * (1.0 - blurred_power)
+        
+        self.info("Underwater blend complete. Range: min=%.2f max=%.2f", 
+                  blended.min(), blended.max())
+        
+        return blended
+    
     def generate_heightmap(self):
         lat0 = self.get_param("lat_min")
         lon0 = self.get_param("lon_min")
         lat1 = self.get_param("lat_max")
         lon1 = self.get_param("lon_max")
-
-        nodata_height = self.get_param("no_data_height")
-        self.info("Using no-data height value: %f", nodata_height)
 
         # size = self.get_param("size")
         # xsize = float(self.get_param("xsize", size))
@@ -338,6 +378,9 @@ class CopernicusManager(NVPComponent):
         # xres = int(self.get_param("xres", res))
         # yres = int(self.get_param("yres", res))
         scale = float(self.get_param("hscale"))
+
+        undersea_height = self.get_param("undersea_height")*scale
+        self.info("Using undersea height value: %f", undersea_height)
 
         out_file = self.get_param("output_file")
         if out_file is None:
@@ -413,24 +456,31 @@ class CopernicusManager(NVPComponent):
         
         # Actually we have data everywhere, so we should replace height <=0.0 with sea height(=no data height)
 
-        heightmap = np.nan_to_num(target, nan=nodata_height)*scale
-        heightmap[heightmap<=0.0] = nodata_height*scale
+        heightmap = np.nan_to_num(target*scale, nan=undersea_height)
 
         # self.info("Adding erosion...")
         # heightmap = self.apply_erosion(heightmap, [xsize, ysize], lat0 + ysize*0.5)
-
+        # Apply underwater blending
         amp = self.get_param("noise_amp")
-        self.info("Adding fractal noise with amplitude=%f...", amp)
-        heightmap = self.add_fractal_noise(heightmap, scale=0.3, amplitude=amp*scale)
 
+        # Note: we move up by the noise amplitude here because we can still add this noise down afterwards:
+        heightmap = self.apply_underwater_blend(heightmap, undersea_height + amp*scale)
+        # heightmap[heightmap<=0.0] = undersea_height + amp*scale
+        # heightmap[heightmap<=0.0] = undersea_height
+        
+        self.info("Adding fractal noise with amplitude=%f...", amp*scale)
+        heightmap = self.add_fractal_noise(heightmap, scale=0.4, amplitude=amp*scale)
+
+        bedrock_min = heightmap.min()
         self.info(
             "Final range with noise (meters): min=%.2f max=%.2f",
-            heightmap.min(),
+            bedrock_min,
             heightmap.max(),
         )
     
         self.info("Writing image file...")
-        heightmap = np.clip(heightmap-nodata_height, 0, 65535).astype(np.uint16)
+        heightmap = np.clip(heightmap-bedrock_min, 0, 65535).astype(np.uint16)
+        # heightmap = np.clip(heightmap-nodata_height, -32767, 32767).astype(np.int16)
 
         img = Image.fromarray(heightmap, mode="I;16")
         img.save(out_file)
@@ -465,7 +515,7 @@ if __name__ == "__main__":
     # psr.add_str("--yres")("Output height (pixels)")
     psr.add_float("--hscale", default=1.0)("Scale for height")
     psr.add_float("--noise-amp", default=50.0)("Noise amplitude")
-    psr.add_float("--no-data-height", default=-1000.0)("No data height value")
+    psr.add_float("--undersea-height", default=-200.0)("undersea height value")
     psr.add_str("-o", "--output-file", dest="output_file")("Output PNG file")
 
     comp.run()
