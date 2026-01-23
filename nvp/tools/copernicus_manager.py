@@ -9,12 +9,13 @@ Downloads the global 30m resolution Digital Elevation Model from Copernicus.
 # nvp copernicus_dl --lat=-22,-20 --lon=55,56
 
 # Example to generate an heightmap:
-# nvp copernicus_genmap --lat=-22.00 --lon=54.50 --xsize=2.0 --ysize=2.0 --xres=8192 --yres=8192 -o output.png --scale=10.0
+# nvp copernicus_genmap --lat=-22.00 --lon=54.50 --xsize=2.0 --ysize=2.0 --xres=8192 --yres=8192 -o output.png --scale=10.0 [obsolete]
 
 # or:
-# nvp copernicus_genmap --lat=-22.00 --lon=54.50 --size=2.0 --res=16384 -o output.png --scale=10.0
+# nvp copernicus_genmap --lat=-22.00 --lon=54.50 --size=2.0 --res=16384 -o output.png --scale=10.0 [obsolete]
+# nvp copernicus_genmap --lat-min=-21.3929 --lat-max=-20.8671 --lon-min=55.2131 --lon-max=55.8414 --res=8192 -o output.png --hscale=10.0
 
-# Note: scale=10.0 is good for unreal engine for instance as 1 unit = 10cm
+# Note: hscale=10.0 is good for unreal engine for instance as 1 unit = 10cm
 
 # To check: 
 # https://github.com/mdbartos/pysheds
@@ -268,24 +269,40 @@ class CopernicusManager(NVPComponent):
         return heightmap
 
     def generate_heightmap(self):
-        lat0 = float(self.get_param("lat"))
-        lon0 = float(self.get_param("lon"))
+        lat0 = self.get_param("lat_min")
+        lon0 = self.get_param("lon_min")
+        lat1 = self.get_param("lat_max")
+        lon1 = self.get_param("lon_max")
 
-        size = self.get_param("size")
-        xsize = float(self.get_param("xsize", size))
-        ysize = float(self.get_param("ysize", size))
+        nodata_height = self.get_param("no_data_height")
+        self.info("Using no-data height value: %f", nodata_height)
+
+        # size = self.get_param("size")
+        # xsize = float(self.get_param("xsize", size))
+        # ysize = float(self.get_param("ysize", size))
+        xsize = abs(lon1-lon0)
+        ysize = abs(lat1-lat0)
+        size = max(xsize, ysize)
+        clat = (lat1+lat0)*0.5
+        clon = (lon1+lon0)*0.5
+        lat0 = clat - size*0.5
+        lat1 = clat + size*0.5
+        lon0 = clon - size*0.5
+        lon1 = clon + size*0.5
+
+        km_size = 111.320 * size
+        self.info("Effective coords: lat0=%.6f, lon0=%.6f, lat1=%.6f, lon1=%.6f, size=%.6f (~%.3fkm)", lat0,lon0,lat1,lon1,size,km_size)
 
         res = self.get_param("res")
-        xres = int(self.get_param("xres", res))
-        yres = int(self.get_param("yres", res))
-        scale = float(self.get_param("scale"))
+        xres = res
+        yres = res
+        # xres = int(self.get_param("xres", res))
+        # yres = int(self.get_param("yres", res))
+        scale = float(self.get_param("hscale"))
 
         out_file = self.get_param("output_file")
         if out_file is None:
             out_file = "heightmap.png"
-
-        lat1 = lat0 + ysize
-        lon1 = lon0 + xsize
 
         self.info("Generating heightmap:")
         self.info("  BBOX: lat [%f, %f], lon [%f, %f]", lat0, lat1, lon0, lon1)
@@ -350,8 +367,9 @@ class CopernicusManager(NVPComponent):
             )
         else:
             self.warn("Final heightmap has no valid data")
-            
-        heightmap = np.nan_to_num(target, nan=0.0)*scale
+        
+
+        heightmap = np.nan_to_num(target, nan=nodata_height)*scale
 
         # self.info("Adding erosion...")
         # heightmap = self.apply_erosion(heightmap, [xsize, ysize], lat0 + ysize*0.5)
@@ -360,7 +378,7 @@ class CopernicusManager(NVPComponent):
         heightmap = self.add_fractal_noise(heightmap, scale=1.0, amplitude=50.0, octaves=6)
 
         self.info("Writing image file...")
-        heightmap = np.clip(heightmap, 0, 65535).astype(np.uint16)
+        heightmap = np.clip(heightmap-nodata_height, 0, 65535).astype(np.uint16)
 
         img = Image.fromarray(heightmap, mode="I;16")
         img.save(out_file)
@@ -380,15 +398,21 @@ if __name__ == "__main__":
     psr.add_str("-o","--output-dir", dest="output_dir")("Output directory")
 
     psr = context.build_parser("gen_heightmap")
-    psr.add_str("--lat")("Start latitude")
-    psr.add_str("--lon")("Start longitude")
-    psr.add_float("--size")("Default size (degrees)")
-    psr.add_str("--xsize")("Longitude size (degrees)")
-    psr.add_str("--ysize")("Latitude size (degrees)")
+    # psr.add_str("--lat")("Start latitude")
+    # psr.add_str("--lon")("Start longitude")
+    # psr.add_float("--size")("Default size (degrees)")
+    # psr.add_str("--xsize")("Longitude size (degrees)")
+    # psr.add_str("--ysize")("Latitude size (degrees)")
+
+    psr.add_float("--lat-min")("Min lattitude")
+    psr.add_float("--lat-max")("Max lattitude")
+    psr.add_float("--lon-min")("Min longitude")
+    psr.add_float("--lon-max")("Max longitude")
     psr.add_int("--res")("Default Output size (pixels)")
-    psr.add_str("--xres")("Output width (pixels)")
-    psr.add_str("--yres")("Output height (pixels)")
-    psr.add_float("--scale", default=1.0)("Scale for height")
+    # psr.add_str("--xres")("Output width (pixels)")
+    # psr.add_str("--yres")("Output height (pixels)")
+    psr.add_float("--hscale", default=1.0)("Scale for height")
+    psr.add_float("--no-data-height", default=-1000.0)("No data height value")
     psr.add_str("-o", "--output-file", dest="output_file")("Output PNG file")
 
     comp.run()
