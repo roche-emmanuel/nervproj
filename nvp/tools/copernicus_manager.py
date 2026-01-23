@@ -13,7 +13,7 @@ Downloads the global 30m resolution Digital Elevation Model from Copernicus.
 
 # or:
 # nvp copernicus_genmap --lat=-22.00 --lon=54.50 --size=2.0 --res=16384 -o output.png --scale=10.0 [obsolete]
-# nvp copernicus_genmap --lat-min=-21.3929 --lat-max=-20.8671 --lon-min=55.2131 --lon-max=55.8414 --res=8192 -o output.png --hscale=10.0
+# nvp copernicus_genmap --lat-min=-21.3929 --lat-max=-20.8671 --lon-min=55.2131 --lon-max=55.8414 --res=8192 -o output.png --hscale=10.0 --noise-amp=60
 
 # Note: hscale=10.0 is good for unreal engine for instance as 1 unit = 10cm
 
@@ -221,7 +221,7 @@ class CopernicusManager(NVPComponent):
 
         return heightmap + noise_map * amplitude
 
-    def add_fractal_noise(self, heightmap, scale=1.0, amplitude=5.0, octaves=4):
+    def add_fractal_noise_v1(self, heightmap, scale=1.0, amplitude=5.0, octaves=4):
         seed = np.random.randint(2**31)
         N_threads = None
 
@@ -235,6 +235,31 @@ class CopernicusManager(NVPComponent):
         perlin.fractal.gain = 0.45
         perlin.perturb.perturbType = fns.PerturbType.NoPerturb
         noise_map = perlin.genAsGrid(heightmap.shape)
+
+        return heightmap + noise_map * amplitude
+
+    def add_fractal_noise(self, heightmap, scale=1.0, amplitude=5.0):
+        # cf. https://pyfastnoisesimd.readthedocs.io/en/latest/python_api.html
+        seed = np.random.randint(2**31)
+        N_threads = None
+
+        perlin = fns.Noise(seed=seed, numWorkers=N_threads)
+        perlin.frequency = 0.02 * scale
+        # perlin.noiseType = fns.NoiseType.Perlin
+        perlin.noiseType = fns.NoiseType.SimplexFractal
+        perlin.fractalType = fns.FractalType.Billow
+        perlin.fractal.octaves = 7
+        perlin.fractal.lacunarity = 2.0
+        perlin.fractal.gain = 0.5
+        perlin.perturb.perturbType = fns.PerturbType.GradientFractal
+        perlin.perturb.amplitude = 1.5
+        perlin.perturb.octaves = 7
+        perlin.perturb.frequency = 0.2 * 0.001
+        perlin.perturb.lacunarity = 2.0
+        perlin.perturb.gain = 0.5
+
+        noise_map = perlin.genAsGrid(heightmap.shape)
+        self.info("Noise map range: min=%.2f max=%.2f",  noise_map.min(), noise_map.max())
 
         return heightmap + noise_map * amplitude
 
@@ -374,9 +399,16 @@ class CopernicusManager(NVPComponent):
         # self.info("Adding erosion...")
         # heightmap = self.apply_erosion(heightmap, [xsize, ysize], lat0 + ysize*0.5)
 
-        self.info("Adding fractal noise...")
-        heightmap = self.add_fractal_noise(heightmap, scale=1.0, amplitude=50.0, octaves=6)
+        amp = self.get_param("noise_amp")
+        self.info("Adding fractal noise with amplitude=%f...", amp)
+        heightmap = self.add_fractal_noise(heightmap, scale=0.3, amplitude=amp*scale)
 
+        self.info(
+            "Final range with noise (meters): min=%.2f max=%.2f",
+            heightmap.min(),
+            heightmap.max(),
+        )
+    
         self.info("Writing image file...")
         heightmap = np.clip(heightmap-nodata_height, 0, 65535).astype(np.uint16)
 
@@ -412,6 +444,7 @@ if __name__ == "__main__":
     # psr.add_str("--xres")("Output width (pixels)")
     # psr.add_str("--yres")("Output height (pixels)")
     psr.add_float("--hscale", default=1.0)("Scale for height")
+    psr.add_float("--noise-amp", default=50.0)("Noise amplitude")
     psr.add_float("--no-data-height", default=-1000.0)("No data height value")
     psr.add_str("-o", "--output-file", dest="output_file")("Output PNG file")
 
