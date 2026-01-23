@@ -365,6 +365,8 @@ class CopernicusManager(NVPComponent):
             with rasterio.open(tif) as src:
                 temp = np.full((yres, xres), np.nan, dtype=np.float32)
 
+                self.info("Source no data is: %s", src.nodata)
+
                 reproject(
                     source=rasterio.band(src, 1),
                     destination=temp,
@@ -395,6 +397,8 @@ class CopernicusManager(NVPComponent):
                 target[mask] = temp[mask]
 
 
+        self.info("Found %d nodata pixels is result.", np.count_nonzero(np.isnan(target)))
+
         # Convert to uint16
         valid = target[~np.isnan(target)]
 
@@ -407,8 +411,10 @@ class CopernicusManager(NVPComponent):
         else:
             self.warn("Final heightmap has no valid data")
         
+        # Actually we have data everywhere, so we should replace height <=0.0 with sea height(=no data height)
 
         heightmap = np.nan_to_num(target, nan=nodata_height)*scale
+        heightmap[heightmap<=0.0] = nodata_height*scale
 
         # self.info("Adding erosion...")
         # heightmap = self.apply_erosion(heightmap, [xsize, ysize], lat0 + ysize*0.5)
