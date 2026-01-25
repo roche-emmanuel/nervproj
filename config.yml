@@ -521,6 +521,9 @@ libraries:
     # version: git-20250217
     version: git-20260120
     git: git@github.com:roche-emmanuel/Clipper2.git
+  - name: protozero
+    version: git-20260125
+    git: git@github.com:roche-emmanuel/protozero.git
   - name: ffmpeg-lgpl-shared
     version: 20250626
   - name: nervsdk
