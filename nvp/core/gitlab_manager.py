@@ -523,8 +523,9 @@ class GitlabManager(NVPComponent):
             return None
 
         # URL encode the file name to handle special characters
-        # encoded_file_name = self.url_encode_path(file_name)
         encoded_file_name = file_name.replace("\\", "/")
+        encoded_file_name = self.url_encode_path(encoded_file_name)
+        # self.info("Encoded filename is: %s", encoded_file_name)
 
         # Construct the API URL
         pid = self.get_project_id_from_name(pdesc["url"])
@@ -541,7 +542,9 @@ class GitlabManager(NVPComponent):
             headers = {
                 "PRIVATE-TOKEN": self.access_token,
                 "cache-control": "no-cache",
-                "content-type": "text/plain" if is_text else "application/octet-stream",
+                # "content-type": "text/plain" if is_text else "application/octet-stream",
+                # "content-type": "text/plain" if is_text else "application/zip",
+                "content-type": "application/octet-stream",
                 # "content-type": "application/zip",
             }
 
