@@ -524,7 +524,7 @@ class GitlabManager(NVPComponent):
 
         # URL encode the file name to handle special characters
         encoded_file_name = file_name.replace("\\", "/")
-        encoded_file_name = self.url_encode_path(encoded_file_name)
+        # encoded_file_name = self.url_encode_path(encoded_file_name)
         # self.info("Encoded filename is: %s", encoded_file_name)
 
         # Construct the API URL
@@ -881,3 +881,7 @@ if __name__ == "__main__":
     psr.add_int("package_id")("Package_id")
 
     comp.run()
+
+
+# Command examples:
+# nvp gitlab package upload -p argus simcore-daily "26.01.29" simcore/guardian.igpack
