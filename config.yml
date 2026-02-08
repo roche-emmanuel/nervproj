@@ -539,6 +539,9 @@ libraries:
   - name: libosmium
     version: git-20260125
     git: git@github.com:roche-emmanuel/libosmium.git
+  - name: secp256k1
+    version: git-20260208
+    git: git@github.com:roche-emmanuel/secp256k1.git
 
 # list of available projects:
 projects: []
