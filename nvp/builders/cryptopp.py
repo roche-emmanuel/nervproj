@@ -29,6 +29,8 @@ class Builder(NVPBuilder):
             "-DBUILD_SHARED_LIBS=OFF",
         ]
 
+        # Note: this doesn't build with clang for now.
+        
         git_dir = self.tools.get_tool_dir("git")
         self.prepend_env_list([git_dir], self.env)
 
@@ -39,7 +41,7 @@ class Builder(NVPBuilder):
     def build_on_linux(self, build_dir, prefix, desc):
         """Build on linux method"""
 
-        flags = ["-S", ".", "-B", "release_build", "-DBUILD_SHARED_LIBS=OFF", "-DFT_REQUIRE_ZLIB=TRUE"]
+        flags = ["-S", ".", "-B", "release_build", "-DBUILD_SHARED_LIBS=OFF"]
         # if self.compiler.is_emcc():
 
         self.run_cmake(build_dir, prefix, ".", flags=flags)

@@ -466,8 +466,11 @@ libraries:
     version: git-1.0
     git: git@github.com:roche-emmanuel/ggml.git
   - name: cryptopp
-    version: 8.8.8
-    git: https://github.com/abdes/cryptopp-cmake.git
+    # version: 8.8.8
+    # git: https://github.com/abdes/cryptopp-cmake.git
+    version: 8.9.0
+    # git: git@github.com:roche-emmanuel/cryptopp-cmake.git
+    url: http://files.nervtech.org/nvp_packages/sources/cryptopp-8.9.0.zip
   - name: geolib
     version: 1.46
     url: http://files.nervtech.org/nvp_packages/sources/GeographicLib-1.46.7z
