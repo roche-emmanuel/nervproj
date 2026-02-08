@@ -34,6 +34,11 @@ class Builder(NVPBuilder):
             "-DSECP256K1_ENABLE_MODULE_ELLSWIFT=ON",
         ]
 
+        # Note: in the case of MSVC build we then need to rename "libsecp256k1.lib" to "secp256k1.lib"
+        imp_file = self.get_path(prefix, "lib", "libsecp256k1.lib")
+        if self.file_exists(imp_file):
+            self.rename_file(imp_file, self.get_path(prefix, "lib", "secp256k1.lib"))
+
         self.run_cmake(build_dir, prefix, ".", flags=flags)
         self.run_ninja(self.get_path(build_dir, "release_build"))
 
