@@ -1229,8 +1229,8 @@ if __name__ == "__main__":
     psr.add_float("-t", "--threshold", dest="silence_threshold", default=-75)("Silence threshold.")
     psr.add_float("-d", "--min-dur", dest="min_silence_duration", default=0.5)("Silence min duration.")
     psr.add_float("-s", "--min-speech", dest="min_speech_duration", default=1.0)("Speech min duration.")
-    psr.add_float("--post-dur", dest="post_speech_duration", default=2.0)("Post speech duration.")
-    psr.add_float("--pre-dur", dest="pre_speech_duration", default=2.0)("Pre speech duration.")
+    psr.add_float("--post-dur", dest="post_speech_duration", default=1.0)("Post speech duration.")
+    psr.add_float("--pre-dur", dest="pre_speech_duration", default=1.0)("Pre speech duration.")
 
     psr = context.build_parser("preprocess-rushes")
     psr.add_float("-t", "--threshold", dest="silence_threshold", default=-75)("Silence threshold.")
