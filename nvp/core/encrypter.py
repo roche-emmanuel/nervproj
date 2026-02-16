@@ -1,4 +1,5 @@
 """Encrypter utility functions"""
+
 import logging
 
 from Crypto.Cipher import PKCS1_OAEP
@@ -130,6 +131,10 @@ class Encrypter(NVPComponent):
             msg = self.get_param("message")
             emsg = self.encrypt(msg)
             logger.info("Encrypted:\n%s", emsg)
+
+            dmsg = self.decrypt(emsg)
+            logger.info("Decrypted:%s", dmsg)
+
             return True
 
         if cmd == "decrypt":

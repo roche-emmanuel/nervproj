@@ -309,6 +309,14 @@ class NVPContext(NVPObject):
                 # regular keys:
                 self.config[key] = val
 
+    def decrypt_string(self, msg):
+        """Decrypt a string if encrypted:"""
+        if msg.startswith("@encrypted:"):
+            emsg = msg[11:]
+            encrypter = self.get_component("encrypter")
+            msg = encrypter.decrypt(emsg)
+        return msg
+
     def load_config(self):
         """Load the config.json file, can only be done after we have the root path."""
 
