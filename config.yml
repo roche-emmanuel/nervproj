@@ -1019,7 +1019,7 @@ custom_python_envs:
       # Note: to build install pyfastnoisesimd on windows:
       # run this in an MSVC x64 native command prompt in the env folder:
       # D:\Projects\NervProj\.pyenvs\copernicus_env>python -m pip install pyfastnoisesimd --no-build-isolation
-      - pyfastnoisesimd
+      # - pyfastnoisesimd
       - landlab
       - scipy
 
