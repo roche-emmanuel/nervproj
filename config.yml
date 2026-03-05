@@ -1111,16 +1111,30 @@ custom_python_envs:
       - Pillow
       - numpy
 
+  # whisper_env:
+  #   inherit: default_env
+  #   packages:
+  #     - openai-whisper
+  #     - --extra-index-url https://download.pytorch.org/whl/cu117
+  #     - torch
+  #     - torchvision
+  #     - torchaudio
+  #     - faster-whisper
+  #     - ctranslate2==3.24.0 #specifying this version to stay on cuda 11
+  #     - moviepy
+  #     - ffmpeg-python
+
   whisper_env:
     inherit: default_env
+    version: 3.12.4
     packages:
-      - openai-whisper
-      - --extra-index-url https://download.pytorch.org/whl/cu117
+      - --extra-index-url https://download.pytorch.org/whl/cu128
       - torch
       - torchvision
       - torchaudio
+      - whisperx
       - faster-whisper
-      - ctranslate2==3.24.0 #specifying this version to stay on cuda 11
+      # - ctranslate2==3.24.0 #specifying this version to stay on cuda 11
       - moviepy
       - ffmpeg-python
 
