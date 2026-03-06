@@ -1,7 +1,9 @@
-"""Whisper handling component - WhisperX version
+"""Whisper handling component - WhisperX version (No pyannote VAD)
 
 This component is used to access OpenAI whisper via WhisperX and translate audio to text
-with improved word-level timestamps and alignment"""
+with improved word-level timestamps and alignment.
+
+This version avoids pyannote.audio dependency issues by using alternative VAD."""
 
 import logging
 import os
@@ -77,12 +79,13 @@ class WhisperGen(NVPComponent):
 
         logger.info("Loading WhisperX model '%s' on device '%s'...", model_size, device)
 
-        # Load model
+        # Load model with vad_onset/vad_offset to avoid pyannote dependency
         model = whisperx.load_model(
             model_size,
             device,
             compute_type=compute_type,
             language="en",  # Set to None for auto-detection, or specify language code
+            vad_options={"vad_onset": 0.500, "vad_offset": 0.363},
         )
 
         # Load audio
@@ -93,13 +96,22 @@ class WhisperGen(NVPComponent):
         logger.info("Transcribing...")
         result = model.transcribe(audio, batch_size=16)  # Adjust based on your GPU memory
 
-        logger.info("Detected language: %s", result.get("language", "unknown"))
+        detected_language = result.get("language", "en")
+        logger.info("Detected language: %s", detected_language)
 
         # Align whisper output for better word-level timestamps
-        logger.info("Aligning timestamps...")
-        model_a, metadata = whisperx.load_align_model(language_code=result["language"], device=device)
+        try:
+            logger.info("Aligning timestamps...")
+            model_a, metadata = whisperx.load_align_model(language_code=detected_language, device=device)
 
-        result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
+            result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
+
+            # Clean up alignment model
+            del model_a
+
+        except Exception as e:
+            logger.warning("Alignment failed (will use base timestamps): %s", str(e))
+            # Continue with unaligned results
 
         # Extract full text
         segments = result["segments"]
@@ -110,7 +122,7 @@ class WhisperGen(NVPComponent):
         # Write text file
         self.write_text_file(txt, file + ".txt")
         logger.info("Done converting audio to text in %.2f secs", elapsed)
-        logger.info("Generated output: %s", txt)
+        logger.info("Generated output: %s", txt[:200] + "..." if len(txt) > 200 else txt)
 
         # Process word-level timestamps
         word_list = []
@@ -118,6 +130,30 @@ class WhisperGen(NVPComponent):
 
         for segment in segments:
             if "words" not in segment:
+                # Fallback: if no word-level timestamps, create approximate ones
+                words_in_segment = segment["text"].strip().split()
+                segment_duration = segment["end"] - segment["start"]
+                time_per_word = segment_duration / max(len(words_in_segment), 1)
+
+                for i, word_str in enumerate(words_in_segment):
+                    word_str = word_str.strip()
+                    if len(word_str) > 0 and word_str[-1] in punctuations:
+                        word_str = word_str[:-1]
+
+                    if len(word_str) < 1:
+                        continue
+
+                    word_start = segment["start"] + (i * time_per_word)
+                    word_end = word_start + time_per_word
+
+                    word_list.append(
+                        {
+                            "word": word_str,
+                            "start": round(word_start, 3),
+                            "end": round(word_end, 3),
+                            "score": segment.get("avg_logprob", 0.0),
+                        }
+                    )
                 continue
 
             for word_info in segment["words"]:
@@ -133,54 +169,23 @@ class WhisperGen(NVPComponent):
                 word_list.append(
                     {
                         "word": word_str,
-                        "start": word_info.get("start", 0.0),
-                        "end": word_info.get("end", 0.0),
-                        "score": word_info.get("score", 0.0),  # WhisperX uses 'score' instead of 'probability'
+                        "start": round(word_info.get("start", 0.0), 3),
+                        "end": round(word_info.get("end", 0.0), 3),
+                        "score": word_info.get("score", 0.0),
                     }
                 )
 
         # Write word list as JSON file
         out_file = self.set_path_extension(file, ".json")
         self.write_json(word_list, out_file)
-        logger.info("Wrote word timestamps to: %s", out_file)
-
-        # Optional: Add diarization (speaker detection)
-        # Uncomment if you want speaker diarization
-        # result = self.add_diarization(audio, result, device)
+        logger.info("Wrote %d words with timestamps to: %s", len(word_list), out_file)
 
         # Clean up
         del model
-        del model_a
         if device == "cuda":
             torch.cuda.empty_cache()
 
         return True
-
-    def add_diarization(self, audio, result, device):
-        """Optional: Add speaker diarization to transcription results
-
-        Note: Requires HuggingFace token for pyannote.audio models
-        Set HF_TOKEN environment variable or pass directly
-        """
-        try:
-            # Get HuggingFace token from environment
-            hf_token = os.environ.get("HF_TOKEN")
-            if not hf_token:
-                logger.warning("HF_TOKEN not set, skipping diarization")
-                return result
-
-            logger.info("Running speaker diarization...")
-            diarize_model = whisperx.DiarizationPipeline(use_auth_token=hf_token, device=device)
-
-            diarize_segments = diarize_model(audio)
-            result = whisperx.assign_word_speakers(diarize_segments, result)
-
-            logger.info("Diarization complete")
-            return result
-
-        except Exception as e:
-            logger.warning("Diarization failed: %s", str(e))
-            return result
 
     def split_text_chunks(self, filename, num_words):
         """Split a given text file into multiple chunk files"""
