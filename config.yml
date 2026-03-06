@@ -57,10 +57,13 @@ windows_tools:
     sub_path: bin/ffmpeg.exe
     sub_tools:
       ffprobe: bin/ffprobe.exe
+    # urls:
+    #   - http://files.nervtech.org/nvp_packages/tools/ffmpeg-2022.08.25-windows.7z
+    #   - https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z
+    # version: 2022.08.25
     urls:
-      - http://files.nervtech.org/nvp_packages/tools/ffmpeg-2022.08.25-windows.7z
-      - https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z
-    version: 2022.08.25
+      - http://files.nervtech.org/nvp_packages/tools/ffmpeg-8.0.1-windows.7z
+    version: 8.0.1
   - name: perl
     sub_path: perl/bin/perl.exe
     urls: http://files.nervtech.org/nvp_packages/tools/perl-5.32.1.1-windows.7z
@@ -832,6 +835,7 @@ scripts:
     custom_python_env: whisper_env
     cmd: ${PYTHON} ${NVP_ROOT_DIR}/nvp/ai/whisper_gen.py convert
     python_path: ["${NVP_ROOT_DIR}"]
+    env_paths: ${NVP_ROOT_DIR}/tools/windows/ffmpeg-8.0.1/bin
 
   split-text:
     notify: false
@@ -1129,9 +1133,9 @@ custom_python_envs:
     version: 3.12.4
     packages:
       - --extra-index-url https://download.pytorch.org/whl/cu128
-      - torch
+      - torch==2.8.0
       - torchvision
-      - torchaudio
+      - torchaudio==2.8.0
       - whisperx
       - faster-whisper
       # - ctranslate2==3.24.0 #specifying this version to stay on cuda 11
