@@ -1,14 +1,14 @@
-"""Whisper handling component
+"""Whisper handling component - WhisperX version
 
-This component is used to access OpenAI whisper and translate audio to text"""
+This component is used to access OpenAI whisper via WhisperX and translate audio to text
+with improved word-level timestamps and alignment"""
 
 import logging
 import os
 import time
 
 import torch
-import whisper
-from faster_whisper import WhisperModel
+import whisperx
 
 from nvp.core.tools import ToolsManager
 from nvp.nvp_component import NVPComponent
@@ -36,8 +36,7 @@ class WhisperGen(NVPComponent):
             if file == "all":
                 return self.process_all_files(model, nwords)
 
-            # return self.convert_audio_to_text(file, model, nwords)
-            return self.convert_audio_to_text_fast(file)
+            return self.convert_audio_to_text_whisperx(file, model)
 
         if cmd == "split_text":
             file = self.get_param("input_file")
@@ -62,149 +61,126 @@ class WhisperGen(NVPComponent):
                 continue
 
             # Otherwise we process this file:
-            # self.convert_audio_to_text(fname, model, nwords)
-            self.convert_audio_to_text_fast(fname)
+            self.convert_audio_to_text_whisperx(fname, model)
 
         return True
 
-    def convert_audio_to_text_fast(self, file):
-        """Translate an audio file to text with faster_whisper"""
-        # cf. https://github.com/SYSTRAN/faster-whisper
-        # cf. https://github.com/occ-ai/video-transcript-helper/blob/main/transcribe_from_video_whisper.py
+    def convert_audio_to_text_whisperx(self, file, model_size="large-v3"):
+        """Translate an audio file to text with WhisperX"""
+        # cf. https://github.com/m-bain/whisperX
 
-        # logger.info("Converting video to audio...")
-        # execute the command to extract the audio from the input video file
-        # the output will be a wav file with the same name as the input video file
-        # the output wav file will be saved in the same directory as the input video file
-        # tools = self.get_component("tools")
-        # ffmpeg = tools.get_tool_path("ffmpeg")
-
-        # # We add support here for lens correction:
-        # cmd = [
-        #     ffmpeg,
-        #     "-threads",
-        #     "8",
-        #     "-i",
-        #     file,
-        #     "-vn",
-        #     "-ac",
-        #     "1",
-        #     "-ar",
-        #     "16000",
-        #     "-loglevel",
-        #     "quiet",
-        #     "-copyts",
-        #     "-y",
-        #     file + ".wav",
-        # ]
-
-        # logger.info("Executing command: %s", cmd)
-        # res, rcode, outs = self.execute(cmd)
-
-        # if not res:
-        #     logger.error("audio extract failed with return code %d:\n%s", rcode, outs)
-        #     return False
-
-        model_size = "large-v3"
-
-        # Run on GPU with FP16
         start_time = time.time()
-        model = WhisperModel(model_size, device="cuda", compute_type="float16")
-        # model = WhisperModel(model_size, device="cuda", compute_type="float32")
 
-        # hack the model to produce filler words by adding them as an input prompt
-        segments, info = model.transcribe(
-            file,
-            initial_prompt="So uhm, yeaah. Uh, um. Uhh, Umm. Like, Okay, ehm, uuuh.",
-            word_timestamps=True,
-            suppress_blank=False,
-            vad_filter=True,
-            vad_parameters=dict(min_silence_duration_ms=2000, speech_pad_ms=600, window_size_samples=1536),
+        # Detect device
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        compute_type = "float16" if device == "cuda" else "int8"
+
+        logger.info("Loading WhisperX model '%s' on device '%s'...", model_size, device)
+
+        # Load model
+        model = whisperx.load_model(
+            model_size,
+            device,
+            compute_type=compute_type,
+            language="en",  # Set to None for auto-detection, or specify language code
         )
 
-        logger.info("Detected language '%s' with probability %f", info.language, info.language_probability)
+        # Load audio
+        logger.info("Loading audio file: %s", file)
+        audio = whisperx.load_audio(file)
 
-        logger.info("Trancribing...")
-        segments = list(segments)
+        # Transcribe with WhisperX
+        logger.info("Transcribing...")
+        result = model.transcribe(audio, batch_size=16)  # Adjust based on your GPU memory
+
+        logger.info("Detected language: %s", result.get("language", "unknown"))
+
+        # Align whisper output for better word-level timestamps
+        logger.info("Aligning timestamps...")
+        model_a, metadata = whisperx.load_align_model(language_code=result["language"], device=device)
+
+        result = whisperx.align(result["segments"], model_a, metadata, audio, device, return_char_alignments=False)
+
+        # Extract full text
+        segments = result["segments"]
+        txt = " ".join([segment["text"].strip() for segment in segments])
+
         elapsed = time.time() - start_time
 
-        # for segment in segments:
-        # logger.info("[%.2fs -> %.2fs] %s", segment.start, segment.end, segment.text)
-        txt = "".join([segment.text + " " for segment in segments])
+        # Write text file
         self.write_text_file(txt, file + ".txt")
-        logger.info("Done converting auto to text in %.2f secs", elapsed)
+        logger.info("Done converting audio to text in %.2f secs", elapsed)
         logger.info("Generated output: %s", txt)
 
-        # Also write the words timestamps now:
+        # Process word-level timestamps
         word_list = []
+        punctuations = ",.?!:;"
 
-        punctuations = ",.?!:"
-
-        # split punctuation from words into new items
         for segment in segments:
-            for word in segment.words:
-                wordStr = word.word.strip()
-                if wordStr[-1] in punctuations:
-                    wordStr = wordStr[:-1]
+            if "words" not in segment:
+                continue
 
-                if len(wordStr) < 1:
+            for word_info in segment["words"]:
+                word_str = word_info["word"].strip()
+
+                # Remove punctuation from end of word
+                if len(word_str) > 0 and word_str[-1] in punctuations:
+                    word_str = word_str[:-1]
+
+                if len(word_str) < 1:
                     continue
 
                 word_list.append(
                     {
-                        "word": wordStr,
-                        "start": word.start,
-                        "end": word.end,
-                        "probability": word.probability,
+                        "word": word_str,
+                        "start": word_info.get("start", 0.0),
+                        "end": word_info.get("end", 0.0),
+                        "score": word_info.get("score", 0.0),  # WhisperX uses 'score' instead of 'probability'
                     }
                 )
 
-        # get the shortest words:
-        # dur_list = sorted(word_list, key=lambda entry: entry["end"] - entry["start"])[:20]
-
-        # durs = {}
-        # for e in dur_list:
-        #     durs[e["word"]] = e["end"] - e["start"]
-
-        # logger.info("Word shortest durations: %s", durs)
-
-        # Write this word list as json file:
+        # Write word list as JSON file
         out_file = self.set_path_extension(file, ".json")
         self.write_json(word_list, out_file)
+        logger.info("Wrote word timestamps to: %s", out_file)
+
+        # Optional: Add diarization (speaker detection)
+        # Uncomment if you want speaker diarization
+        # result = self.add_diarization(audio, result, device)
+
+        # Clean up
+        del model
+        del model_a
+        if device == "cuda":
+            torch.cuda.empty_cache()
 
         return True
 
-    def convert_audio_to_text(self, file, model, nwords):
-        """Translate an audio file to text"""
-        logger.info("Should translate audio file to text: %s", file)
+    def add_diarization(self, audio, result, device):
+        """Optional: Add speaker diarization to transcription results
 
-        tools: ToolsManager = self.get_component("tools")
-        ffmpeg_path = tools.get_tool_path("ffmpeg")
-        ffmpeg_dir = self.get_parent_folder(ffmpeg_path)
-        # sys.path.append(ffmpeg_dir)
-        # logger.info("Adding path to ffmpeg: %s", ffmpeg_dir)
-        self.append_env_list([ffmpeg_dir], os.environ)
+        Note: Requires HuggingFace token for pyannote.audio models
+        Set HF_TOKEN environment variable or pass directly
+        """
+        try:
+            # Get HuggingFace token from environment
+            hf_token = os.environ.get("HF_TOKEN")
+            if not hf_token:
+                logger.warning("HF_TOKEN not set, skipping diarization")
+                return result
 
-        # Check that cuda is available:
-        self.check(torch.cuda.is_available(), "Torch CUDA backend is not available ?")
+            logger.info("Running speaker diarization...")
+            diarize_model = whisperx.DiarizationPipeline(use_auth_token=hf_token, device=device)
 
-        start_time = time.time()
-        logger.info("Loading model...")
-        model = whisper.load_model(model)
+            diarize_segments = diarize_model(audio)
+            result = whisperx.assign_word_speakers(diarize_segments, result)
 
-        logger.info("Transcribing...")
-        result = model.transcribe(file)
-        txt = result["text"]
-        elapsed = time.time() - start_time
-        self.write_text_file(txt, file + ".txt")
-        logger.info("Done converting auto to text in %.2f secs", elapsed)
-        logger.info("Generated output: %s", txt)
+            logger.info("Diarization complete")
+            return result
 
-        # When done generating a file we should also count the number of words, and split on
-        # multiple chunks if needed:
-        self.split_text_chunks(file + ".txt", nwords)
-
-        return True
+        except Exception as e:
+            logger.warning("Diarization failed: %s", str(e))
+            return result
 
     def split_text_chunks(self, filename, num_words):
         """Split a given text file into multiple chunk files"""
@@ -255,7 +231,7 @@ if __name__ == "__main__":
 
     psr = context.build_parser("convert")
     psr.add_str("-i", "--input", dest="input_file", default="all")("Audio file to convert to text")
-    psr.add_str("-m", "--model", dest="model", default="large")("Model to use for the convertion")
+    psr.add_str("-m", "--model", dest="model", default="large-v3")("Model to use for the convertion")
     psr.add_int("-n", "--nwords", dest="num_words", default=3000)("Number of words to write per chunk.")
 
     psr = context.build_parser("split_text")
