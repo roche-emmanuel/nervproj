@@ -331,6 +331,10 @@ libraries:
     windows_url: http://files.nervtech.org/nvp_packages/sources/qt-everywhere-src-6.7.1.zip
     linux_url: http://files.nervtech.org/nvp_packages/sources/qt-everywhere-src-6.7.1.tar.xz
 
+  - name: QT_ADS
+    version: 4.5.0
+    url: git@github.com:roche-emmanuel/Qt-Advanced-Docking-System.git
+
   - name: openssl
     version: 3.0.8
     url: https://www.openssl.org/source/openssl-3.0.8.tar.gz
