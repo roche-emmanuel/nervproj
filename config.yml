@@ -558,6 +558,9 @@ libraries:
   - name: GKlib
     version: 260331
     url: git@github.com:roche-emmanuel/GKlib.git
+  - name: METIS
+    version: 260331
+    url: git@github.com:roche-emmanuel/METIS.git
 
 # list of available projects:
 projects: []
