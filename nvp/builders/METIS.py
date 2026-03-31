@@ -74,6 +74,13 @@ class Builder(NVPBuilder):
             f"-DGKLIB_PATH={gklib_dir}",
         ]
 
+        tgt_file = self.get_path(build_dir, "include/metis.h")
+        self.multi_patch_file(
+            tgt_file,
+            ("//#define IDXTYPEWIDTH 32", "#define IDXTYPEWIDTH 32"),
+            ("//#define REALTYPEWIDTH 32", "#define REALTYPEWIDTH 32"),
+        )
+
         tgt_file = self.get_path(build_dir, "CMakeLists.txt")
         self.multi_patch_file(
             tgt_file,
