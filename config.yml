@@ -555,6 +555,9 @@ libraries:
   - name: meshoptimizer
     version: 1.0
     url: git@github.com:roche-emmanuel/meshoptimizer.git
+  - name: GKlib
+    version: 260331
+    url: git@github.com:roche-emmanuel/GKlib.git
 
 # list of available projects:
 projects: []
