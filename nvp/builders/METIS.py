@@ -74,5 +74,12 @@ class Builder(NVPBuilder):
             f"-DGKLIB_PATH={gklib_dir}",
         ]
 
+        tgt_file = self.get_path(build_dir, "CMakeLists.txt")
+        self.multi_patch_file(
+            tgt_file,
+            ("include_directories(build/xinclude)", "include_directories(include)"),
+            ('add_subdirectory("build/xinclude")', "add_subdirectory(include)"),
+        )
+
         self.run_cmake(build_dir, prefix, ".", flags=flags)
         self.run_ninja(self.get_path(build_dir, "release_build"))
