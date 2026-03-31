@@ -552,6 +552,9 @@ libraries:
   - name: secp256k1
     version: git-20260208
     git: git@github.com:roche-emmanuel/secp256k1.git
+  - name: meshoptimizer
+    version: 1.0
+    url: git@github.com:roche-emmanuel/meshoptimizer.git
 
 # list of available projects:
 projects: []
