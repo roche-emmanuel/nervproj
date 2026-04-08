@@ -31,7 +31,27 @@ class DevUtils(NVPComponent):
             self.compare_folders(input_folder, ref_folder)
             return True
 
+        if cmd == "collect-content":
+            input_folder = self.get_cwd()
+            self.collect_content(input_folder)
+            return True
+
         return False
+
+    def collect_content(self, folder):
+        """Collect all content from files:"""
+        allfiles = self.get_all_files(folder, recursive=True)
+        exts = [".py", ".h", ".cpp", ".wgsl"]
+        contents = []
+        for f in allfiles:
+            if self.get_path_extension(f) not in exts:
+                continue
+
+            self.info(f"Reading file {f}")
+            contents.append(f"// File: {f}:\n")
+            contents.append(self.read_text_file(f))
+
+        self.write_text_file("\n".join(contents), "contents.log")
 
     def compare_images(self, image1_path, image2_path, tolerance=0.05):
         """Compare 2 images with a given tolerance threshold."""
@@ -122,5 +142,8 @@ if __name__ == "__main__":
     psr = context.build_parser("compare-folders")
     psr.add_str("-i", "--input", dest="input_folder")("Input folder to process")
     psr.add_str("-r", "--ref", dest="ref_folder")("Ref folder to process")
+
+    psr = context.build_parser("collect-content")
+    # psr.add_str("-i", "--input", dest="input_folder")("Input folder to process")
 
     comp.run()
