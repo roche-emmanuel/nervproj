@@ -41,7 +41,7 @@ class DevUtils(NVPComponent):
     def collect_content(self, folder):
         """Collect all content from files:"""
         allfiles = self.get_all_files(folder, recursive=True)
-        exts = [".py", ".h", ".cpp", ".wgsl"]
+        exts = [".py", ".h", ".cpp", ".wgsl", ".yml", ".json"]
         contents = []
         for f in allfiles:
             if self.get_path_extension(f) not in exts:
