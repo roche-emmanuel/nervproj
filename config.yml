@@ -1002,8 +1002,10 @@ scripts:
     python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
 
   # Usage:
-  # nvp get_content -o my_output.log
-  # nvp get_content -p "*.h;gui/*.cpp" -o my_output.log
+  # nvp collect-content                                      # all non-binary files
+  # nvp collect-content -p "*.h;*.cpp"                      # explicit include
+  # nvp collect-content -p "*.h;*.cpp" -x "build/*;*.gen.*" # include then exclude
+  # nvp collect-content -x "*.min.js;node_modules/*" -o my.api.txt
   get_content:
     notify: false
     custom_python_env: media_env

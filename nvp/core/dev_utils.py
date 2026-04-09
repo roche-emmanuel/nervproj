@@ -38,7 +38,8 @@ class DevUtils(NVPComponent):
             patterns = self.get_param("patterns")
             ignore_patterns = self.get_param("ignore_patterns")
             output_file = self.get_param("output_file")
-            self.collect_content(input_folder, patterns, ignore_patterns, output_file)
+            include_api_txt = self.get_param("include_api_txt", False)
+            self.collect_content(input_folder, patterns, ignore_patterns, output_file, include_api_txt)
             return True
 
         if cmd == "clean-log":
@@ -62,7 +63,7 @@ class DevUtils(NVPComponent):
         except OSError:
             return True
 
-    def collect_content(self, folder, patterns=None, ignore_patterns=None, output_file=None):
+    def collect_content(self, folder, patterns=None, ignore_patterns=None, output_file=None, include_api_txt=False):
         """Collect all content from files in the given folder.
 
         File selection works in three steps:
@@ -80,8 +81,11 @@ class DevUtils(NVPComponent):
            if they turn out to be binary (only relevant when no -p is given,
            since explicit patterns imply the caller knows the file type).
 
+        *.api.txt files are always excluded unless include_api_txt is True.
+
         Each included file is preceded by a header line reporting its size in
-        bytes and as a percentage of the total content size.
+        bytes and as a percentage of the total content size.  Files are written
+        in ascending size order (smallest first, largest last).
 
         output_file sets the destination file name (default: "content.api.txt").
         """
@@ -95,6 +99,10 @@ class DevUtils(NVPComponent):
             # No explicit pattern: collect everything that is not binary.
             allfiles = [f for f in allfiles if not self.is_binary_file(self.get_path(folder, f))]
 
+        # --- always exclude *.api.txt unless the caller explicitly opts in ---
+        if not include_api_txt:
+            allfiles = [f for f in allfiles if not fnmatch.fnmatch(f, "*.api.txt")]
+
         # --- exclude filter ---
         if ignore_patterns is not None:
             ignore_globs = [p.strip() for p in ignore_patterns.split(";") if p.strip()]
@@ -104,9 +112,12 @@ class DevUtils(NVPComponent):
             logger.info("No files matched the selection criteria.")
             return
 
-        # Pre-compute file sizes so we can report percentages.
+        # Pre-compute file sizes so we can report percentages and sort.
         file_sizes = {f: self.get_file_size(self.get_path(folder, f)) for f in allfiles}
         total_size = sum(file_sizes.values())
+
+        # Write smaller files first, larger files last.
+        allfiles = sorted(allfiles, key=lambda f: file_sizes[f])
 
         contents = []
         for f in allfiles:
@@ -239,6 +250,9 @@ if __name__ == "__main__":
     )
     psr.add_str("-o", "--output", dest="output_file", nargs="?", default=None)(
         "Output file name. Defaults to 'content.api.txt' when omitted."
+    )
+    psr.add_flag("--include-api-txt", dest="include_api_txt")(
+        "When set, *.api.txt files are not excluded from the collection."
     )
 
     psr = context.build_parser("clean-log")
