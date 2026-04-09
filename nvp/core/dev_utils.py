@@ -1,5 +1,6 @@
 """Dev utils module."""
 
+import fnmatch
 import logging
 import re
 
@@ -34,7 +35,8 @@ class DevUtils(NVPComponent):
 
         if cmd == "collect-content":
             input_folder = self.get_cwd()
-            self.collect_content(input_folder)
+            patterns = self.get_param("patterns")
+            self.collect_content(input_folder, patterns)
             return True
 
         if cmd == "clean-log":
@@ -44,18 +46,34 @@ class DevUtils(NVPComponent):
 
         return False
 
-    def collect_content(self, folder):
-        """Collect all content from files:"""
+    def collect_content(self, folder, patterns=None):
+        """Collect all content from files in the given folder.
+
+        If patterns is provided, it should be a semicolon-separated list of glob
+        patterns used to select files (e.g. "*.h;gui/*.cpp;config/*.yml").
+        Each pattern is matched against the relative file path, so subdirectory
+        patterns like "gui/*.cpp" work as expected.
+
+        When no patterns are given, the default selection is applied: .py, .h,
+        .cpp and .wgsl files anywhere under the folder.
+        """
         allfiles = self.get_all_files(folder, recursive=True)
-        exts = [".py", ".h", ".cpp", ".wgsl", ".yml", ".json"]
+
+        if patterns is not None:
+            # Split the semicolon-separated list and strip any surrounding whitespace.
+            glob_patterns = [p.strip() for p in patterns.split(";") if p.strip()]
+            # Keep a file if it matches any of the provided glob patterns.
+            allfiles = [f for f in allfiles if any(fnmatch.fnmatch(f, p) for p in glob_patterns)]
+        else:
+            # Default: collect the standard source/script extensions.
+            exts = {".py", ".h", ".cpp", ".wgsl", ".yml", ".json"}
+            allfiles = [f for f in allfiles if self.get_path_extension(f) in exts]
+
         contents = []
         for f in allfiles:
-            if self.get_path_extension(f) not in exts:
-                continue
-
             self.info(f"Reading file {f}")
             contents.append(f"// File: {f}:\n")
-            contents.append(self.read_text_file(f))
+            contents.append(self.read_text_file(self.get_path(folder, f)))
 
         self.write_text_file("\n".join(contents), "contents.log")
 
@@ -169,6 +187,10 @@ if __name__ == "__main__":
     psr.add_str("-r", "--ref", dest="ref_folder")("Ref folder to process")
 
     psr = context.build_parser("collect-content")
+    psr.add_str("-p", "--patterns", dest="patterns", nargs="?", default=None)(
+        "Semicolon-separated glob patterns to select files (e.g. '*.h;gui/*.cpp;*.log'). "
+        "Defaults to .py/.h/.cpp/.wgsl when omitted."
+    )
 
     psr = context.build_parser("clean-log")
     psr.add_str("input_file")("Log file to clean")
