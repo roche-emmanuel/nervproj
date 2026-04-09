@@ -36,8 +36,9 @@ class DevUtils(NVPComponent):
         if cmd == "collect-content":
             input_folder = self.get_cwd()
             patterns = self.get_param("patterns")
+            ignore_patterns = self.get_param("ignore_patterns")
             output_file = self.get_param("output_file")
-            self.collect_content(input_folder, patterns, output_file)
+            self.collect_content(input_folder, patterns, ignore_patterns, output_file)
             return True
 
         if cmd == "clean-log":
@@ -47,38 +48,76 @@ class DevUtils(NVPComponent):
 
         return False
 
-    def collect_content(self, folder, patterns=None, output_file=None):
+    @staticmethod
+    def is_binary_file(filepath):
+        """Return True if the file appears to be binary.
+
+        Reads the first 8 KB and checks for null bytes, which are a reliable
+        indicator of binary content in practice.
+        """
+        try:
+            with open(filepath, "rb") as fh:
+                chunk = fh.read(8192)
+            return b"\x00" in chunk
+        except OSError:
+            return True
+
+    def collect_content(self, folder, patterns=None, ignore_patterns=None, output_file=None):
         """Collect all content from files in the given folder.
 
-        If patterns is provided, it should be a semicolon-separated list of glob
-        patterns used to select files (e.g. "*.h;gui/*.cpp;config/*.yml").
-        Each pattern is matched against the relative file path, so subdirectory
-        patterns like "gui/*.cpp" work as expected.
+        File selection works in three steps:
 
-        When no patterns are given, the default selection is applied: .py, .h,
-        .cpp and .wgsl files anywhere under the folder.
+        1. Include filter (-p / patterns): if provided, keep only files whose
+           relative path matches at least one of the semicolon-separated glob
+           patterns (e.g. "*.h;gui/*.cpp;config/*.yml").  When omitted, all
+           non-binary files found recursively under folder are kept.
 
-        output_file specifies the destination file name. Defaults to "contents.log".
+        2. Exclude filter (-x / ignore_patterns): if provided, drop any file
+           whose relative path matches at least one of the semicolon-separated
+           glob patterns.  Applied after the include filter.
+
+        3. Binary guard: files that survive both filters are skipped silently
+           if they turn out to be binary (only relevant when no -p is given,
+           since explicit patterns imply the caller knows the file type).
+
+        Each included file is preceded by a header line reporting its size in
+        bytes and as a percentage of the total content size.
+
+        output_file sets the destination file name (default: "content.api.txt").
         """
         allfiles = self.get_all_files(folder, recursive=True)
 
+        # --- include filter ---
         if patterns is not None:
-            # Split the semicolon-separated list and strip any surrounding whitespace.
             glob_patterns = [p.strip() for p in patterns.split(";") if p.strip()]
-            # Keep a file if it matches any of the provided glob patterns.
             allfiles = [f for f in allfiles if any(fnmatch.fnmatch(f, p) for p in glob_patterns)]
         else:
-            # Default: collect the standard source/script extensions.
-            exts = {".py", ".h", ".cpp", ".wgsl", ".yml", ".json"}
-            allfiles = [f for f in allfiles if self.get_path_extension(f) in exts]
+            # No explicit pattern: collect everything that is not binary.
+            allfiles = [f for f in allfiles if not self.is_binary_file(self.get_path(folder, f))]
+
+        # --- exclude filter ---
+        if ignore_patterns is not None:
+            ignore_globs = [p.strip() for p in ignore_patterns.split(";") if p.strip()]
+            allfiles = [f for f in allfiles if not any(fnmatch.fnmatch(f, p) for p in ignore_globs)]
+
+        if not allfiles:
+            logger.info("No files matched the selection criteria.")
+            return
+
+        # Pre-compute file sizes so we can report percentages.
+        file_sizes = {f: self.get_file_size(self.get_path(folder, f)) for f in allfiles}
+        total_size = sum(file_sizes.values())
 
         contents = []
         for f in allfiles:
-            self.info(f"Reading file {f}")
-            contents.append(f"// File: {f}:\n")
+            size = file_sizes[f]
+            pct = (size / total_size * 100.0) if total_size > 0 else 0.0
+            logger.info("Reading file %s (%d bytes, %.1f%%)", f, size, pct)
+            contents.append(f"// File: {f} ({size} bytes, {pct:.1f}% of total):\n")
             contents.append(self.read_text_file(self.get_path(folder, f)))
 
-        self.write_text_file("\n".join(contents), output_file or "contents.log")
+        logger.info("Collected %d files, total size: %d bytes.", len(allfiles), total_size)
+        self.write_text_file("\n".join(contents), output_file or "content.api.txt")
 
     def clean_log_file(self, input_file):
         """Clean a log file by removing [Debug 2] to [Debug 5] lines.
@@ -192,10 +231,14 @@ if __name__ == "__main__":
     psr = context.build_parser("collect-content")
     psr.add_str("-p", "--patterns", dest="patterns", nargs="?", default=None)(
         "Semicolon-separated glob patterns to select files (e.g. '*.h;gui/*.cpp;*.log'). "
-        "Defaults to .py/.h/.cpp/.wgsl when omitted."
+        "Defaults to all non-binary files when omitted."
+    )
+    psr.add_str("-x", "--ignore", dest="ignore_patterns", nargs="?", default=None)(
+        "Semicolon-separated glob patterns for files to exclude (e.g. '*.min.js;build/*'). "
+        "Applied after the -p include filter."
     )
     psr.add_str("-o", "--output", dest="output_file", nargs="?", default=None)(
-        "Output file name. Defaults to 'contents.log' when omitted."
+        "Output file name. Defaults to 'content.api.txt' when omitted."
     )
 
     psr = context.build_parser("clean-log")
