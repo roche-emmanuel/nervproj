@@ -1,6 +1,7 @@
 """Dev utils module."""
 
 import logging
+import re
 
 import numpy as np
 from PIL import Image
@@ -36,6 +37,11 @@ class DevUtils(NVPComponent):
             self.collect_content(input_folder)
             return True
 
+        if cmd == "clean-log":
+            input_file = self.get_param("input_file")
+            self.clean_log_file(input_file)
+            return True
+
         return False
 
     def collect_content(self, folder):
@@ -52,6 +58,26 @@ class DevUtils(NVPComponent):
             contents.append(self.read_text_file(f))
 
         self.write_text_file("\n".join(contents), "contents.log")
+
+    def clean_log_file(self, input_file):
+        """Clean a log file by removing [Debug 2] to [Debug 5] lines.
+
+        Writes the result to <basename>.cleaned.log next to the input file,
+        preserving original line endings.
+        """
+        content = self.read_text_file(input_file)
+        lines = content.splitlines(keepends=True)
+
+        pat = re.compile(r"\[Debug [2-5]\]")
+        cleaned_lines = [line for line in lines if not pat.search(line)]
+
+        removed = len(lines) - len(cleaned_lines)
+        logger.info("Removed %d debug lines out of %d total.", removed, len(lines))
+
+        base = self.set_path_extension(input_file, "")
+        output_file = base + ".cleaned.log"
+        self.write_text_file("".join(cleaned_lines), output_file)
+        logger.info("Cleaned log written to %s", output_file)
 
     def compare_images(self, image1_path, image2_path, tolerance=0.05):
         """Compare 2 images with a given tolerance threshold."""
@@ -90,7 +116,7 @@ class DevUtils(NVPComponent):
             logger.info("Folders are the same, nothing to compare.")
             return
 
-        # get all input files:
+        # Get all input files:
         cur_files = self.get_all_files(input_folder, recursive=True)
 
         # Get all ref files:
@@ -98,13 +124,13 @@ class DevUtils(NVPComponent):
 
         diffs = 0
 
-        # Check for the new files:
+        # Check for new files (present in input but not in ref):
         for cfile in cur_files:
-            if cfile not in cur_files:
+            if cfile not in ref_files:
                 logger.info("File %s was added.", cfile)
                 diffs += 1
 
-        # iterate on all the ref files:
+        # Iterate on all the ref files:
         for rfile in ref_files:
             if rfile not in cur_files:
                 logger.info("File %s was removed.", rfile)
@@ -119,7 +145,6 @@ class DevUtils(NVPComponent):
                 if cur_size != ref_size:
                     are_similar = False
                     if self.get_path_extension(rfile).lower() == ".png":
-                        # logger.info("Comparing %s images...", rfile)
                         are_similar = self.compare_images(cur_path, ref_path, 0.0005)
 
                     if not are_similar:
@@ -144,6 +169,8 @@ if __name__ == "__main__":
     psr.add_str("-r", "--ref", dest="ref_folder")("Ref folder to process")
 
     psr = context.build_parser("collect-content")
-    # psr.add_str("-i", "--input", dest="input_folder")("Input folder to process")
+
+    psr = context.build_parser("clean-log")
+    psr.add_str("input_file")("Log file to clean")
 
     comp.run()
