@@ -36,7 +36,8 @@ class DevUtils(NVPComponent):
         if cmd == "collect-content":
             input_folder = self.get_cwd()
             patterns = self.get_param("patterns")
-            self.collect_content(input_folder, patterns)
+            output_file = self.get_param("output_file")
+            self.collect_content(input_folder, patterns, output_file)
             return True
 
         if cmd == "clean-log":
@@ -46,7 +47,7 @@ class DevUtils(NVPComponent):
 
         return False
 
-    def collect_content(self, folder, patterns=None):
+    def collect_content(self, folder, patterns=None, output_file=None):
         """Collect all content from files in the given folder.
 
         If patterns is provided, it should be a semicolon-separated list of glob
@@ -56,6 +57,8 @@ class DevUtils(NVPComponent):
 
         When no patterns are given, the default selection is applied: .py, .h,
         .cpp and .wgsl files anywhere under the folder.
+
+        output_file specifies the destination file name. Defaults to "contents.log".
         """
         allfiles = self.get_all_files(folder, recursive=True)
 
@@ -75,7 +78,7 @@ class DevUtils(NVPComponent):
             contents.append(f"// File: {f}:\n")
             contents.append(self.read_text_file(self.get_path(folder, f)))
 
-        self.write_text_file("\n".join(contents), "contents.log")
+        self.write_text_file("\n".join(contents), output_file or "contents.log")
 
     def clean_log_file(self, input_file):
         """Clean a log file by removing [Debug 2] to [Debug 5] lines.
@@ -190,6 +193,9 @@ if __name__ == "__main__":
     psr.add_str("-p", "--patterns", dest="patterns", nargs="?", default=None)(
         "Semicolon-separated glob patterns to select files (e.g. '*.h;gui/*.cpp;*.log'). "
         "Defaults to .py/.h/.cpp/.wgsl when omitted."
+    )
+    psr.add_str("-o", "--output", dest="output_file", nargs="?", default=None)(
+        "Output file name. Defaults to 'contents.log' when omitted."
     )
 
     psr = context.build_parser("clean-log")

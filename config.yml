@@ -1001,6 +1001,9 @@ scripts:
     cmd: ${PYTHON} -m awscli
     python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
 
+  # Usage:
+  # nvp get_content -o my_output.log
+  # nvp get_content -p "*.h;gui/*.cpp" -o my_output.log
   get_content:
     notify: false
     custom_python_env: media_env
