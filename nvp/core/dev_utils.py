@@ -103,6 +103,15 @@ class DevUtils(NVPComponent):
         if not include_api_txt:
             allfiles = [f for f in allfiles if not fnmatch.fnmatch(f, "*.api.txt")]
 
+        # --- always exclude files coming from .git/ or .github/ trees (at any depth) ---
+        allfiles = [
+            f
+            for f in allfiles
+            if not any(
+                fnmatch.fnmatch(f.replace("\\", "/"), p) for p in (".git/*", "*/.git/*", ".github/*", "*/.github/*")
+            )
+        ]
+
         # --- exclude filter ---
         if ignore_patterns is not None:
             ignore_globs = [p.strip() for p in ignore_patterns.split(";") if p.strip()]
@@ -113,8 +122,10 @@ class DevUtils(NVPComponent):
             return
 
         # Pre-compute file sizes so we can report percentages and sort.
+        # Empty files are excluded: they carry no content and would skew percentages.
         file_sizes = {f: self.get_file_size(self.get_path(folder, f)) for f in allfiles}
-        total_size = sum(file_sizes.values())
+        allfiles = [f for f in allfiles if file_sizes[f] > 0]
+        total_size = sum(file_sizes[f] for f in allfiles)
 
         # Write smaller files first, larger files last.
         allfiles = sorted(allfiles, key=lambda f: file_sizes[f])
