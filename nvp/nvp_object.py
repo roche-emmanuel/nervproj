@@ -338,9 +338,17 @@ class NVPObject(object):
         infos = os.lstat(my_path)
         return int(infos.st_mtime)
 
+    # def get_cwd(self):
+    #     """Return the current CWD"""
+    #     cwd = os.getenv("PWD", os.getcwd())
+    #     if self.is_windows and cwd.startswith("/"):
+    #         # We are probably in a cygwin env:
+    #         cwd = self.from_cygwin_path(cwd)
+    #     return cwd
+
     def get_cwd(self):
         """Return the current CWD"""
-        cwd = os.getenv("PWD", os.getcwd())
+        cwd = os.getcwd()
         if self.is_windows and cwd.startswith("/"):
             # We are probably in a cygwin env:
             cwd = self.from_cygwin_path(cwd)
