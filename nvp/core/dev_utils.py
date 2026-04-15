@@ -39,7 +39,8 @@ class DevUtils(NVPComponent):
             ignore_patterns = self.get_param("ignore_patterns")
             output_file = self.get_param("output_file")
             include_api_txt = self.get_param("include_api_txt", False)
-            self.collect_content(input_folder, patterns, ignore_patterns, output_file, include_api_txt)
+            append = self.get_param("append", False)
+            self.collect_content(input_folder, patterns, ignore_patterns, output_file, include_api_txt, append)
             return True
 
         if cmd == "clean-log":
@@ -63,7 +64,9 @@ class DevUtils(NVPComponent):
         except OSError:
             return True
 
-    def collect_content(self, folder, patterns=None, ignore_patterns=None, output_file=None, include_api_txt=False):
+    def collect_content(
+        self, folder, patterns=None, ignore_patterns=None, output_file=None, include_api_txt=False, append=False
+    ):
         """Collect all content from files in the given folder.
 
         File selection works in three steps:
@@ -88,6 +91,8 @@ class DevUtils(NVPComponent):
         in ascending size order (smallest first, largest last).
 
         output_file sets the destination file name (default: "content.api.txt").
+        When append is True, content is appended to the output file instead of
+        overwriting it.
         """
         allfiles = self.get_all_files(folder, recursive=True)
 
@@ -139,7 +144,9 @@ class DevUtils(NVPComponent):
             contents.append(self.read_text_file(self.get_path(folder, f)))
 
         logger.info("Collected %d files, total size: %d bytes.", len(allfiles), total_size)
-        self.write_text_file("\n".join(contents), output_file or "content.api.txt")
+        dest = output_file or "content.api.txt"
+        self.write_text_file("\n".join(contents), dest, mode="a" if append else "w")
+        logger.info("%s content to %s.", "Appended" if append else "Written", dest)
 
     def clean_log_file(self, input_file):
         """Clean a log file by removing [Debug 2] to [Debug 5] lines.
@@ -264,6 +271,9 @@ if __name__ == "__main__":
     )
     psr.add_flag("--include-api-txt", dest="include_api_txt")(
         "When set, *.api.txt files are not excluded from the collection."
+    )
+    psr.add_flag("-a", "--append", dest="append")(
+        "When set, content is appended to the output file instead of overwriting it."
     )
 
     psr = context.build_parser("clean-log")
