@@ -140,7 +140,8 @@ class NVPComponent(NVPObject):
         # args = list(args)[1:]
         # rcode = runner.run_script(script_name, None, args)
 
-        cmd = [self.get_path(root_dir, "nvp.bat")] + list(args)
+        cmd = ["nvp"] if self.is_linux else [self.get_path(root_dir, "nvp.bat")]
+        cmd = cmd + list(args)
 
         # _stdout, stderr, returncode = self.execute_command(cmd)
         success, _rcode, outputs = self.execute(cmd, **kwargs)
