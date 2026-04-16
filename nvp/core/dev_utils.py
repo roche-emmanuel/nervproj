@@ -113,7 +113,8 @@ class DevUtils(NVPComponent):
             f
             for f in allfiles
             if not any(
-                fnmatch.fnmatch(f.replace("\\", "/"), p) for p in (".git/*", "*/.git/*", ".github/*", "*/.github/*")
+                fnmatch.fnmatch(f.replace("\\", "/"), p)
+                for p in (".git/*", "*/.git/*", ".github/*", "*/.github/*", "*.private.h")
             )
         ]
 
