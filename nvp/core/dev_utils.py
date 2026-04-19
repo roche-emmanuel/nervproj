@@ -74,25 +74,25 @@ class DevUtils(NVPComponent):
         1. Include filter (-p / patterns): if provided, keep only files whose
            relative path matches at least one of the semicolon-separated glob
            patterns (e.g. "*.h;gui/*.cpp;config/*.yml").  When omitted, all
-           non-binary files found recursively under folder are kept.
+           files found recursively under folder are kept.
 
         2. Exclude filter (-x / ignore_patterns): if provided, drop any file
            whose relative path matches at least one of the semicolon-separated
            glob patterns.  Applied after the include filter.
 
-        3. Binary guard: files that survive both filters are skipped silently
-           if they turn out to be binary (only relevant when no -p is given,
-           since explicit patterns imply the caller knows the file type).
+        3. Binary detection: binary files are not inlined but still appear in
+           the output as a header-only entry (filename + size) so the reader
+           knows they exist.  When -p is given, all matched files are treated
+           as text (the caller is assumed to know the file type).
 
         *.api.txt files are always excluded unless include_api_txt is True.
 
-        Each included file is preceded by a header line reporting its size in
-        bytes and as a percentage of the total content size.  Files are written
-        in ascending size order (smallest first, largest last).
+        Text files are written in ascending size order (smallest first, largest
+        last), preceded by binary-file header lines.  Each entry reports its
+        size in bytes and as a percentage of the combined total.
 
         output_file sets the destination file name (default: "content.api.txt").
-        When append is True, content is appended to the output file instead of
-        overwriting it.
+        When append is True, content is appended instead of overwriting.
         """
         allfiles = self.get_all_files(folder, recursive=True)
 
@@ -100,9 +100,7 @@ class DevUtils(NVPComponent):
         if patterns is not None:
             glob_patterns = [p.strip() for p in patterns.split(";") if p.strip()]
             allfiles = [f for f in allfiles if any(fnmatch.fnmatch(f, p) for p in glob_patterns)]
-        else:
-            # No explicit pattern: collect everything that is not binary.
-            allfiles = [f for f in allfiles if not self.is_binary_file(self.get_path(folder, f))]
+        # No explicit pattern: keep all files; binary ones become header-only entries.
 
         # --- always exclude *.api.txt unless the caller explicitly opts in ---
         if not include_api_txt:
@@ -127,24 +125,45 @@ class DevUtils(NVPComponent):
             logger.info("No files matched the selection criteria.")
             return
 
-        # Pre-compute file sizes so we can report percentages and sort.
-        # Empty files are excluded: they carry no content and would skew percentages.
+        # Pre-compute file sizes. Empty files are excluded entirely.
         file_sizes = {f: self.get_file_size(self.get_path(folder, f)) for f in allfiles}
         allfiles = [f for f in allfiles if file_sizes[f] > 0]
-        total_size = sum(file_sizes[f] for f in allfiles)
 
-        # Write smaller files first, larger files last.
-        allfiles = sorted(allfiles, key=lambda f: file_sizes[f])
+        # Split into text and binary. When -p was given, trust the caller and treat
+        # all matched files as text to avoid unnecessary reads.
+        if patterns is not None:
+            text_files = allfiles
+            binary_files = []
+        else:
+            binary_files = [f for f in allfiles if self.is_binary_file(self.get_path(folder, f))]
+            binary_set = set(binary_files)
+            text_files = [f for f in allfiles if f not in binary_set]
+
+        # Percentages are computed relative to text content only — binary files are
+        # listed for reference but their size does not count towards the total.
+        total_size = sum(file_sizes[f] for f in text_files)
 
         contents = []
-        for f in allfiles:
+
+        # Binary file headers first, sorted by size ascending.
+        for f in sorted(binary_files, key=lambda f: file_sizes[f]):
+            size = file_sizes[f]
+            pct = (size / total_size * 100.0) if total_size > 0 else 0.0
+            logger.info("Skipping binary file %s (%d bytes, %.1f%%)", f, size, pct)
+            contents.append(f"// File: {f} ({size} bytes, {pct:.1f}% of total, binary)")
+
+        # Text file contents, sorted by size ascending (smallest first, largest last).
+        for f in sorted(text_files, key=lambda f: file_sizes[f]):
             size = file_sizes[f]
             pct = (size / total_size * 100.0) if total_size > 0 else 0.0
             logger.info("Reading file %s (%d bytes, %.1f%%)", f, size, pct)
             contents.append(f"// File: {f} ({size} bytes, {pct:.1f}% of total):\n")
             contents.append(self.read_text_file(self.get_path(folder, f)))
 
-        logger.info("Collected %d files, total size: %d bytes.", len(allfiles), total_size)
+        logger.info(
+            "Collected %d text files and %d binary files, total size: %d bytes.",
+            len(text_files), len(binary_files), total_size,
+        )
         dest = output_file or "content.api.txt"
         self.write_text_file("\n".join(contents), dest, mode="a" if append else "w")
         logger.info("%s content to %s.", "Appended" if append else "Written", dest)
