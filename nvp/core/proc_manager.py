@@ -63,12 +63,17 @@ class ProcessManager(NVPComponent):
     def cmd_check(self):
         """Check every configured process; start any that are not running."""
         for desc in self._get_proc_descs():
-            if not desc.get("enabled", True):
-                continue
             label = desc["label"]
-            if not self._is_running(desc):
-                self._log(f"[{label}] Not running — starting...")
+            enabled = desc.get("enabled", True)
+            running = self._is_running(desc)
+
+            if enabled and not running:
+                self._log(f"[{label}] Enabled and not running: starting...")
                 self._start(desc, reason="monitor")
+            elif not enabled and running:
+                self._log(f"[{label}] Disabled and running: stopping...")
+                self._stop(desc, reason="monitor")
+
         return True
 
     def cmd_restart(self, label=None):
@@ -85,7 +90,7 @@ class ProcessManager(NVPComponent):
     def cmd_stop(self, label=None):
         """Stop one process (by label) or all of them."""
         for desc in self._get_targets(label):
-            self._stop(desc)
+            self._stop(desc, reason="manual stop")
         return True
 
     def cmd_status(self):
@@ -141,15 +146,6 @@ class ProcessManager(NVPComponent):
         """
         # runner = self.get_component("runner")
         runner = ScriptRunner(self.ctx)
-
-        # Build a minimal script desc that the Runner understands.
-        # We pass through every key the runner knows about so placeholder
-        # expansion, python env lookup and PATH injection all work correctly.
-        script_desc = {
-            k: v
-            for k, v in desc.items()
-            if k not in ("label", "enabled", "cmd_pattern", "notify", "notify_channel", "log_file", "pid_file")
-        }
 
         # Resolve using the runner's full hlocs + pyenv pipeline.
         hlocs = self.ctx.get_known_vars()
@@ -244,7 +240,7 @@ class ProcessManager(NVPComponent):
         )
 
         # Post-start health check: wait briefly then confirm the process is still alive.
-        delay = self.config.get("start_check_delay", 5)
+        delay = desc.get("start_check_delay", self.config.get("start_check_delay", 5))
         self._log(f"[{label}] Waiting {delay}s to confirm process is running...")
         time.sleep(delay)
         if not self._is_running(desc):
@@ -252,7 +248,7 @@ class ProcessManager(NVPComponent):
             self._log(msg)
             self._notify(desc, f":x: **[proc_manager]** `{label}` — {msg}")
 
-    def _stop(self, desc, timeout=5):
+    def _stop(self, desc, timeout=5, reason=None):
         """Gracefully stop a process (SIGTERM → wait → SIGKILL)."""
         label = desc["label"]
         pid_file = self._pid_file(desc)
@@ -296,6 +292,12 @@ class ProcessManager(NVPComponent):
         if os.path.isfile(pid_file):
             os.remove(pid_file)
         self._log(f"[{label}] Stopped.")
+
+        if reason is not None:
+            self._notify(
+                desc,
+                f":white_check_mark: **[proc_manager]** `{label}` stopped (was PID {pid}) — reason: _{reason}_",
+            )
 
     # -------------------------------------------------------------------------
     # Utilities
