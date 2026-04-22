@@ -243,6 +243,15 @@ class ProcessManager(NVPComponent):
             f":white_check_mark: **[proc_manager]** `{label}` started (PID {proc.pid}) — reason: _{reason}_",
         )
 
+        # Post-start health check: wait briefly then confirm the process is still alive.
+        delay = self.config.get("start_check_delay", 5)
+        self._log(f"[{label}] Waiting {delay}s to confirm process is running...")
+        time.sleep(delay)
+        if not self._is_running(desc):
+            msg = f"[{label}] Process failed to stay running after start!"
+            self._log(msg)
+            self._notify(desc, f":x: **[proc_manager]** `{label}` — {msg}")
+
     def _stop(self, desc, timeout=5):
         """Gracefully stop a process (SIGTERM → wait → SIGKILL)."""
         label = desc["label"]
