@@ -7,6 +7,7 @@ import subprocess
 import time
 from datetime import datetime
 
+from nvp.components.runner import ScriptRunner
 from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
 
@@ -138,7 +139,8 @@ class ProcessManager(NVPComponent):
 
         Returns (cmd_list, cwd_str, env_dict).
         """
-        runner = self.get_component("runner")
+        # runner = self.get_component("runner")
+        runner = ScriptRunner(self.ctx)
 
         # Build a minimal script desc that the Runner understands.
         # We pass through every key the runner knows about so placeholder
