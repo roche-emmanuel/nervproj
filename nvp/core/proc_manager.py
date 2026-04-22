@@ -301,7 +301,7 @@ class ProcessManager(NVPComponent):
     def _pid_file(self, desc):
         """Resolve the PID file path for a descriptor."""
         pid_dir = self.ctx.resolve_path(self.config.get("pid_dir", "/tmp"))
-        default = os.path.join(pid_dir, f"nvp_{desc['label'].replace(' ', '_')}.pid")
+        default = os.path.join(pid_dir, f"{desc['label'].replace(' ', '_')}.pid")
         return self.ctx.resolve_path(desc.get("pid_file", default))
 
     def _ts(self):
