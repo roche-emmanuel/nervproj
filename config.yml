@@ -1020,7 +1020,7 @@ scripts:
 
   pman:
     notify: false
-    custom_python_env: media_env
+    custom_python_env: default_env
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/core/proc_manager.py
     python_path: ["${NVP_ROOT_DIR}"]
 
