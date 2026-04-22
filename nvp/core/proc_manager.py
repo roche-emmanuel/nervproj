@@ -61,21 +61,18 @@ class ProcessManager(NVPComponent):
 
     def cmd_check(self):
         """Check every configured process; start any that are not running."""
-        procs = self._get_proc_descs()
-        for desc in procs:
+        for desc in self._get_proc_descs():
             if not desc.get("enabled", True):
                 continue
             label = desc["label"]
             if not self._is_running(desc):
-                self._log(desc, f"[{label}] Not running — starting...")
+                self._log(f"[{label}] Not running — starting...")
                 self._start(desc, reason="monitor")
-            # else: already up, nothing to do
         return True
 
     def cmd_restart(self, label=None):
         """Stop then start one process (by label) or all of them."""
-        procs = self._get_proc_descs()
-        targets = [d for d in procs if label is None or d["label"] == label]
+        targets = self._get_targets(label)
         if not targets:
             self.warn("No process found matching label=%s", label)
             return False
@@ -86,22 +83,20 @@ class ProcessManager(NVPComponent):
 
     def cmd_stop(self, label=None):
         """Stop one process (by label) or all of them."""
-        procs = self._get_proc_descs()
-        targets = [d for d in procs if label is None or d["label"] == label]
-        for desc in targets:
+        for desc in self._get_targets(label):
             self._stop(desc)
         return True
 
     def cmd_status(self):
         """Print running/stopped status for every configured process."""
-        procs = self._get_proc_descs()
-        for desc in procs:
+        for desc in self._get_proc_descs():
             label = desc["label"]
             state = "RUNNING" if self._is_running(desc) else "STOPPED"
             pid_file = self._pid_file(desc)
             pid = ""
             if os.path.isfile(pid_file):
-                pid = f"  (PID {open(pid_file).read().strip()})"
+                with open(pid_file) as f:
+                    pid = f"  (PID {f.read().strip()})"
             print(f"  {state:8s}  {label}{pid}")
         return True
 
@@ -110,17 +105,16 @@ class ProcessManager(NVPComponent):
     # -------------------------------------------------------------------------
 
     def _is_running(self, desc):
-        """Return True if the process tracked by desc's PID file is alive
-        and its /proc/<pid>/cmdline matches the configured pattern."""
+        """Return True if the tracked PID is alive and matches the cmd_pattern."""
         pid_file = self._pid_file(desc)
         if not os.path.isfile(pid_file):
             return False
         try:
-            pid = int(open(pid_file).read().strip())
+            with open(pid_file) as f:
+                pid = int(f.read().strip())
         except (ValueError, OSError):
             return False
 
-        # Signal 0: existence check only, no actual signal sent.
         try:
             os.kill(pid, 0)
         except OSError:
@@ -130,53 +124,121 @@ class ProcessManager(NVPComponent):
         pattern = desc.get("cmd_pattern", None)
         if pattern:
             try:
-                cmdline = open(f"/proc/{pid}/cmdline").read()
-                if pattern not in cmdline:
-                    return False
+                with open(f"/proc/{pid}/cmdline") as f:
+                    if pattern not in f.read():
+                        return False
             except OSError:
                 return False
 
         return True
 
-    def _start(self, desc, reason=""):
-        """Launch the process described by desc, redirect output to its log file,
-        save the PID, and send a RocketChat notification."""
-        label = desc["label"]
-        cmd = self._build_cmd(desc)
-        cwd = self._resolve(desc.get("cwd", self.get_cwd()))
-        log_file = self._resolve(desc["log_file"])
-        pid_file = self._pid_file(desc)
+    def _resolve_cmd(self, desc):
+        """Use the Runner's resolution pipeline to expand ${PYTHON}, custom_python_env,
+        python_path, env_vars, cwd, etc. — exactly as a script desc would be handled.
 
-        # Ensure log directory exists.
+        Returns (cmd_list, cwd_str, env_dict).
+        """
+        runner = self.get_component("runner")
+
+        # Build a minimal script desc that the Runner understands.
+        # We pass through every key the runner knows about so placeholder
+        # expansion, python env lookup and PATH injection all work correctly.
+        script_desc = {
+            k: v
+            for k, v in desc.items()
+            if k not in ("label", "enabled", "cmd_pattern", "notify", "notify_channel", "log_file", "pid_file")
+        }
+
+        # Resolve using the runner's full hlocs + pyenv pipeline.
+        hlocs = self.ctx.get_known_vars()
+        hlocs["${NVP_ROOT_DIR}"] = self.ctx.get_root_dir()
+        hlocs["${HOME}"] = self.ctx.get_home_dir()
+
+        # Resolve custom_python_env → ${PYTHON} exactly as the runner does.
+        tools = self.get_component("tools")
+        pdesc = tools.get_tool_desc("python")
+        additional_paths = []
+
+        env_name = desc.get("custom_python_env", None)
+        if env_name is not None:
+            pyenv = self.get_component("pyenvs")
+            env_dir = pyenv.get_py_env_dir(env_name)
+            pyenv_dir = self.get_path(env_dir, env_name)
+            if not self.dir_exists(pyenv_dir):
+                self.info("Creating python env %s...", env_name)
+                pyenv.setup_py_env(env_name)
+            py_path = self.get_path(pyenv_dir, pdesc["sub_path"])
+            hlocs["${PYTHON_DIR}"] = self.get_parent_folder(py_path)
+            additional_paths.append(self.get_parent_folder(py_path))
+        else:
+            py_path = tools.get_tool_path("python")
+
+        hlocs["${PYTHON}"] = py_path
+        hlocs["${PY_ENV_DIR}"] = self.get_parent_folder(py_path)
+
+        # Resolve the cmd string → list.
+        raw_cmd = self.ctx.resolve_object(desc, "cmd")
+        if isinstance(raw_cmd, str):
+            raw_cmd = runner.fill_placeholders(raw_cmd, hlocs)
+            cmd = [c for c in raw_cmd.split(" ") if c]
+        else:
+            cmd = [runner.fill_placeholders(c, hlocs) for c in raw_cmd if c]
+
+        # Resolve cwd.
+        cwd = runner.fill_placeholders(desc.get("cwd", self.get_cwd()), hlocs)
+
+        # Build environment: start from os.environ, add additional_paths, then env_vars.
+        env = os.environ.copy()
+
+        sep = ":" if self.is_linux else ";"
+        if additional_paths:
+            env["PATH"] = sep.join(additional_paths) + sep + env.get("PATH", "")
+
+        for key, val in desc.get("env", {}).items():
+            env[key] = runner.fill_placeholders(val, hlocs)
+
+        # Inject PYTHONPATH if requested.
+        if "python_path" in desc:
+            elems = [runner.fill_placeholders(e, hlocs).replace("\\", "/") for e in desc["python_path"]]
+            env["PYTHONPATH"] = sep.join(elems)
+
+        env["PWD"] = cwd
+
+        return cmd, cwd, env
+
+    def _start(self, desc, reason=""):
+        """Launch the process, redirect stdout/stderr to its log file, save the PID."""
+        label = desc["label"]
+        pid_file = self._pid_file(desc)
+        log_file = self.ctx.resolve_path(desc["log_file"])
+
         self.make_folder(os.path.dirname(log_file))
 
-        # Merge any extra environment variables.
-        env = os.environ.copy()
-        for key, val in desc.get("env", {}).items():
-            env[key] = self._resolve(val)
+        cmd, cwd, env = self._resolve_cmd(desc)
 
-        self._log(desc, f"[{label}] Starting ({reason}): {' '.join(cmd)}")
+        self._log(f"[{label}] Starting ({reason}): {' '.join(cmd)}")
 
         with open(log_file, "a", encoding="utf-8") as lf:
-            lf.write(f"\n{'='*60}\n")
+            lf.write(f"\n{'=' * 60}\n")
             lf.write(f"[{self._ts()}] Started by proc_manager ({reason})\n")
             lf.write(f"cmd: {' '.join(cmd)}\ncwd: {cwd}\n")
-            lf.write(f"{'='*60}\n")
+            lf.write(f"{'=' * 60}\n")
             proc = subprocess.Popen(
                 cmd,
                 cwd=cwd,
                 env=env,
                 stdout=lf,
                 stderr=subprocess.STDOUT,
-                start_new_session=True,  # detach from our own session
+                start_new_session=True,
             )
 
         with open(pid_file, "w") as pf:
             pf.write(str(proc.pid))
 
-        self._log(desc, f"[{label}] Started with PID {proc.pid}")
+        self._log(f"[{label}] Started with PID {proc.pid}")
         self._notify(
-            desc, f":white_check_mark: **[proc_manager]** `{label}` started (PID {proc.pid}) — reason: _{reason}_"
+            desc,
+            f":white_check_mark: **[proc_manager]** `{label}` started (PID {proc.pid}) — reason: _{reason}_",
         )
 
     def _stop(self, desc, timeout=5):
@@ -185,21 +247,22 @@ class ProcessManager(NVPComponent):
         pid_file = self._pid_file(desc)
 
         if not os.path.isfile(pid_file):
-            self._log(desc, f"[{label}] No PID file — was not running.")
+            self._log(f"[{label}] No PID file — was not running.")
             return
 
         try:
-            pid = int(open(pid_file).read().strip())
+            with open(pid_file) as f:
+                pid = int(f.read().strip())
         except (ValueError, OSError):
             os.remove(pid_file)
             return
 
         if not self._is_running(desc):
-            self._log(desc, f"[{label}] PID {pid} not running (stale PID file removed).")
+            self._log(f"[{label}] PID {pid} not running (stale PID file removed).")
             os.remove(pid_file)
             return
 
-        self._log(desc, f"[{label}] Stopping PID {pid}...")
+        self._log(f"[{label}] Stopping PID {pid}...")
         try:
             os.kill(pid, signal.SIGTERM)
         except OSError:
@@ -213,7 +276,7 @@ class ProcessManager(NVPComponent):
                 break
             time.sleep(0.5)
         else:
-            self._log(desc, f"[{label}] Did not stop cleanly — force killing PID {pid}.")
+            self._log(f"[{label}] Did not stop cleanly — force killing PID {pid}.")
             try:
                 os.kill(pid, signal.SIGKILL)
             except OSError:
@@ -221,7 +284,7 @@ class ProcessManager(NVPComponent):
 
         if os.path.isfile(pid_file):
             os.remove(pid_file)
-        self._log(desc, f"[{label}] Stopped.")
+        self._log(f"[{label}] Stopped.")
 
     # -------------------------------------------------------------------------
     # Utilities
@@ -231,43 +294,31 @@ class ProcessManager(NVPComponent):
         """Return the list of process descriptors from config."""
         return self.config.get("processes", [])
 
+    def _get_targets(self, label):
+        """Filter process descs by label (None = all)."""
+        return [d for d in self._get_proc_descs() if label is None or d["label"] == label]
+
     def _pid_file(self, desc):
         """Resolve the PID file path for a descriptor."""
-        pid_dir = self._resolve(self.config.get("pid_dir", "/tmp"))
+        pid_dir = self.ctx.resolve_path(self.config.get("pid_dir", "/tmp"))
         default = os.path.join(pid_dir, f"nvp_{desc['label'].replace(' ', '_')}.pid")
-        return self._resolve(desc.get("pid_file", default))
-
-    def _build_cmd(self, desc):
-        """Build the command list from a descriptor."""
-        python = self._resolve(desc.get("python", "python3"))
-        args = [self._resolve(a) for a in desc.get("args", [])]
-        return [python] + args
-
-    def _resolve(self, val):
-        """Expand known NVP placeholders in a string value."""
-        if val is None:
-            return val
-        return self.ctx.resolve_path(val)
+        return self.ctx.resolve_path(desc.get("pid_file", default))
 
     def _ts(self):
         """Return a formatted timestamp."""
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    def _log(self, desc, message):
-        """Write a timestamped line to both the shared process_manager log and
-        to the process's own log file."""
+    def _log(self, message):
+        """Write a timestamped line to the shared process_manager log."""
         line = f"[{self._ts()}] {message}"
-
-        # Shared manager log
-        shared_log = self._resolve(self.config.get("log_file"))
+        shared_log = self.ctx.resolve_path(self.config.get("log_file"))
         self.make_folder(os.path.dirname(shared_log))
         with open(shared_log, "a", encoding="utf-8") as f:
             f.write(line + "\n")
-
         self.info(message)
 
     def _notify(self, desc, message):
-        """Send a RocketChat message if configured and the process has notify=True."""
+        """Send a RocketChat message if notify=True for this process."""
         if not desc.get("notify", True):
             return
         channel = desc.get("notify_channel", self.config.get("notify_channel", "problem-reports"))
@@ -282,8 +333,7 @@ if __name__ == "__main__":
     context = NVPContext()
     comp = context.register_component("proc_man", ProcessManager(context))
 
-    psr = context.build_parser("check")
-    # psr.add_str("-v", "--vault", dest="vault", default="all")("Vault name(s) to query, comma-separated, or 'all'.")
+    context.build_parser("check")
 
     psr = context.build_parser("restart")
     psr.add_str("-l", "--label", dest="label")("Label of the process to restart")
@@ -291,6 +341,6 @@ if __name__ == "__main__":
     psr = context.build_parser("stop")
     psr.add_str("-l", "--label", dest="label")("Label of the process to stop")
 
-    psr = context.build_parser("status")
+    context.build_parser("status")
 
     comp.run()
