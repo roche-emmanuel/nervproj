@@ -259,7 +259,7 @@ class ProcessManager(NVPComponent):
         line = f"[{self._ts()}] {message}"
 
         # Shared manager log
-        shared_log = self._resolve(self.config.get("log_file", "/tmp/process_manager.log"))
+        shared_log = self._resolve(self.config.get("log_file"))
         self.make_folder(os.path.dirname(shared_log))
         with open(shared_log, "a", encoding="utf-8") as f:
             f.write(line + "\n")
