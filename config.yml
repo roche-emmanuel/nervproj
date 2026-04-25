@@ -561,6 +561,9 @@ libraries:
   - name: METIS
     version: 260331
     url: git@github.com:roche-emmanuel/METIS.git
+  - name: jsonnet
+    version: 260425
+    url: git@github.com:roche-emmanuel/jsonnet.git
 
 # list of available projects:
 projects: []
