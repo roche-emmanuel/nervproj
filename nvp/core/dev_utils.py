@@ -2,6 +2,7 @@
 
 import fnmatch
 import logging
+import os
 import re
 
 import numpy as np
@@ -34,7 +35,7 @@ class DevUtils(NVPComponent):
             return True
 
         if cmd == "collect-content":
-            input_folder = self.get_cwd()
+            input_folder = self.get_param("input_folder") or os.getcwd()
             patterns = self.get_param("patterns")
             ignore_patterns = self.get_param("ignore_patterns")
             output_file = self.get_param("output_file")
@@ -94,13 +95,25 @@ class DevUtils(NVPComponent):
         output_file sets the destination file name (default: "content.api.txt").
         When append is True, content is appended instead of overwriting.
         """
-        allfiles = self.get_all_files(folder, recursive=True)
-
         # --- include filter ---
         if patterns is not None:
             glob_patterns = [p.strip() for p in patterns.split(";") if p.strip()]
-            allfiles = [f for f in allfiles if any(fnmatch.fnmatch(f, p) for p in glob_patterns)]
-        # No explicit pattern: keep all files; binary ones become header-only entries.
+            # Optimisation: if none of the patterns contain a wildcard, treat them as
+            # direct file paths and skip the costly recursive directory scan entirely.
+            if not any(c in p for p in glob_patterns for c in ("*", "?", "[")):
+                allfiles = []
+                for p in glob_patterns:
+                    fpath = self.get_path(folder, p)
+                    if self.file_exists(fpath):
+                        allfiles.append(p)
+                    else:
+                        logger.warning("Pattern '%s' does not match any file (resolved to: %s).", p, fpath)
+            else:
+                allfiles = self.get_all_files(folder, recursive=True)
+                allfiles = [f for f in allfiles if any(fnmatch.fnmatch(f, p) for p in glob_patterns)]
+        else:
+            # No explicit pattern: collect all files; binary ones become header-only entries.
+            allfiles = self.get_all_files(folder, recursive=True)
 
         # --- always exclude *.api.txt unless the caller explicitly opts in ---
         if not include_api_txt:
@@ -162,7 +175,9 @@ class DevUtils(NVPComponent):
 
         logger.info(
             "Collected %d text files and %d binary files, total size: %d bytes.",
-            len(text_files), len(binary_files), total_size,
+            len(text_files),
+            len(binary_files),
+            total_size,
         )
         dest = output_file or "content.api.txt"
         self.write_text_file("\n".join(contents), dest, mode="a" if append else "w")
@@ -295,6 +310,7 @@ if __name__ == "__main__":
     psr.add_flag("-a", "--append", dest="append")(
         "When set, content is appended to the output file instead of overwriting it."
     )
+    psr.add_str("-i", "--input", dest="input_folder")("Input folder to process")
 
     psr = context.build_parser("clean-log")
     psr.add_str("input_file")("Log file to clean")
