@@ -115,13 +115,21 @@ class DevUtils(NVPComponent):
 
             logger.info("Building content pack '%s' => %s (%d step(s)).", name, output, len(steps))
 
-            for idx, step in enumerate(steps):
+            first_call = True
+            for step in steps:
                 folder = self.resolve_path(step.get("folder", os.getcwd()))
-                patterns = step.get("patterns")
                 ignore_patterns = step.get("ignore", None)
-                # First step of each pack writes fresh; subsequent steps append.
-                append = idx > 0
-                self.collect_content(folder, patterns, ignore_patterns, output, include_api_txt, append)
+
+                # patterns may be a single string or a list of strings.
+                # Each entry is passed as a separate collect_content call so
+                # that wildcard expansion is scoped to one pattern group at a time.
+                raw = step.get("patterns")
+                pattern_list = raw if isinstance(raw, list) else [raw]
+
+                for patterns in pattern_list:
+                    # First overall call writes fresh; every subsequent one appends.
+                    self.collect_content(folder, patterns, ignore_patterns, output, include_api_txt, not first_call)
+                    first_call = False
 
             logger.info("Content pack '%s' done.", name)
 
@@ -202,15 +210,12 @@ class DevUtils(NVPComponent):
         file_sizes = {f: self.get_file_size(self.get_path(folder, f)) for f in allfiles}
         allfiles = [f for f in allfiles if file_sizes[f] > 0]
 
-        # Split into text and binary. When -p was given, trust the caller and treat
-        # all matched files as text to avoid unnecessary reads.
-        if patterns is not None:
-            text_files = allfiles
-            binary_files = []
-        else:
-            binary_files = [f for f in allfiles if self.is_binary_file(self.get_path(folder, f))]
-            binary_set = set(binary_files)
-            text_files = [f for f in allfiles if f not in binary_set]
+        # Split into text and binary — always, regardless of whether patterns were given.
+        # A glob like "*.h" may still accidentally match binary files (e.g. logo.ico
+        # caught by a broad wildcard), so we never skip the binary check.
+        binary_files = [f for f in allfiles if self.is_binary_file(self.get_path(folder, f))]
+        binary_set = set(binary_files)
+        text_files = [f for f in allfiles if f not in binary_set]
 
         # Percentages are computed relative to text content only — binary files are
         # listed for reference but their size does not count towards the total.
