@@ -37,6 +37,10 @@ class NVPComponent(NVPObject):
             return self.load_config_elements(entry)
         return entry
 
+    def resolve_path(self, path, check_resolved=True):
+        """Fill placeholders in a path."""
+        return self.ctx.resolve_path(path, check_resolved)
+    
     def load_config_elements(self, device_files):
         """Load config elements from a list of files."""
         # Iterate on each file:

@@ -377,11 +377,13 @@ class NVPContext(NVPObject):
 
         # Add the root dir from all known projects:
         for proj in self.get_projects():
-            key = f"${{{proj.get_name().upper()}_DIR}}"
-            val = proj.get_root_dir()
-            if key not in hlocs:
-                # self.info("Adding project dir: %s=%s", key, val)
-                hlocs[key] = val
+            names = proj.get_names()
+            for name in names:
+                key = f"${{{name.upper()}_DIR}}"
+                val = proj.get_root_dir()
+                if key not in hlocs:
+                    # self.info("Adding project dir: %s=%s", key, val)
+                    hlocs[key] = val
 
         return hlocs
 

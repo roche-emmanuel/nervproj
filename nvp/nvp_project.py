@@ -181,6 +181,10 @@ class NVPProject(NVPObject):
             return self.desc["names"][0].lower()
         return self.desc["names"][0]
 
+    def get_names(self):
+        """Retrieve the project names"""
+        return self.desc["names"]
+
     def register_component(self, cname, comp):
         """Register a project specific component"""
         self.components[cname] = comp

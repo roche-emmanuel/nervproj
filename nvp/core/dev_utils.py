@@ -20,6 +20,17 @@ class DevUtils(NVPComponent):
     def __init__(self, ctx: NVPContext):
         """Component constructor"""
         NVPComponent.__init__(self, ctx)
+        self.packs_config = None
+
+    def get_packs_config(self):
+        """Load and cache the content_packs section from the NervHome config."""
+        if self.packs_config is None:
+            cfg = self.ctx.get_config().get("content_packs")
+            if cfg is None:
+                cfg = self.ctx.get_project("NervHome").get_config().get("content_packs")
+            self.check(cfg is not None, "No 'content_packs' section found in config.")
+            self.packs_config = cfg
+        return self.packs_config
 
     def process_cmd_path(self, cmd):
         """Re-implementation of process_cmd_path"""
@@ -44,6 +55,11 @@ class DevUtils(NVPComponent):
             self.collect_content(input_folder, patterns, ignore_patterns, output_file, include_api_txt, append)
             return True
 
+        if cmd == "build-content-packs":
+            pack_name = self.get_param("pack_name")
+            self.build_content_packs(pack_name)
+            return True
+
         if cmd == "clean-log":
             input_file = self.get_param("input_file")
             self.clean_log_file(input_file)
@@ -64,6 +80,50 @@ class DevUtils(NVPComponent):
             return b"\x00" in chunk
         except OSError:
             return True
+
+    def build_content_packs(self, pack_name=None):
+        """Build one or all enabled content packs from the NervHome config.
+
+        If pack_name is given, only that pack is processed (regardless of its
+        'enabled' flag).  Otherwise every pack whose 'enabled' flag is True is
+        processed in the order they appear in the config.
+
+        Each pack drives one or more collect_content calls (one per 'steps'
+        entry).  The first step of each pack always overwrites the output file;
+        subsequent steps append to it automatically.
+
+        Path placeholders (e.g. ${NVL_DIR}) in 'folder' and 'output' values
+        are resolved via self.resolve_path() before use.
+        """
+        cfg = self.get_packs_config()
+        default_output_dir = self.resolve_path(cfg.get("default_output_dir", os.getcwd()))
+        packs = cfg.get("packs", [])
+
+        # Select which packs to run.
+        if pack_name is not None:
+            packs = [p for p in packs if p.get("name") == pack_name]
+            self.check(len(packs) > 0, "No content pack named '%s' found in config.", pack_name)
+        else:
+            packs = [p for p in packs if p.get("enabled", True)]
+
+        for pack in packs:
+            name = pack.get("name", "<unnamed>")
+            output_dir = self.resolve_path(pack.get("output_dir", default_output_dir))
+            output = self.get_path(output_dir, f"{name}.api.txt")
+            steps = pack.get("steps", [])
+            include_api_txt = pack.get("include_api_txt", False)
+
+            logger.info("Building content pack '%s' => %s (%d step(s)).", name, output, len(steps))
+
+            for idx, step in enumerate(steps):
+                folder = self.resolve_path(step.get("folder", os.getcwd()))
+                patterns = step.get("patterns")
+                ignore_patterns = step.get("ignore", None)
+                # First step of each pack writes fresh; subsequent steps append.
+                append = idx > 0
+                self.collect_content(folder, patterns, ignore_patterns, output, include_api_txt, append)
+
+            logger.info("Content pack '%s' done.", name)
 
     def collect_content(
         self, folder, patterns=None, ignore_patterns=None, output_file=None, include_api_txt=False, append=False
@@ -161,9 +221,8 @@ class DevUtils(NVPComponent):
         # Binary file headers first, sorted by size ascending.
         for f in sorted(binary_files, key=lambda f: file_sizes[f]):
             size = file_sizes[f]
-            pct = (size / total_size * 100.0) if total_size > 0 else 0.0
-            logger.info("Skipping binary file %s (%d bytes, %.1f%%)", f, size, pct)
-            contents.append(f"// File: {f} ({size} bytes, {pct:.1f}% of total, binary)")
+            logger.info("Skipping binary file %s (%d bytes)", f, size)
+            contents.append(f"// File: {f} ({size} bytes, binary)")
 
         # Text file contents, sorted by size ascending (smallest first, largest last).
         for f in sorted(text_files, key=lambda f: file_sizes[f]):
@@ -175,9 +234,7 @@ class DevUtils(NVPComponent):
 
         logger.info(
             "Collected %d text files and %d binary files, total size: %d bytes.",
-            len(text_files),
-            len(binary_files),
-            total_size,
+            len(text_files), len(binary_files), total_size,
         )
         dest = output_file or "content.api.txt"
         self.write_text_file("\n".join(contents), dest, mode="a" if append else "w")
@@ -293,6 +350,9 @@ if __name__ == "__main__":
     psr.add_str("-r", "--ref", dest="ref_folder")("Ref folder to process")
 
     psr = context.build_parser("collect-content")
+    psr.add_str("-i", "--input", dest="input_folder", nargs="?", default=None)(
+        "Root folder to collect from. Defaults to the current working directory."
+    )
     psr.add_str("-p", "--patterns", dest="patterns", nargs="?", default=None)(
         "Semicolon-separated glob patterns to select files (e.g. '*.h;gui/*.cpp;*.log'). "
         "Defaults to all non-binary files when omitted."
@@ -310,7 +370,11 @@ if __name__ == "__main__":
     psr.add_flag("-a", "--append", dest="append")(
         "When set, content is appended to the output file instead of overwriting it."
     )
-    psr.add_str("-i", "--input", dest="input_folder")("Input folder to process")
+
+    psr = context.build_parser("build-content-packs")
+    psr.add_str("pack_name", nargs="?", default=None)(
+        "Name of the content pack to build. When omitted, all enabled packs are built."
+    )
 
     psr = context.build_parser("clean-log")
     psr.add_str("input_file")("Log file to clean")

@@ -1018,6 +1018,12 @@ scripts:
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/core/dev_utils.py collect-content
     python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
 
+  cpack:
+    notify: false
+    custom_python_env: media_env
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/core/dev_utils.py build-content-packs
+    python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
+
   clean_log:
     notify: false
     custom_python_env: media_env
