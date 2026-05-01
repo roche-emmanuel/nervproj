@@ -567,6 +567,8 @@ libraries:
   - name: jsonnet
     version: 260425
     url: git@github.com:roche-emmanuel/jsonnet.git
+  - name: WebView2
+    version: 2.1.0
 
 # list of available projects:
 projects: []
