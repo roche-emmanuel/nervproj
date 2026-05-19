@@ -33,6 +33,14 @@ class Builder(NVPBuilder):
             "release_build",
         ]
 
+        if self.compiler.is_emcc():
+            # Forcing 64bit integers handling:
+            self.patch_file(
+                self.get_path(build_dir, "src/luaconf.h"),
+                "#define LUA_INTEGER	ptrdiff_t",
+                "#include <stdint.h>\n#define LUA_INTEGER	int64_t",
+            )
+
         self.run_cmake(build_dir, prefix, ".", flags=flags)
         self.run_ninja(self.get_path(build_dir, "release_build"))
 
