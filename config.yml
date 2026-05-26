@@ -569,6 +569,8 @@ libraries:
     url: git@github.com:roche-emmanuel/jsonnet.git
   - name: WebView2
     version: 2.1.0
+  - name: gears
+    version: 22.2
 
 # list of available projects:
 projects: []
