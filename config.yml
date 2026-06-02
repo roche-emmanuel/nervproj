@@ -538,6 +538,9 @@ libraries:
     version: 20260602
     # git: git@github.com:roche-emmanuel/OpenSceneGraph.git
     windows_url: http://files.nervtech.org/nvp_packages/sources/OSG-20260602-windows.7z
+  - name: osgEarth
+    version: 20260602
+    git: git@github.com:roche-emmanuel/osgearth.git
   - name: protozero
     version: git-20260125
     git: git@github.com:roche-emmanuel/protozero.git
