@@ -534,6 +534,10 @@ libraries:
     # version: git-20250217
     version: git-20260120
     git: git@github.com:roche-emmanuel/Clipper2.git
+  - name: OSG
+    version: 20260602
+    # git: git@github.com:roche-emmanuel/OpenSceneGraph.git
+    windows_url: http://files.nervtech.org/nvp_packages/sources/OSG-20260602-windows.7z
   - name: protozero
     version: git-20260125
     git: git@github.com:roche-emmanuel/protozero.git
