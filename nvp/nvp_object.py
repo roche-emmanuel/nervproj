@@ -480,11 +480,22 @@ class NVPObject(object):
 
     def read_text_file(self, *parts, mode="r"):
         """Read the content of a file as string."""
-
         fname = self.get_path(*parts)
-        with open(fname, mode, encoding="utf-8") as file:
-            content = file.read()
-        return content
+
+        encodings = ["utf-8", "cp1252"]
+
+        for encoding in encodings:
+            try:
+                with open(fname, mode, encoding=encoding) as file:
+                    return file.read()
+            except UnicodeDecodeError:
+                self.warn(f"Could not read {fname} with encoding {encoding}")
+                continue
+
+        # latin-1 is a guaranteed fallback (maps all 256 bytes),
+        # so this should never fail:
+        with open(fname, "rb") as file:
+            return file.read().decode("latin-1")
 
     def write_binary_file(self, content, *parts, mode="wb"):
         """Write content of file"""
