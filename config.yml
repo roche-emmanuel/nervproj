@@ -578,6 +578,9 @@ libraries:
     version: 2.1.0
   - name: gears
     version: 22.2
+  - name: OpenRTI
+    version: 260610
+    url: git@github.com:roche-emmanuel/OpenRTI.git
 
 # list of available projects:
 projects: []
