@@ -133,6 +133,21 @@ class DevUtils(NVPComponent):
 
             logger.info("Content pack '%s' done.", name)
 
+    @staticmethod
+    def _fnmatch_ex(path, pattern):
+        """fnmatch extended with ** support (matches zero or more path segments)."""
+        if "**" not in pattern:
+            return fnmatch.fnmatch(path, pattern)
+        # Normalise separators
+        path = path.replace("\\", "/")
+        pattern = pattern.replace("\\", "/")
+        # Split on ** and match each segment with fnmatch, allowing ** to span
+        # zero or more '/' separated components.
+        import re as _re
+
+        regex = _re.escape(pattern).replace(r"\*\*", ".*").replace(r"\*", "[^/]*").replace(r"\?", "[^/]")
+        return bool(_re.fullmatch(regex, path))
+
     def collect_content(
         self, folder, patterns=None, ignore_patterns=None, output_file=None, include_api_txt=False, append=False
     ):
@@ -178,7 +193,7 @@ class DevUtils(NVPComponent):
                         logger.warning("Pattern '%s' does not match any file (resolved to: %s).", p, fpath)
             else:
                 allfiles = self.get_all_files(folder, recursive=True)
-                allfiles = [f for f in allfiles if any(fnmatch.fnmatch(f, p) for p in glob_patterns)]
+                allfiles = [f for f in allfiles if any(self._fnmatch_ex(f, p) for p in glob_patterns)]
         else:
             # No explicit pattern: collect all files; binary ones become header-only entries.
             allfiles = self.get_all_files(folder, recursive=True)
@@ -239,7 +254,9 @@ class DevUtils(NVPComponent):
 
         logger.info(
             "Collected %d text files and %d binary files, total size: %d bytes.",
-            len(text_files), len(binary_files), total_size,
+            len(text_files),
+            len(binary_files),
+            total_size,
         )
         dest = output_file or "content.api.txt"
         self.write_text_file("\n".join(contents), dest, mode="a" if append else "w")
