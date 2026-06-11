@@ -33,6 +33,8 @@ class Builder(NVPBuilder):
             ".",
             "-B",
             "release_build",
+            "-DCMAKE_CXX_STANDARD=17",
+            "-DCMAKE_CXX_FLAGS=/Zc:__cplusplus /EHsc",
             f"-DZLIB_LIBRARY={zlib_dir}/lib/{z_lib}",
             f"-DZLIB_INCLUDE_DIR={zlib_dir}/include",
             f"-DEXPAT_INCLUDE_DIR={libexpat_dir}/include",
@@ -44,7 +46,21 @@ class Builder(NVPBuilder):
             "include_directories(${EXPAT_INCLUDE_DIRS})",
             "include_directories(${EXPAT_INCLUDE_DIRS})\nadd_definitions(-DXML_STATIC)",
         )
-
+        self.patch_file(
+            self.get_path(build_dir, "include/RTI13/RTI.hh"),
+            "#if __cplusplus < 201703L\n",
+            "#if 0\n",
+        )
+        self.patch_file(
+            self.get_path(build_dir, "include/RTI1516/RTI/SpecificConfig.h"),
+            "#if __cplusplus < 201703L\n",
+            "#if 0\n",
+        )
+        self.patch_file(
+            self.get_path(build_dir, "include/RTI1516e/RTI/SpecificConfig.h"),
+            "#if __cplusplus < 201703L\n",
+            "#if 0\n",
+        )
         self.run_cmake(build_dir, prefix, ".", flags=flags)
         sub_dir = self.get_path(build_dir, "release_build")
         self.run_ninja(sub_dir)
