@@ -25,7 +25,9 @@ Downloads the global 30m resolution Digital Elevation Model from Copernicus.
 # https://github.com/mdbartos/pysheds
 # https://richdem.readthedocs.io/en/latest/
 
+import json
 import math
+import os
 import numpy as np
 from PIL import Image
 from noise import snoise2
@@ -350,6 +352,77 @@ class CopernicusManager(NVPComponent):
         
         return blended
     
+    # Valid UE5 landscape heightmap resolutions (quads per side + 1)
+    UE_VALID_RESOLUTIONS = [127, 253, 505, 1009, 2017, 4033, 8129, 16257]
+
+    @staticmethod
+    def snap_to_ue_res(res):
+        """
+        Round a requested resolution to the nearest valid UE5 landscape size.
+        UE5 requires landscape dimensions of the form (2^n * C + 1) for specific C values.
+        Valid sizes: 127, 253, 505, 1009, 2017, 4033, 8129, 16257
+        Returns (snapped_res, was_snapped).
+        """
+        valid = CopernicusManager.UE_VALID_RESOLUTIONS
+        nearest = min(valid, key=lambda v: abs(v - res))
+        return nearest, nearest != res
+
+    @staticmethod
+    def compute_ue_scale(size_m, res):
+        """
+        Compute the XY scale factor to paste into UE5 Landscape settings.
+        UE5 uses centimetres internally; the landscape quad count is (res - 1).
+        Returns ue_scale in cm/quad, e.g. 860.5068 for a 69942m / 8129-res terrain.
+        """
+        quads = res - 1
+        return (size_m / quads) * 100.0  # metres -> centimetres
+
+    @staticmethod
+    def compute_size_m(lat0, lon0, lat1, lon1):
+        """
+        Approximate the real-world side length in metres for a square geographic bbox.
+        Uses the mean-latitude cosine correction for the longitude dimension and
+        the standard 111320 m/degree for the latitude dimension.
+        Returns size_m (the larger of the two sides, consistent with the square-snap
+        already performed in generate_heightmap).
+        """
+        mean_lat = (lat0 + lat1) * 0.5
+        lat_m = abs(lat1 - lat0) * 111320.0
+        lon_m = abs(lon1 - lon0) * 111320.0 * math.cos(math.radians(mean_lat))
+        return max(lat_m, lon_m)
+
+    def write_sidecar(self, out_file, lat0, lon0, lat1, lon1, res, hscale):
+        """
+        Write a JSON sidecar alongside the heightmap PNG with all metadata
+        needed by ArgusWorldBuilder to configure the UE5 landscape import.
+        """
+        size_m = self.compute_size_m(lat0, lon0, lat1, lon1)
+        ue_scale = self.compute_ue_scale(size_m, res)
+
+        # Origin is the south-west corner (min lat, min lon)
+        origin_lat = min(lat0, lat1)
+        origin_lon = min(lon0, lon1)
+
+        sidecar = {
+            "origin_lat":   round(origin_lat, 6),
+            "origin_lon":   round(origin_lon, 6),
+            "size_m":       round(size_m, 3),
+            "ue_scale":     round(ue_scale, 4),
+            "height_scale": float(hscale),
+            "res_x":        res,
+            "res_y":        res,
+        }
+
+        stem, _ = os.path.splitext(out_file)
+        sidecar_path = stem + ".json"
+
+        self.write_json(sidecar, sidecar_path)
+
+        self.info("Sidecar written to %s", sidecar_path)
+        self.info("  origin_lat=%.6f  origin_lon=%.6f", origin_lat, origin_lon)
+        self.info("  size_m=%.1f  ue_scale=%.4f  height_scale=%.1f", size_m, ue_scale, hscale)
+        return sidecar_path
+
     def generate_heightmap(self):
         lat0 = self.get_param("lat_min")
         lon0 = self.get_param("lon_min")
@@ -373,17 +446,39 @@ class CopernicusManager(NVPComponent):
         self.info("Effective coords: lat0=%.6f, lon0=%.6f, lat1=%.6f, lon1=%.6f, size=%.6f (~%.3fkm)", lat0,lon0,lat1,lon1,size,km_size)
 
         res = self.get_param("res")
-        xres = res
-        yres = res
-        # xres = int(self.get_param("xres", res))
-        # yres = int(self.get_param("yres", res))
         scale = float(self.get_param("hscale"))
 
-        undersea_height = self.get_param("undersea_height")*scale
+        # --ue-res: snap to nearest valid UE5 landscape resolution
+        if self.get_param("ue_res", False):
+            snapped, was_snapped = self.snap_to_ue_res(res)
+            if was_snapped:
+                self.warn(
+                    "--ue-res: requested res=%d is not a valid UE5 landscape size. "
+                    "Snapping to nearest valid size: %d. "
+                    "Valid sizes: %s",
+                    res, snapped, CopernicusManager.UE_VALID_RESOLUTIONS,
+                )
+                res = snapped
+            else:
+                self.info("--ue-res: res=%d is already a valid UE5 landscape size.", res)
+
+        xres = res
+        yres = res
+
+        undersea_height = self.get_param("undersea_height") * scale
         self.info("Using undersea height value: %f", undersea_height)
 
+        # --world-id: write output into <cwd>/output/<world_id>/heightmap.png
+        world_id = self.get_param("world_id", None)
         out_file = self.get_param("output_file")
-        if out_file is None:
+
+        if world_id is not None:
+            world_dir = self.get_path(self.get_cwd(), "output", world_id)
+            self.make_dir(world_dir)
+            if out_file is None:
+                out_file = self.get_path(world_dir, "heightmap.png")
+            self.info("world_id=%s -> output dir: %s", world_id, world_dir)
+        elif out_file is None:
             out_file = "heightmap.png"
 
         self.info("Generating heightmap:")
@@ -486,6 +581,10 @@ class CopernicusManager(NVPComponent):
         img.save(out_file)
 
         self.info("Heightmap saved to %s", out_file)
+
+        # Write JSON sidecar (default on, skip with --no-sidecar)
+        if not self.get_param("no_sidecar", False):
+            self.write_sidecar(out_file, lat0, lon0, lat1, lon1, res, scale)
         
 if __name__ == "__main__":
     # Create the context:
@@ -517,5 +616,15 @@ if __name__ == "__main__":
     psr.add_float("--noise-amp", default=50.0)("Noise amplitude")
     psr.add_float("--undersea-height", default=-200.0)("undersea height value")
     psr.add_str("-o", "--output-file", dest="output_file")("Output PNG file")
+    psr.add_str("--world-id", dest="world_id")(
+        "World identifier; writes to output/<world_id>/heightmap.png and heightmap.json"
+    )
+    psr.add_bool("--ue-res", dest="ue_res", default=False)(
+        "Snap --res to the nearest valid UE5 landscape size "
+        "(127, 253, 505, 1009, 2017, 4033, 8129, 16257)"
+    )
+    psr.add_bool("--no-sidecar", dest="no_sidecar", default=False)(
+        "Suppress JSON sidecar output (sidecar is written by default)"
+    )
 
     comp.run()
