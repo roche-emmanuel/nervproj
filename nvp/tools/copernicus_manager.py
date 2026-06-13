@@ -474,7 +474,7 @@ class CopernicusManager(NVPComponent):
 
         if world_id is not None:
             world_dir = self.get_path(self.get_cwd(), "output", world_id)
-            self.make_dir(world_dir)
+            self.make_folder(world_dir)
             if out_file is None:
                 out_file = self.get_path(world_dir, "heightmap.png")
             self.info("world_id=%s -> output dir: %s", world_id, world_dir)
@@ -619,11 +619,11 @@ if __name__ == "__main__":
     psr.add_str("--world-id", dest="world_id")(
         "World identifier; writes to output/<world_id>/heightmap.png and heightmap.json"
     )
-    psr.add_bool("--ue-res", dest="ue_res", default=False)(
+    psr.add_flag("--ue-res", dest="ue_res")(
         "Snap --res to the nearest valid UE5 landscape size "
         "(127, 253, 505, 1009, 2017, 4033, 8129, 16257)"
     )
-    psr.add_bool("--no-sidecar", dest="no_sidecar", default=False)(
+    psr.add_flag("--no-sidecar", dest="no_sidecar")(
         "Suppress JSON sidecar output (sidecar is written by default)"
     )
 
