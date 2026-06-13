@@ -429,10 +429,16 @@ class CopernicusManager(NVPComponent):
         return sidecar_path
 
     def generate_heightmap(self):
-        lat0 = self.get_param("lat_min")
-        lon0 = self.get_param("lon_min")
-        lat1 = self.get_param("lat_max")
-        lon1 = self.get_param("lon_max")
+
+        cfgfile = self.get_param("config")
+        cfg = {}
+        if cfgfile is not None:
+            cfg = self.read_yaml(cfgfile)
+
+        lat0 = self.get_param("lat_min", cfg.get("min_lat"))
+        lon0 = self.get_param("lon_min", cfg.get("min_lon"))
+        lat1 = self.get_param("lat_max", cfg.get("max_lat"))
+        lon1 = self.get_param("lon_max", cfg.get("max_lon"))
 
         # size = self.get_param("size")
         # xsize = float(self.get_param("xsize", size))
@@ -450,11 +456,11 @@ class CopernicusManager(NVPComponent):
         km_size = 111.320 * size
         self.info("Effective coords: lat0=%.6f, lon0=%.6f, lat1=%.6f, lon1=%.6f, size=%.6f (~%.3fkm)", lat0,lon0,lat1,lon1,size,km_size)
 
-        res = self.get_param("res")
-        scale = float(self.get_param("hscale"))
+        res = self.get_param("res", cfg.get("res"))
+        scale = float(self.get_param("hscale", cfg.get("hscale", -1.0)))
 
         # --ue-res: snap to nearest valid UE5 landscape resolution
-        if self.get_param("ue_res", False):
+        if self.get_param("ue_res", cfg.get("snap_ue_res")):
             snapped, was_snapped = self.snap_to_ue_res(res)
             if was_snapped:
                 self.warn(
@@ -470,11 +476,14 @@ class CopernicusManager(NVPComponent):
         xres = res
         yres = res
 
-        undersea_height = self.get_param("undersea_height") * scale
+        undersea_height = self.get_param("undersea_height", cfg.get("undersea_height", -200)) * scale
         self.info("Using undersea height value: %f", undersea_height)
 
         # --world-id: write output into <cwd>/output/<world_id>/heightmap.png
-        out_dir = self.get_param("output_dir", None)
+        out_dir = self.get_param("output_dir", cfg.get("output_dir"))
+        if out_dir is None:
+            out_dir = self.get_cwd()
+
         self.make_folder(out_dir)
         out_file = self.get_path(out_dir, "heightmap.png")
 
@@ -490,7 +499,7 @@ class CopernicusManager(NVPComponent):
         tiles = self.tiles_for_bbox(lat0, lon0, lat1, lon1)
         self.info("Using %d tiles", len(tiles))
 
-        tiles_dir = self.get_param("tiles_dir", self._default_tiles_dir)
+        tiles_dir = self.get_param("tiles_dir", cfg.get("tiles_dir", self._default_tiles_dir))
 
         for tile in tiles:
             tif = self.get_path(tiles_dir, f"{tile}.tif")
@@ -556,7 +565,7 @@ class CopernicusManager(NVPComponent):
         # self.info("Adding erosion...")
         # heightmap = self.apply_erosion(heightmap, [xsize, ysize], lat0 + ysize*0.5)
         # Apply underwater blending
-        amp = self.get_param("noise_amp")
+        amp = self.get_param("noise_amp", cfg.get("noise_amp", 50.0))
 
         # Note: we move up by the noise amplitude here because we can still add this noise down afterwards:
         heightmap = self.apply_underwater_blend(heightmap, undersea_height + amp*scale)
@@ -583,7 +592,7 @@ class CopernicusManager(NVPComponent):
         self.info("Heightmap saved to %s", out_file)
 
         # Write JSON sidecar (default on, skip with --no-sidecar)
-        if not self.get_param("no_sidecar", False):
+        if not self.get_param("no_sidecar", cfg.get("no_sidecar", False)):
             self.write_sidecar(out_file, lat0, lon0, lat1, lon1, res, scale)
         
 if __name__ == "__main__":
@@ -605,6 +614,8 @@ if __name__ == "__main__":
     # psr.add_str("--xsize")("Longitude size (degrees)")
     # psr.add_str("--ysize")("Latitude size (degrees)")
 
+    psr.add_str("-c", "--config", dest="config")("Config file")
+
     psr.add_float("--lat-min")("Min lattitude")
     psr.add_float("--lat-max")("Max lattitude")
     psr.add_float("--lon-min")("Min longitude")
@@ -612,9 +623,9 @@ if __name__ == "__main__":
     psr.add_int("--res")("Default Output size (pixels)")
     # psr.add_str("--xres")("Output width (pixels)")
     # psr.add_str("--yres")("Output height (pixels)")
-    psr.add_float("--hscale", default=1.0)("Scale for height")
-    psr.add_float("--noise-amp", default=50.0)("Noise amplitude")
-    psr.add_float("--undersea-height", default=-200.0)("undersea height value")
+    psr.add_float("--hscale")("Scale for height")
+    psr.add_float("--noise-amp")("Noise amplitude")
+    psr.add_float("--undersea-height")("undersea height value")
     psr.add_str("--tiles-dir", dest="tiles_dir")("Input tiles directory")
     psr.add_str("-o","--output-dir", dest="output_dir")("Output directory")
     psr.add_flag("--ue-res", dest="ue_res")(
