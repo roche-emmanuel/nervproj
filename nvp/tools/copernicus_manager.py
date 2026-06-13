@@ -52,6 +52,11 @@ class CopernicusManager(NVPComponent):
         NVPComponent.__init__(self, ctx)
         # self.base_url = "https://copernicus-dem-30m.s3.amazonaws.com"
         self.base_url = "s3://copernicus-dem-30m"
+        
+        proj = self.ctx.get_project("NervHome")
+        self.config = proj.get_config().get("copernicus", {})
+
+        self._default_tiles_dir = self.config["default_tiles_dir"]
 
     def process_cmd_path(self, cmd):
         """Check if this component can process the given command"""
@@ -469,17 +474,9 @@ class CopernicusManager(NVPComponent):
         self.info("Using undersea height value: %f", undersea_height)
 
         # --world-id: write output into <cwd>/output/<world_id>/heightmap.png
-        world_id = self.get_param("world_id", None)
-        out_file = self.get_param("output_file")
-
-        if world_id is not None:
-            world_dir = self.get_path(self.get_cwd(), "output", world_id)
-            self.make_folder(world_dir)
-            if out_file is None:
-                out_file = self.get_path(world_dir, "heightmap.png")
-            self.info("world_id=%s -> output dir: %s", world_id, world_dir)
-        elif out_file is None:
-            out_file = "heightmap.png"
+        out_dir = self.get_param("output_dir", None)
+        self.make_folder(out_dir)
+        out_file = self.get_path(out_dir, "heightmap.png")
 
         self.info("Generating heightmap:")
         self.info("  BBOX: lat [%f, %f], lon [%f, %f]", lat0, lat1, lon0, lon1)
@@ -493,9 +490,12 @@ class CopernicusManager(NVPComponent):
         tiles = self.tiles_for_bbox(lat0, lon0, lat1, lon1)
         self.info("Using %d tiles", len(tiles))
 
+        tiles_dir = self.get_param("tiles_dir", self._default_tiles_dir)
+
         for tile in tiles:
-            tif = self.get_path(self.get_cwd(), f"{tile}.tif")
+            tif = self.get_path(tiles_dir, f"{tile}.tif")
             if not self.file_exists(tif):
+                self.warn("Missing glo30 tile %s", tif)
                 continue
 
             self.info("Reading %s", tile)
@@ -615,10 +615,8 @@ if __name__ == "__main__":
     psr.add_float("--hscale", default=1.0)("Scale for height")
     psr.add_float("--noise-amp", default=50.0)("Noise amplitude")
     psr.add_float("--undersea-height", default=-200.0)("undersea height value")
-    psr.add_str("-o", "--output-file", dest="output_file")("Output PNG file")
-    psr.add_str("--world-id", dest="world_id")(
-        "World identifier; writes to output/<world_id>/heightmap.png and heightmap.json"
-    )
+    psr.add_str("--tiles-dir", dest="tiles_dir")("Input tiles directory")
+    psr.add_str("-o","--output-dir", dest="output_dir")("Output directory")
     psr.add_flag("--ue-res", dest="ue_res")(
         "Snap --res to the nearest valid UE5 landscape size "
         "(127, 253, 505, 1009, 2017, 4033, 8129, 16257)"
