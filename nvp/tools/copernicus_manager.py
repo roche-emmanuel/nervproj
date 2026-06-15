@@ -19,7 +19,23 @@ Downloads the global 30m resolution Digital Elevation Model from Copernicus.
 # nvp copernicus_genmap --lat-min=-21.3929 --lat-max=-20.8671 --lon-min=55.2131 --lon-max=55.8414 --res=8161 -o hf_reunion_8k_ue.png --hscale=10.0 --noise-amp=60
 # This generate a terrain of size=~69.942km so in unreal we need a scale factor of: 69942/8128 = 8.605068  -> 860.5068
 
-# Note: hscale=10.0 is good for unreal engine for instance as 1 unit = 10cm
+# Note: hscale is a vertical exaggeration factor applied to elevation data before encoding
+#       (e.g. hscale=2.0 doubles the apparent relief). Default 1.0 = real-world scale.
+#
+# Heightmap encoding convention (UE5):
+#   UE reads: localZ_cm = (raw_u16 - 32768) / 128 * DrawScale3D.Z
+#   So raw 32768 = Z 0 (world origin / sea level).
+#
+#   We encode using the full 16-bit range by normalising to the actual data extents:
+#     max_range       = max(elev_max_m, abs(elev_min_m))   after vertical exaggeration
+#     counts_per_m    = 32767.0 / max_range
+#     raw             = clip(elevation_m * counts_per_m + 32768, 0, 65535)
+#
+#   The matching UE DrawScale3D.Z (written to sidecar as "height_scale") is:
+#     ue_height_scale_cm = 12800.0 * max_range / 32767.0
+#
+#   This gives zero clipping and maximum precision for any terrain, regardless of
+#   elevation range, without any manual hscale tuning.
 
 # To check: 
 # https://github.com/mdbartos/pysheds
@@ -396,10 +412,21 @@ class CopernicusManager(NVPComponent):
         lon_m = abs(lon1 - lon0) * 111320.0 * math.cos(math.radians(mean_lat))
         return max(lat_m, lon_m)
 
-    def write_sidecar(self, out_file, lat0, lon0, lat1, lon1, res, hscale):
+    def write_sidecar(self, out_file, lat0, lon0, lat1, lon1, res,
+                      ue_height_scale_cm, elev_min_m=None, elev_max_m=None):
         """
         Write a JSON sidecar alongside the heightmap PNG with all metadata
         needed by ArgusWorldBuilder to configure the UE5 landscape import.
+
+        ue_height_scale_cm is the DrawScale3D.Z value (in cm) that UE must use to
+        correctly reconstruct real-world elevations from the encoded heightmap.
+        It is derived from the actual data extents — not a manual input parameter.
+
+        sea_level_raw is always 32768: the raw uint16 value that maps to Z=0 in UE5:
+          localZ_cm = (raw_u16 - 32768) / 128 * DrawScale3D.Z
+
+        elev_min_m / elev_max_m are the physical elevation extents (metres) of the
+        exported heightmap after vertical exaggeration, for diagnostics.
         """
         size_m = self.compute_size_m(lat0, lon0, lat1, lon1)
         ue_scale = self.compute_ue_scale(size_m, res)
@@ -409,13 +436,20 @@ class CopernicusManager(NVPComponent):
         origin_lon = min(lon0, lon1)
 
         sidecar = {
-            "origin_lat":   round(origin_lat, 6),
-            "origin_lon":   round(origin_lon, 6),
-            "size_m":       round(size_m, 3),
-            "ue_scale":     round(ue_scale, 4),
-            "height_scale": float(hscale),
-            "res_x":        res,
-            "res_y":        res,
+            "origin_lat":    round(origin_lat, 6),
+            "origin_lon":    round(origin_lon, 6),
+            "size_m":        round(size_m, 3),
+            "ue_scale":      round(ue_scale, 4),
+            # DrawScale3D.Z for the UE landscape actor (cm).
+            # Derived from actual data extents: 12800 * max_range / 32767
+            "height_scale":  round(ue_height_scale_cm, 4),
+            "res_x":         res,
+            "res_y":         res,
+            # Encoding reference: raw 32768 = sea level = UE Z 0.
+            # localZ_cm = (raw_u16 - 32768) / 128 * DrawScale3D.Z
+            "sea_level_raw": 32768,
+            "elev_min_m":    round(float(elev_min_m), 2) if elev_min_m is not None else None,
+            "elev_max_m":    round(float(elev_max_m), 2) if elev_max_m is not None else None,
         }
 
         stem, _ = os.path.splitext(out_file)
@@ -425,7 +459,10 @@ class CopernicusManager(NVPComponent):
 
         self.info("Sidecar written to %s", sidecar_path)
         self.info("  origin_lat=%.6f  origin_lon=%.6f", origin_lat, origin_lon)
-        self.info("  size_m=%.1f  ue_scale=%.4f  height_scale=%.1f", size_m, ue_scale, hscale)
+        self.info("  size_m=%.1f  ue_scale=%.4f  height_scale=%.4f cm", size_m, ue_scale, ue_height_scale_cm)
+        self.info("  sea_level_raw=32768  elev_min_m=%.2f  elev_max_m=%.2f",
+                  elev_min_m if elev_min_m is not None else float('nan'),
+                  elev_max_m if elev_max_m is not None else float('nan'))
         return sidecar_path
 
     def generate_heightmap(self):
@@ -457,7 +494,10 @@ class CopernicusManager(NVPComponent):
         self.info("Effective coords: lat0=%.6f, lon0=%.6f, lat1=%.6f, lon1=%.6f, size=%.6f (~%.3fkm)", lat0,lon0,lat1,lon1,size,km_size)
 
         res = self.get_param("res", cfg.get("res"))
-        scale = float(self.get_param("hscale", cfg.get("hscale", -1.0)))
+        # scale is the internal pipeline unit factor (metres → pipeline units).
+        # We keep the pipeline in raw metres (scale=1.0); vertical exaggeration
+        # (hscale) is applied only at the final encoding step, not here.
+        scale = 1.0
 
         # --ue-res: snap to nearest valid UE5 landscape resolution
         if self.get_param("ue_res", cfg.get("snap_ue_res")):
@@ -575,25 +615,66 @@ class CopernicusManager(NVPComponent):
         self.info("Adding fractal noise with amplitude=%f...", amp*scale)
         heightmap = self.add_fractal_noise(heightmap, scale=0.4, amplitude=amp*scale)
 
-        bedrock_min = heightmap.min()
-        self.info(
-            "Final range with noise (meters): min=%.2f max=%.2f",
-            bedrock_min,
-            heightmap.max(),
-        )
-    
-        self.info("Writing image file...")
-        heightmap = np.clip(heightmap-bedrock_min, 0, 65535).astype(np.uint16)
-        # heightmap = np.clip(heightmap-nodata_height, -32767, 32767).astype(np.int16)
+        # ── Vertical exaggeration + elevation extents ─────────────────────────
+        # hscale is a pure vertical exaggeration factor (1.0 = real-world scale,
+        # 2.0 = double the relief, etc.). The pipeline above works in metres
+        # (scale=1.0), so this is a direct multiply.
+        vert_exag = float(self.get_param("hscale", cfg.get("hscale", 1.0)))
+        heightmap_m = heightmap * vert_exag
 
-        img = Image.fromarray(heightmap, mode="I;16")
+        elev_min = heightmap_m.min()
+        elev_max = heightmap_m.max()
+        self.info(
+            "Final range with noise (meters, hscale=%.2f): min=%.2f max=%.2f",
+            vert_exag, elev_min, elev_max,
+        )
+
+        # ── Encode: fill full 16-bit range, sea level at raw 32768 ───────────
+        #
+        # UE5 formula:  localZ_cm = (raw_u16 - 32768) / 128 * DrawScale3D.Z
+        #
+        # We choose counts_per_metre so that the largest elevation excursion
+        # (above or below sea level) maps exactly to the edge of the 16-bit range,
+        # leaving no headroom wasted and guaranteeing no clipping.
+        #
+        #   max_range        = max(elev_max, abs(elev_min))
+        #   counts_per_metre = 32767.0 / max_range
+        #   raw              = clip(elevation_m * counts_per_metre + 32768, 0, 65535)
+        #
+        # The matching DrawScale3D.Z that makes UE reconstruct true metres is:
+        #   ue_height_scale_cm = 12800.0 * max_range / 32767.0
+        #
+        # (Derivation: localZ_cm = elevation_m * 100
+        #              = (raw - 32768) / 128 * DrawScale3D.Z
+        #              = elevation_m * counts_per_metre / 128 * DrawScale3D.Z
+        #  => DrawScale3D.Z = 12800 / counts_per_metre = 12800 * max_range / 32767)
+
+        max_range = max(elev_max, abs(elev_min))
+        counts_per_metre = 32767.0 / max_range
+        ue_height_scale_cm = 12800.0 * max_range / 32767.0
+
+        self.info(
+            "Encoding: max_range=%.2f m  counts_per_metre=%.4f  "
+            "ue_height_scale_cm=%.4f",
+            max_range, counts_per_metre, ue_height_scale_cm,
+        )
+
+        encoded = heightmap_m * counts_per_metre + 32768.0
+        encoded = np.clip(encoded, 0.0, 65535.0)
+
+        self.info("Writing image file...")
+        heightmap_u16 = encoded.astype(np.uint16)
+
+        img = Image.fromarray(heightmap_u16, mode="I;16")
         img.save(out_file)
 
         self.info("Heightmap saved to %s", out_file)
 
         # Write JSON sidecar (default on, skip with --no-sidecar)
         if not self.get_param("no_sidecar", cfg.get("no_sidecar", False)):
-            self.write_sidecar(out_file, lat0, lon0, lat1, lon1, res, scale)
+            self.write_sidecar(out_file, lat0, lon0, lat1, lon1, res,
+                               ue_height_scale_cm,
+                               elev_min_m=elev_min, elev_max_m=elev_max)
         
 if __name__ == "__main__":
     # Create the context:
