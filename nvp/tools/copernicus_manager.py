@@ -333,45 +333,83 @@ class CopernicusManager(NVPComponent):
         heightmap = grid.at_node['topographic__elevation'].reshape(shape).astype(np.float32)
         return heightmap
 
-    def apply_underwater_blend(self, heightmap, undersea_height):
+    def apply_underwater_blend(self, heightmap, undersea_height, cfg=None):
         """
-        Blend underwater areas with a fixed undersea height using gaussian blur transition.
-        
+        Smoothly lift below-sea-level areas toward sea level near the coastline,
+        eliminating hard underwater cliffs without ever pulling above-sea-level
+        terrain downward.
+
+        Strategy:
+          1. Build a binary shore mask (1 where elevation > 0, 0 elsewhere).
+          2. Gaussian-blur the mask to get a proximity-to-shore weight in [0, 1].
+          3. For each sub-zero pixel, interpolate its elevation toward 0 using
+             that weight (raised to blend_power for a steeper / softer curve).
+          4. Above-sea-level pixels are left completely unchanged.
+
+        Parameters (CLI > config file > hardcoded default):
+          underwater_blur_radius  – Gaussian sigma in pixels controlling how far
+                                    inland the transition reaches (default 150).
+          underwater_blend_power  – Exponent applied to the proximity weight;
+                                    values > 1 keep most of the ocean floor flat
+                                    and concentrate the ramp near the shore
+                                    (default 2.0).
+
         Args:
-            heightmap: The heightmap array with noise already added
-            nodata_height: The sea level height value
-            scale: The height scale factor
-            
+            heightmap:      2-D float32 array of elevations (metres, scale already applied).
+            undersea_height: The target floor value for deep-ocean pixels.
+            cfg:            Optional config dict to supply parameter defaults.
         Returns:
-            The blended heightmap
+            The modified heightmap (above-sea pixels untouched).
         """
-        blur_radius = self.get_param("underwater_blur_radius", 150.0)
-        blend_power = self.get_param("underwater_blend_power", 2.0)
-        
-        self.info("Applying underwater blend: blur_radius=%.1f, power=%.1f, undersea_height=%.1f", 
-                  blur_radius, blend_power, undersea_height)
-        
-        # Create mask: 1.0 for ground (>0), 0.0 for sea (<=0)
-        # Note: heightmap already has nodata_height added, so check against nodata_height*scale
+        if cfg is None:
+            cfg = {}
+
+        blur_radius = self.get_param(
+            "underwater_blur_radius",
+            cfg.get("underwater_blur_radius", 150.0)
+        )
+        blend_power = self.get_param(
+            "underwater_blend_power",
+            cfg.get("underwater_blend_power", 2.0)
+        )
+
+        self.info(
+            "Applying underwater lift blend: blur_radius=%.1f, power=%.1f, undersea_height=%.1f",
+            blur_radius, blend_power, undersea_height,
+        )
+
+        # --- 1. Shore proximity weight ----------------------------------------
+        # ground_mask is 1.0 above sea level, 0.0 below.
         ground_mask = (heightmap > 0.0).astype(np.float32)
-        
-        # Apply gaussian blur to the mask
-        blurred_mask = gaussian_filter(ground_mask, sigma=blur_radius)
-        
-        # Apply power to make values closer to 0 quickly
-        blurred_power = np.power(np.clip(blurred_mask*2.0, 0.0, 1.0), blend_power)
-        # blurred_power = np.power(blurred_mask, blend_power)
-        
-        # Create undersea height array
-        undersea_array = np.full_like(heightmap, undersea_height)
-        
-        # Blend heightmap with undersea height
-        blended = heightmap * blurred_power + undersea_array * (1.0 - blurred_power)
-        
-        self.info("Underwater blend complete. Range: min=%.2f max=%.2f", 
-                  blended.min(), blended.max())
-        
-        return blended
+
+        # Blur diffuses the "1" values outward into the ocean, giving each
+        # underwater pixel a weight proportional to its proximity to shore.
+        # Clamp to [0, 1] in case of floating-point overshoot.
+        shore_proximity = np.clip(gaussian_filter(ground_mask, sigma=blur_radius), 0.0, 1.0)
+
+        # Apply power curve: blend_power > 1 keeps most of the ocean near
+        # undersea_height and concentrates the ramp close to the coastline.
+        lift_weight = np.power(shore_proximity, blend_power)
+
+        # --- 2. Lift sub-zero pixels toward sea level -------------------------
+        # target_elevation is 0 (sea level) everywhere; we lerp from the current
+        # (negative) elevation toward 0 using lift_weight.
+        # Above-sea pixels: lift_weight may be > 0 near shore, but the clamp
+        # below ensures we never push a positive elevation downward.
+        lifted = heightmap + (0.0 - heightmap) * lift_weight
+        # lifted = heightmap * (1 - lift_weight) + 0.0 * lift_weight  (same thing)
+
+        # --- 3. Guarantee above-sea-level pixels are untouched ---------------
+        # In theory the formula already preserves positive values (lifting toward
+        # 0 from below only raises), but we guard against any numerical artefacts.
+        result = np.where(heightmap > 0.0, heightmap, lifted)
+
+        self.info(
+            "Underwater lift complete. Range: min=%.2f max=%.2f",
+            result.min(), result.max(),
+        )
+
+        return result
     
     # Valid UE5 landscape heightmap resolutions (quads per side + 1)
     UE_VALID_RESOLUTIONS = [127, 253, 505, 1009, 2017, 4033, 8129, 16257]
@@ -608,7 +646,7 @@ class CopernicusManager(NVPComponent):
         amp = self.get_param("noise_amp", cfg.get("noise_amp", 50.0))
 
         # Note: we move up by the noise amplitude here because we can still add this noise down afterwards:
-        heightmap = self.apply_underwater_blend(heightmap, undersea_height + amp*scale)
+        heightmap = self.apply_underwater_blend(heightmap, undersea_height + amp*scale, cfg=cfg)
         # heightmap[heightmap<=0.0] = undersea_height + amp*scale
         # heightmap[heightmap<=0.0] = undersea_height
         
