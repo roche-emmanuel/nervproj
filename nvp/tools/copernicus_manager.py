@@ -51,7 +51,7 @@ import pyfastnoisesimd as fns
 from landlab import RasterModelGrid
 from landlab.components import FlowAccumulator, StreamPowerEroder
 
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter, distance_transform_edt
 
 import rasterio
 from rasterio.warp import reproject, Resampling
@@ -335,77 +335,86 @@ class CopernicusManager(NVPComponent):
 
     def apply_underwater_blend(self, heightmap, undersea_height, cfg=None):
         """
-        Smoothly lift below-sea-level areas toward sea level near the coastline,
-        eliminating hard underwater cliffs without ever pulling above-sea-level
-        terrain downward.
+        Smoothly lift below-sea-level areas toward sea level near the coastline
+        using an exact Euclidean distance-to-shore map.
 
         Strategy:
-          1. Build a binary shore mask (1 where elevation > 0, 0 elsewhere).
-          2. Gaussian-blur the mask to get a proximity-to-shore weight in [0, 1].
-          3. For each sub-zero pixel, interpolate its elevation toward 0 using
-             that weight (raised to blend_power for a steeper / softer curve).
-          4. Above-sea-level pixels are left completely unchanged.
+          1. Build a shore mask: True where elevation > 0 (land), False in ocean.
+          2. Run distance_transform_edt on the *ocean* pixels to get, for every
+             underwater pixel, the exact Euclidean distance (in pixels) to the
+             nearest land pixel.  Land pixels get distance 0 by definition.
+          3. Normalise by transition_radius and clamp to [0, 1] to get a
+             normalised distance  t  in [0, 1]:
+               t = 0  → right at the shoreline  → lift to sea level (0 m)
+               t = 1  → at or beyond the radius  → keep at undersea_height
+          4. Apply blend_power for curve shaping, then lerp:
+               elevation = lerp(0, undersea_height, t^blend_power)
+          5. Above-sea-level pixels are never touched.
 
-        Parameters (CLI > config file > hardcoded default):
-          underwater_blur_radius  – Gaussian sigma in pixels controlling how far
-                                    inland the transition reaches (default 150).
-          underwater_blend_power  – Exponent applied to the proximity weight;
-                                    values > 1 keep most of the ocean floor flat
-                                    and concentrate the ramp near the shore
-                                    (default 2.0).
+        Parameters (CLI arg > config file key > hardcoded default):
+          underwater_transition_radius – distance in pixels beyond which the
+                                         floor stays at undersea_height (default 150).
+          underwater_blend_power       – exponent on the normalised distance;
+                                         > 1 keeps the floor flat far from shore
+                                         and concentrates the ramp at the coast;
+                                         < 1 makes a gentler, wider ramp (default 2.0).
 
         Args:
-            heightmap:      2-D float32 array of elevations (metres, scale already applied).
-            undersea_height: The target floor value for deep-ocean pixels.
-            cfg:            Optional config dict to supply parameter defaults.
+            heightmap:       2-D float32 array of elevations (metres).
+            undersea_height: Floor elevation for deep-ocean pixels (e.g. −200 m).
+            cfg:             Optional config dict for parameter defaults.
         Returns:
-            The modified heightmap (above-sea pixels untouched).
+            Modified heightmap; above-sea pixels are identical to the input.
         """
         if cfg is None:
             cfg = {}
 
-        blur_radius = self.get_param(
-            "underwater_blur_radius",
-            cfg.get("underwater_blur_radius", 150.0)
-        )
-        blend_power = self.get_param(
+        transition_radius = float(self.get_param(
+            "underwater_transition_radius",
+            cfg.get("underwater_transition_radius", 150.0),
+        ))
+        blend_power = float(self.get_param(
             "underwater_blend_power",
-            cfg.get("underwater_blend_power", 2.0)
-        )
+            cfg.get("underwater_blend_power", 2.0),
+        ))
 
         self.info(
-            "Applying underwater lift blend: blur_radius=%.1f, power=%.1f, undersea_height=%.1f",
-            blur_radius, blend_power, undersea_height,
+            "Applying underwater distance-lift: transition_radius=%.1f px, "
+            "blend_power=%.2f, undersea_height=%.1f m",
+            transition_radius, blend_power, undersea_height,
         )
 
-        # --- 1. Shore proximity weight ----------------------------------------
-        # ground_mask is 1.0 above sea level, 0.0 below.
-        ground_mask = (heightmap > 0.0).astype(np.float32)
+        # --- 1. Shore mask: True = land (elev > 0), False = ocean -------------
+        land_mask = heightmap > 0.0
 
-        # Blur diffuses the "1" values outward into the ocean, giving each
-        # underwater pixel a weight proportional to its proximity to shore.
-        # Clamp to [0, 1] in case of floating-point overshoot.
-        shore_proximity = np.clip(gaussian_filter(ground_mask, sigma=blur_radius), 0.0, 1.0)
-
-        # Apply power curve: blend_power > 1 keeps most of the ocean near
-        # undersea_height and concentrates the ramp close to the coastline.
-        lift_weight = np.power(shore_proximity, blend_power)
-
-        # --- 2. Lift sub-zero pixels toward sea level -------------------------
-        # target_elevation is 0 (sea level) everywhere; we lerp from the current
-        # (negative) elevation toward 0 using lift_weight.
-        # Above-sea pixels: lift_weight may be > 0 near shore, but the clamp
-        # below ensures we never push a positive elevation downward.
-        lifted = heightmap + (0.0 - heightmap) * lift_weight
-        # lifted = heightmap * (1 - lift_weight) + 0.0 * lift_weight  (same thing)
-
-        # --- 3. Guarantee above-sea-level pixels are untouched ---------------
-        # In theory the formula already preserves positive values (lifting toward
-        # 0 from below only raises), but we guard against any numerical artefacts.
-        result = np.where(heightmap > 0.0, heightmap, lifted)
+        # --- 2. Exact Euclidean distance to nearest land pixel ----------------
+        # distance_transform_edt measures distance from every *False* pixel to
+        # the nearest *True* pixel.  Land pixels report 0.
+        # input must be bool: True = foreground (land), False = background (ocean)
+        dist_to_shore = distance_transform_edt(~land_mask).astype(np.float32)
 
         self.info(
-            "Underwater lift complete. Range: min=%.2f max=%.2f",
+            "Distance-to-shore map: max=%.1f px  (transition_radius=%.1f px)",
+            dist_to_shore.max(), transition_radius,
+        )
+
+        # --- 3. Normalised distance clamped to [0, 1] -------------------------
+        # t = 0 at the shoreline, t = 1 at or beyond transition_radius
+        t = np.clip(dist_to_shore / transition_radius, 0.0, 1.0)
+
+        # --- 4. Curve shaping + lerp to target elevation ----------------------
+        # t^p with p > 1: most of the ramp happens close to shore; floor stays
+        # flat near undersea_height beyond the transition zone.
+        t_curved = np.power(t, blend_power)
+
+        # lerp: elevation at the shore (t=0) = 0 m, at full depth (t=1) = undersea_height
+        lifted = undersea_height * t_curved  # = 0*(1-t_curved) + undersea_height*t_curved
+
+        # --- 5. Apply only to ocean pixels; land is untouched -----------------
+        result = np.where(land_mask, heightmap, lifted)
+
+        self.info(
+            "Underwater lift complete. Range: min=%.2f max=%.2f m",
             result.min(), result.max(),
         )
 
