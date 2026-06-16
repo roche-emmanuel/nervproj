@@ -640,6 +640,11 @@ class CopernicusManager(NVPComponent):
         Shared helper: extract lat/lon bbox and output resolution from CLI params
         or from a world config dict.  Returns (lat0, lon0, lat1, lon1, res, out_dir).
         lat0/lon0 = SW corner (min), lat1/lon1 = NE corner (max).
+
+        Applies the same bbox squaring as generate_heightmap: the longer axis
+        determines the side length and both axes are expanded symmetrically around
+        the centre, so the output canvas covers exactly the same geographic square
+        that the heightmap covers.
         """
         lat0 = float(self.get_param("lat_min", cfg.get("min_lat", cfg.get("bounding_box", {}).get("min_lat"))))
         lon0 = float(self.get_param("lon_min", cfg.get("min_lon", cfg.get("bounding_box", {}).get("min_lon"))))
@@ -649,6 +654,25 @@ class CopernicusManager(NVPComponent):
         self.check(
             None not in (lat0, lon0, lat1, lon1),
             "Bounding box required: provide --lat-min/max/lon-min/max or a world config YAML.",
+        )
+
+        # Square the bbox exactly as generate_heightmap does: take the larger of
+        # the two degree-extents and expand both axes symmetrically around the
+        # centre.  This guarantees landcover/tree_density pixels align 1-to-1
+        # with heightmap pixels when both are generated at the same --res.
+        xsize = abs(lon1 - lon0)
+        ysize = abs(lat1 - lat0)
+        size  = max(xsize, ysize)
+        clat  = (lat0 + lat1) * 0.5
+        clon  = (lon0 + lon1) * 0.5
+        lat0  = clat - size * 0.5
+        lat1  = clat + size * 0.5
+        lon0  = clon - size * 0.5
+        lon1  = clon + size * 0.5
+
+        self.info(
+            "Squared bbox: lat[%.6f, %.6f] lon[%.6f, %.6f] (%.4f deg / ~%.1f km)",
+            lat0, lat1, lon0, lon1, size, size * 111.320,
         )
 
         # default resolution matches the heightmap res if set in config, else 4033
