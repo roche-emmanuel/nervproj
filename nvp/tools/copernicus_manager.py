@@ -1,23 +1,47 @@
 """
-Copernicus GLO-30 DEM Dataset Downloader
-Downloads the global 30m resolution Digital Elevation Model from Copernicus.
+Copernicus / ESA land-data pipeline manager.
+
+Covers three offline data products used by the ArgusWorldBuilder vegetation pipeline:
+
+  1. GLO-30 DEM  (elevation)
+     Source : s3://copernicus-dem-30m  (1° tiles, GeoTIFF, no sign-in)
+     Command: gen_heightmap
+
+  2. ESA WorldCover 10 m  (land cover classes)
+     Source : s3://esa-worldcover/v200/2021/map  (3°×3° tiles, GeoTIFF, no sign-in)
+     Command: gen_landcover
+     Output : landcover.png  (uint8, 11-class values) + landcover.json sidecar
+     Classes: 10=Trees 20=Shrubland 30=Grassland 40=Cropland 50=BuiltUp
+              60=Bare 70=Snow 80=Water 90=HerbaceousWetland 95=Mangroves 100=Moss
+
+  3. CGLS HRL Tree Cover Density 10 m  (canopy closure %)
+     Source : https://land.copernicus.eu  (100×100 km tiles, manual download)
+              s3://copernicus-land-hrl-forest (unofficial mirror, where available)
+     Command: gen_tree_density
+     Output : tree_density.png  (uint8, 0-100 % canopy) + tree_density.json sidecar
+     Fallback: when tiles are absent a flat uint8 raster is synthesised from the
+               config key  vegetation.default_tree_density  (default 50).
+
+     Leaf-type classification is NOT downloaded as a separate raster: the default
+     leaf type for the world is set via  vegetation.default_leaf_type  in the world
+     YAML config (values: "broadleaf" | "coniferous" | "mixed", default "broadleaf").
+     VegetationPlacer reads this single config value to pick the tree species palette.
+
+Usage examples (heightmap — unchanged):
+  nvp gen_heightmap --lat-min=-21.39 --lat-max=-20.87 --lon-min=55.21 --lon-max=55.84 --res=8129 -o output/reunion_4k
+
+Usage examples (land cover):
+  nvp gen_landcover -c output/reunion_4k/world.yml
+  nvp gen_landcover --lat-min=-21.39 --lat-max=-20.87 --lon-min=55.21 --lon-max=55.84 --res=4033 -o output/reunion_4k
+
+Usage examples (tree density):
+  nvp gen_tree_density -c output/reunion_4k/world.yml
+  nvp gen_tree_density --lat-min=-21.39 --lat-max=-20.87 --lon-min=55.21 --lon-max=55.84 --res=4033 -o output/reunion_4k
+  # If HRL tiles are absent the fallback flat raster is written automatically.
 """
-# Example command to download with aws:
-# nvp aws s3 cp --no-sign-request s3://copernicus-dem-30m/Copernicus_DSM_COG_10_S90_00_W176_00_DEM/Copernicus_DSM_COG_10_S90_00_W176_00_DEM.tif .
 
-# Example command to download tiles:
-# nvp copernicus_dl --lat=-22,-20 --lon=55,56
-
-# Example to generate an heightmap:
-# nvp copernicus_genmap --lat=-22.00 --lon=54.50 --xsize=2.0 --ysize=2.0 --xres=8192 --yres=8192 -o output.png --scale=10.0 [obsolete]
-
-# or:
-# nvp copernicus_genmap --lat=-22.00 --lon=54.50 --size=2.0 --res=16384 -o output.png --scale=10.0 [obsolete]
-
-# For unreal engine terrain:
-# nvp copernicus_genmap --lat-min=-21.3929 --lat-max=-20.8671 --lon-min=55.2131 --lon-max=55.8414 --res=8129 -o output.png --hscale=10.0 --noise-amp=60
-# nvp copernicus_genmap --lat-min=-21.3929 --lat-max=-20.8671 --lon-min=55.2131 --lon-max=55.8414 --res=8161 -o hf_reunion_8k_ue.png --hscale=10.0 --noise-amp=60
-# This generate a terrain of size=~69.942km so in unreal we need a scale factor of: 69942/8128 = 8.605068  -> 860.5068
+# Example command to download DEM tiles:
+# nvp download --lat=-22,-20 --lon=55,56
 
 # Note: hscale is a vertical exaggeration factor applied to elevation data before encoding
 #       (e.g. hscale=2.0 doubles the apparent relief). Default 1.0 = real-world scale.
@@ -80,18 +104,26 @@ class CopernicusManager(NVPComponent):
         if cmd == "download":
             self.download_data()
             return True
-        
+
         if cmd == "gen_heightmap":
             self.generate_heightmap()
             return True
-    
+
+        if cmd == "gen_landcover":
+            self.generate_landcover()
+            return True
+
+        if cmd == "gen_tree_density":
+            self.generate_tree_density()
+            return True
+
         return False
 
     def generate_tile_list(self, lat_range, lon_range):
         """
         Generate list of all GLO-30 tile names.
         Tiles are named like: Copernicus_DSM_COG_10_N00_00_E006_00_DEM
-        Coverage: 90N to 90S, 180W to 180E in 1-degree tiles
+        Coverage: 90 N to 90 S, 180 W to 180 E in 1-degree tiles
         """
         tiles = []
         
@@ -414,7 +446,7 @@ class CopernicusManager(NVPComponent):
         result = np.where(land_mask, heightmap, lifted)
 
         self.info(
-            "Underwater lift complete. Range: min=%.2f max=%.2f m",
+            "Underwater lift complete. Range: min=%.2f max=%.2f",
             result.min(), result.max(),
         )
 
@@ -511,6 +543,313 @@ class CopernicusManager(NVPComponent):
                   elev_min_m if elev_min_m is not None else float('nan'),
                   elev_max_m if elev_max_m is not None else float('nan'))
         return sidecar_path
+
+    # ------------------------------------------------------------------
+    # WorldCover land-cover helpers
+    # ------------------------------------------------------------------
+
+    # ESA WorldCover 2021 v200 — public S3, no sign-in required.
+    # Tiles are 3°×3° named by their SW corner, e.g.:
+    #   s3://esa-worldcover/v200/2021/map/ESA_WorldCover_10m_2021_v200_S24E054_Map.tif
+    WORLDCOVER_S3_BASE = "s3://esa-worldcover/v200/2021/map"
+
+    # WorldCover class values (uint8) — stored in sidecar for VegetationPlacer.
+    WORLDCOVER_CLASSES = {
+        10:  "Trees",
+        20:  "Shrubland",
+        30:  "Grassland",
+        40:  "Cropland",
+        50:  "BuiltUp",
+        60:  "Bare",
+        70:  "Snow",
+        80:  "Water",
+        90:  "HerbaceousWetland",
+        95:  "Mangroves",
+        100: "Moss",
+    }
+
+    def _worldcover_tile_name(self, lat, lon):
+        """
+        Return the WorldCover tile filename for the 3°×3° cell whose SW corner
+        is at (lat, lon).  Both must already be snapped to multiples of 3.
+        Example: lat=-24 lon=54 → "ESA_WorldCover_10m_2021_v200_S24E054_Map.tif"
+        """
+        lat_hem = "N" if lat >= 0 else "S"
+        lon_hem = "E" if lon >= 0 else "W"
+        return (
+            f"ESA_WorldCover_10m_2021_v200_"
+            f"{lat_hem}{abs(lat):02d}{lon_hem}{abs(lon):03d}_Map.tif"
+        )
+
+    def _worldcover_tiles_for_bbox(self, lat0, lon0, lat1, lon1):
+        """
+        Return all WorldCover tile names whose 3°×3° cells intersect the bbox.
+        SW corners are aligned to multiples of 3 degrees.
+        """
+        # snap SW corner of first tile downward to nearest multiple of 3
+        lat_start = int(math.floor(lat0 / 3.0)) * 3
+        lon_start = int(math.floor(lon0 / 3.0)) * 3
+
+        tiles = []
+        lat = lat_start
+        while lat < lat1:
+            lon = lon_start
+            while lon < lon1:
+                tiles.append(self._worldcover_tile_name(lat, lon))
+                lon += 3
+            lat += 3
+        return tiles
+
+    def _download_worldcover_tile(self, tile_name, tiles_dir):
+        """Download a single WorldCover tile from the public S3 bucket."""
+        out_path = self.get_path(tiles_dir, tile_name)
+        if self.file_exists(out_path):
+            self.info("WorldCover tile already cached: %s", tile_name)
+            return out_path
+
+        url = f"{self.WORLDCOVER_S3_BASE}/{tile_name}"
+        self.info("Downloading WorldCover tile %s ...", tile_name)
+        self.execute_nvp("aws", "s3", "cp", "--no-sign-request", url, out_path)
+        return out_path
+
+    def _reproject_uint8_tile(self, src_path, target_array, transform, nodata_val=0):
+        """
+        Reproject a uint8 GeoTIFF into target_array (uint8, same shape as the
+        output raster) using nearest-neighbour resampling — preserves class values.
+        Pixels that fall outside the source tile remain unchanged (0 = nodata).
+        """
+        with rasterio.open(src_path) as src:
+            temp = np.zeros(target_array.shape, dtype=np.uint8)
+            reproject(
+                source=rasterio.band(src, 1),
+                destination=temp,
+                src_transform=src.transform,
+                src_crs=src.crs,
+                dst_transform=transform,
+                dst_crs="EPSG:4326",
+                resampling=Resampling.nearest,
+                src_nodata=src.nodata if src.nodata is not None else nodata_val,
+                dst_nodata=nodata_val,
+            )
+            # Composite: only overwrite pixels that the tile actually covers.
+            valid_mask = temp != nodata_val
+            target_array[valid_mask] = temp[valid_mask]
+
+    def _resolve_bbox_and_res(self, cfg):
+        """
+        Shared helper: extract lat/lon bbox and output resolution from CLI params
+        or from a world config dict.  Returns (lat0, lon0, lat1, lon1, res, out_dir).
+        lat0/lon0 = SW corner (min), lat1/lon1 = NE corner (max).
+        """
+        lat0 = float(self.get_param("lat_min", cfg.get("min_lat", cfg.get("bounding_box", {}).get("min_lat"))))
+        lon0 = float(self.get_param("lon_min", cfg.get("min_lon", cfg.get("bounding_box", {}).get("min_lon"))))
+        lat1 = float(self.get_param("lat_max", cfg.get("max_lat", cfg.get("bounding_box", {}).get("max_lat"))))
+        lon1 = float(self.get_param("lon_max", cfg.get("max_lon", cfg.get("bounding_box", {}).get("max_lon"))))
+
+        self.check(
+            None not in (lat0, lon0, lat1, lon1),
+            "Bounding box required: provide --lat-min/max/lon-min/max or a world config YAML.",
+        )
+
+        # default resolution matches the heightmap res if set in config, else 4033
+        res = int(self.get_param("res", cfg.get("res", cfg.get("vegetation", {}).get("map_res", 4033))))
+
+        out_dir = self.get_param("output_dir", cfg.get("output_dir"))
+        if out_dir is None:
+            cfgfile = self.get_param("config")
+            if cfgfile:
+                out_dir = os.path.dirname(os.path.abspath(cfgfile))
+            else:
+                out_dir = self.get_cwd()
+
+        return lat0, lon0, lat1, lon1, res, out_dir
+
+    def _write_veg_sidecar(self, out_file, lat0, lon0, lat1, lon1, res, extra):
+        """
+        Write a JSON sidecar for a vegetation map PNG (landcover or tree_density).
+        'extra' is a dict of additional keys merged into the sidecar.
+        """
+        size_m = self.compute_size_m(lat0, lon0, lat1, lon1)
+        ue_scale = self.compute_ue_scale(size_m, res)
+
+        sidecar = {
+            "origin_lat": round(min(lat0, lat1), 6),
+            "origin_lon": round(min(lon0, lon1), 6),
+            "size_m":     round(size_m, 3),
+            "ue_scale":   round(ue_scale, 4),
+            "res_x":      res,
+            "res_y":      res,
+        }
+        sidecar.update(extra)
+
+        stem, _ = os.path.splitext(out_file)
+        sidecar_path = stem + ".json"
+        self.write_json(sidecar, sidecar_path)
+        self.info("Sidecar written to %s", sidecar_path)
+        return sidecar_path
+
+    def generate_landcover(self):
+        """
+        Download ESA WorldCover 10m tiles for the world bbox, mosaic them, and
+        export a uint8 PNG (landcover.png) whose pixel values are WorldCover class
+        codes (10, 20, 30, … 100).  A JSON sidecar lists the class legend.
+
+        CLI / config keys consumed:
+          --lat-min/max  --lon-min/max   bbox (or read from world YAML)
+          --res                          output pixel resolution (default 4033)
+          -o / --output-dir              destination folder
+          -c / --config                  world YAML (overridden by explicit CLI args)
+          --tiles-dir                    cache dir for raw WorldCover GeoTIFFs
+          --no-sidecar                   suppress JSON sidecar
+        """
+        cfgfile = self.get_param("config")
+        cfg = self.read_yaml(cfgfile) if cfgfile else {}
+
+        lat0, lon0, lat1, lon1, res, out_dir = self._resolve_bbox_and_res(cfg)
+        self.make_folder(out_dir)
+
+        tiles_dir = self.get_param(
+            "tiles_dir",
+            cfg.get("worldcover_tiles_dir", self.get_path(self._default_tiles_dir, "worldcover")),
+        )
+        self.make_folder(tiles_dir)
+
+        self.info(
+            "Generating land-cover map: BBOX lat[%.5f,%.5f] lon[%.5f,%.5f]  res=%d",
+            lat0, lat1, lon0, lon1, res,
+        )
+
+        # Build output raster (uint8, 0 = nodata / outside any tile)
+        transform = from_bounds(lon0, lat0, lon1, lat1, res, res)
+        canvas = np.zeros((res, res), dtype=np.uint8)
+
+        tile_names = self._worldcover_tiles_for_bbox(lat0, lon0, lat1, lon1)
+        self.info("WorldCover tiles needed: %d", len(tile_names))
+
+        for tile_name in tile_names:
+            tile_path = self._download_worldcover_tile(tile_name, tiles_dir)
+            if not self.file_exists(tile_path):
+                self.warn("WorldCover tile not available, skipping: %s", tile_name)
+                continue
+            self.info("Mosaicking %s", tile_name)
+            self._reproject_uint8_tile(tile_path, canvas, transform, nodata_val=0)
+
+        # Save as single-channel uint8 PNG.
+        # PIL mode "L" = 8-bit greyscale, which stores uint8 class codes losslessly.
+        img = Image.fromarray(canvas, mode="L")
+        out_file = self.get_path(out_dir, "landcover.png")
+        img.save(out_file)
+        self.info("Land-cover map saved to %s", out_file)
+
+        if not self.get_param("no_sidecar", cfg.get("no_sidecar", False)):
+            self._write_veg_sidecar(out_file, lat0, lon0, lat1, lon1, res, {
+                "source":  "ESA_WorldCover_10m_2021_v200",
+                "classes": self.WORLDCOVER_CLASSES,
+            })
+
+    # ------------------------------------------------------------------
+    # CGLS Tree Cover Density helpers
+    # ------------------------------------------------------------------
+
+    # CGLS HRL TCD tiles follow the EEA 100×100 km reference grid (ETRS89-LAEA).
+    # They are *not* on a simple lat/lon grid and must be downloaded manually
+    # from https://land.copernicus.eu or via the Copernicus Data Space API.
+    # We look for pre-downloaded GeoTIFFs in the configured tiles directory and
+    # fall back to a flat synthetic raster when tiles are missing.
+
+    def _tcd_tiles_for_bbox(self, tiles_dir):
+        """
+        Return all .tif files found in tiles_dir that look like TCD tiles.
+        We accept any .tif in the directory; the caller filters by spatial overlap
+        during reprojection (pixels outside the source bbox remain 0).
+        """
+        if not self.file_exists(tiles_dir):
+            return []
+        tifs = [
+            self.get_path(tiles_dir, f)
+            for f in os.listdir(tiles_dir)
+            if f.lower().endswith(".tif")
+        ]
+        return tifs
+
+    def generate_tree_density(self):
+        """
+        Produce a uint8 PNG (tree_density.png, values 0-100) representing canopy
+        closure percentage per pixel.
+
+        Data source priority:
+          1. CGLS HRL Tree Cover Density GeoTIFF tiles pre-downloaded into
+             cfg["tcd_tiles_dir"] (or --tiles-dir).  Any .tif files found there
+             are mosaicked with nearest-neighbour resampling.
+          2. If no tiles are found: synthesise a flat raster whose value equals
+             cfg["vegetation"]["default_tree_density"] (default 50).
+
+        CLI / config keys consumed (same as gen_landcover plus):
+          vegetation:
+            default_tree_density: 50    # 0-100 %, used when no TCD tiles available
+            default_leaf_type:    "broadleaf"   # broadleaf | coniferous | mixed
+        """
+        cfgfile = self.get_param("config")
+        cfg = self.read_yaml(cfgfile) if cfgfile else {}
+
+        lat0, lon0, lat1, lon1, res, out_dir = self._resolve_bbox_and_res(cfg)
+        self.make_folder(out_dir)
+
+        veg_cfg = cfg.get("vegetation", {})
+        default_density = int(veg_cfg.get("default_tree_density", 50))
+        default_leaf_type = veg_cfg.get("default_leaf_type", "broadleaf")
+
+        tiles_dir = self.get_param(
+            "tiles_dir",
+            cfg.get("tcd_tiles_dir", self.get_path(self._default_tiles_dir, "tcd")),
+        )
+
+        self.info(
+            "Generating tree-density map: BBOX lat[%.5f,%.5f] lon[%.5f,%.5f]  res=%d",
+            lat0, lat1, lon0, lon1, res,
+        )
+
+        transform = from_bounds(lon0, lat0, lon1, lat1, res, res)
+        canvas = np.zeros((res, res), dtype=np.uint8)
+
+        tif_files = self._tcd_tiles_for_bbox(tiles_dir)
+        used_real_data = False
+
+        if tif_files:
+            self.info("Found %d TCD tile(s) in %s", len(tif_files), tiles_dir)
+            for tif_path in tif_files:
+                self.info("Mosaicking TCD tile: %s", os.path.basename(tif_path))
+                try:
+                    self._reproject_uint8_tile(tif_path, canvas, transform, nodata_val=0)
+                    used_real_data = True
+                except Exception as exc:
+                    self.warn("Failed to read TCD tile %s: %s", tif_path, exc)
+        else:
+            self.info(
+                "No TCD tiles found in %s — using default density %d%%",
+                tiles_dir, default_density,
+            )
+
+        if not used_real_data:
+            # Flat fallback: fill entire canvas with the configured default density.
+            canvas[:] = np.clip(default_density, 0, 100)
+            self.info("Fallback tree-density raster: %d%% uniform", default_density)
+
+        out_file = self.get_path(out_dir, "tree_density.png")
+        img = Image.fromarray(canvas, mode="L")
+        img.save(out_file)
+        self.info("Tree-density map saved to %s", out_file)
+
+        if not self.get_param("no_sidecar", cfg.get("no_sidecar", False)):
+            self._write_veg_sidecar(out_file, lat0, lon0, lat1, lon1, res, {
+                "source":            "CGLS_HRL_TCD_10m" if used_real_data else "synthetic_fallback",
+                "value_range":       "0-100 (canopy closure %)",
+                "default_density":   default_density,
+                "default_leaf_type": default_leaf_type,
+                "used_real_data":    used_real_data,
+            })
+
+    # ------------------------------------------------------------------
 
     def generate_heightmap(self):
 
@@ -762,6 +1101,47 @@ if __name__ == "__main__":
     )
     psr.add_flag("--no-sidecar", dest="no_sidecar")(
         "Suppress JSON sidecar output (sidecar is written by default)"
+    )
+
+    # ── gen_landcover ──────────────────────────────────────────────────────────
+    psr = context.build_parser("gen_landcover")
+    psr.add_str("-c", "--config", dest="config")(
+        "World config YAML (same file used by the UE commandlet)"
+    )
+    psr.add_float("--lat-min")("Min latitude  (south edge)")
+    psr.add_float("--lat-max")("Max latitude  (north edge)")
+    psr.add_float("--lon-min")("Min longitude (west edge)")
+    psr.add_float("--lon-max")("Max longitude (east edge)")
+    psr.add_int("--res")(
+        "Output resolution in pixels (default: vegetation.map_res from config, or 4033)"
+    )
+    psr.add_str("--tiles-dir", dest="tiles_dir")(
+        "Directory to cache downloaded WorldCover GeoTIFF tiles"
+    )
+    psr.add_str("-o", "--output-dir", dest="output_dir")("Output directory")
+    psr.add_flag("--no-sidecar", dest="no_sidecar")(
+        "Suppress JSON sidecar output"
+    )
+
+    # ── gen_tree_density ───────────────────────────────────────────────────────
+    psr = context.build_parser("gen_tree_density")
+    psr.add_str("-c", "--config", dest="config")(
+        "World config YAML (same file used by the UE commandlet)"
+    )
+    psr.add_float("--lat-min")("Min latitude  (south edge)")
+    psr.add_float("--lat-max")("Max latitude  (north edge)")
+    psr.add_float("--lon-min")("Min longitude (west edge)")
+    psr.add_float("--lon-max")("Max longitude (east edge)")
+    psr.add_int("--res")(
+        "Output resolution in pixels (default: vegetation.map_res from config, or 4033)"
+    )
+    psr.add_str("--tiles-dir", dest="tiles_dir")(
+        "Directory to cache pre-downloaded CGLS TCD GeoTIFF tiles "
+        "(if absent a synthetic fallback raster is generated)"
+    )
+    psr.add_str("-o", "--output-dir", dest="output_dir")("Output directory")
+    psr.add_flag("--no-sidecar", dest="no_sidecar")(
+        "Suppress JSON sidecar output"
     )
 
     comp.run()
