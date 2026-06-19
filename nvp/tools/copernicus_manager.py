@@ -678,6 +678,19 @@ class CopernicusManager(NVPComponent):
         # default resolution matches the heightmap res if set in config, else 4033
         res = int(self.get_param("res", cfg.get("res", cfg.get("vegetation", {}).get("map_res", 4033))))
 
+        # map_res: -1  →  native resolution: one output pixel per 10 m source pixel.
+        # WorldCover and CGLS TCD are both 10 m/pixel datasets, so this is the
+        # highest meaningful resolution — going beyond it would just upsample.
+        # size_m uses mean-lat cosine correction (same formula as generate_heightmap)
+        # so the pixel count is accurate for non-equatorial areas.
+        if res == -1:
+            size_m = self.compute_size_m(lat0, lon0, lat1, lon1)
+            res = max(1, round(size_m / 10.0))
+            self.info(
+                "map_res=-1: native 10 m/pixel resolution -> %d px  (area %.1f km x %.1f km)",
+                res, size_m / 1000.0, size_m / 1000.0,
+            )
+
         out_dir = self.get_param("output_dir", cfg.get("data_dir"))
         if out_dir is None:
             cfgfile = self.get_param("config")
