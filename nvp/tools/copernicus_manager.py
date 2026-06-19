@@ -154,7 +154,7 @@ class CopernicusManager(NVPComponent):
         
         # Skip if already downloaded
         if self.file_exists(output_file):
-            self.info("File %s already exists.", output_file)
+            # self.info("File %s already exists.", output_file)
             return
 
         url = self.get_tile_url(tile_name)
@@ -678,7 +678,7 @@ class CopernicusManager(NVPComponent):
         # default resolution matches the heightmap res if set in config, else 4033
         res = int(self.get_param("res", cfg.get("res", cfg.get("vegetation", {}).get("map_res", 4033))))
 
-        out_dir = self.get_param("output_dir", cfg.get("output_dir"))
+        out_dir = self.get_param("output_dir", cfg.get("data_dir"))
         if out_dir is None:
             cfgfile = self.get_param("config")
             if cfgfile:
@@ -765,7 +765,8 @@ class CopernicusManager(NVPComponent):
         img.save(out_file)
         self.info("Land-cover map saved to %s", out_file)
 
-        if not self.get_param("no_sidecar", cfg.get("no_sidecar", False)):
+        hcfg = cfg.get("heighmap", {})
+        if not self.get_param("no_sidecar", hcfg.get("no_sidecar", False)):
             self._write_veg_sidecar(out_file, lat0, lon0, lat1, lon1, res, {
                 "source":  "ESA_WorldCover_10m_2021_v200",
                 "classes": self.WORLDCOVER_CLASSES,
@@ -864,7 +865,8 @@ class CopernicusManager(NVPComponent):
         img.save(out_file)
         self.info("Tree-density map saved to %s", out_file)
 
-        if not self.get_param("no_sidecar", cfg.get("no_sidecar", False)):
+        hcfg = cfg.get("heighmap", {})
+        if not self.get_param("no_sidecar", hcfg.get("no_sidecar", False)):
             self._write_veg_sidecar(out_file, lat0, lon0, lat1, lon1, res, {
                 "source":            "CGLS_HRL_TCD_10m" if used_real_data else "synthetic_fallback",
                 "value_range":       "0-100 (canopy closure %)",
@@ -882,10 +884,11 @@ class CopernicusManager(NVPComponent):
         if cfgfile is not None:
             cfg = self.read_yaml(cfgfile)
 
-        lat0 = self.get_param("lat_min", cfg.get("min_lat"))
-        lon0 = self.get_param("lon_min", cfg.get("min_lon"))
-        lat1 = self.get_param("lat_max", cfg.get("max_lat"))
-        lon1 = self.get_param("lon_max", cfg.get("max_lon"))
+        bb = cfg.get("bounding_box", {})
+        lat0 = self.get_param("lat_min", bb.get("min_lat"))
+        lon0 = self.get_param("lon_min", bb.get("min_lon"))
+        lat1 = self.get_param("lat_max", bb.get("max_lat"))
+        lon1 = self.get_param("lon_max", bb.get("max_lon"))
 
         # size = self.get_param("size")
         # xsize = float(self.get_param("xsize", size))
@@ -903,14 +906,15 @@ class CopernicusManager(NVPComponent):
         km_size = 111.320 * size
         self.info("Effective coords: lat0=%.6f, lon0=%.6f, lat1=%.6f, lon1=%.6f, size=%.6f (~%.3fkm)", lat0,lon0,lat1,lon1,size,km_size)
 
-        res = self.get_param("res", cfg.get("res"))
+        hcfg = cfg.get("heightmap", {})
+        res = self.get_param("res", hcfg.get("resolution"))
         # scale is the internal pipeline unit factor (metres → pipeline units).
         # We keep the pipeline in raw metres (scale=1.0); vertical exaggeration
         # (hscale) is applied only at the final encoding step, not here.
         scale = 1.0
 
         # --ue-res: snap to nearest valid UE5 landscape resolution
-        if self.get_param("ue_res", cfg.get("snap_ue_res")):
+        if self.get_param("ue_res", hcfg.get("snap_ue_res")):
             snapped, was_snapped = self.snap_to_ue_res(res)
             if was_snapped:
                 self.warn(
@@ -926,11 +930,11 @@ class CopernicusManager(NVPComponent):
         xres = res
         yres = res
 
-        undersea_height = self.get_param("undersea_height", cfg.get("undersea_height", -200)) * scale
+        undersea_height = self.get_param("undersea_height", hcfg.get("undersea_height", -200)) * scale
         self.info("Using undersea height value: %f", undersea_height)
 
         # --world-id: write output into <cwd>/output/<world_id>/heightmap.png
-        out_dir = self.get_param("output_dir", cfg.get("output_dir"))
+        out_dir = self.get_param("output_dir", cfg.get("data_dir"))
         if out_dir is None:
             out_dir = self.get_cwd()
 
@@ -953,6 +957,8 @@ class CopernicusManager(NVPComponent):
 
         for tile in tiles:
             tif = self.get_path(tiles_dir, f"{tile}.tif")
+            self.download_tile(tile, tiles_dir)
+
             if not self.file_exists(tif):
                 self.warn("Missing glo30 tile %s", tif)
                 continue
@@ -1015,10 +1021,10 @@ class CopernicusManager(NVPComponent):
         # self.info("Adding erosion...")
         # heightmap = self.apply_erosion(heightmap, [xsize, ysize], lat0 + ysize*0.5)
         # Apply underwater blending
-        amp = self.get_param("noise_amp", cfg.get("noise_amp", 50.0))
+        amp = self.get_param("noise_amp", hcfg.get("noise_amp", 50.0))
 
         # Note: we move up by the noise amplitude here because we can still add this noise down afterwards:
-        heightmap = self.apply_underwater_blend(heightmap, undersea_height + amp*scale, cfg=cfg)
+        heightmap = self.apply_underwater_blend(heightmap, undersea_height + amp*scale, cfg=hcfg)
         # heightmap[heightmap<=0.0] = undersea_height + amp*scale
         # heightmap[heightmap<=0.0] = undersea_height
         
@@ -1029,7 +1035,7 @@ class CopernicusManager(NVPComponent):
         # hscale is a pure vertical exaggeration factor (1.0 = real-world scale,
         # 2.0 = double the relief, etc.). The pipeline above works in metres
         # (scale=1.0), so this is a direct multiply.
-        vert_exag = float(self.get_param("hscale", cfg.get("hscale", 1.0)))
+        vert_exag = float(self.get_param("hscale", hcfg.get("hscale", 1.0)))
         heightmap_m = heightmap * vert_exag
 
         elev_min = heightmap_m.min()
@@ -1081,7 +1087,7 @@ class CopernicusManager(NVPComponent):
         self.info("Heightmap saved to %s", out_file)
 
         # Write JSON sidecar (default on, skip with --no-sidecar)
-        if not self.get_param("no_sidecar", cfg.get("no_sidecar", False)):
+        if not self.get_param("no_sidecar", hcfg.get("no_sidecar", False)):
             self.write_sidecar(out_file, lat0, lon0, lat1, lon1, res,
                                ue_height_scale_cm,
                                elev_min_m=elev_min, elev_max_m=elev_max)
