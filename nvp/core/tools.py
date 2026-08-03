@@ -95,6 +95,10 @@ class ToolsManager(NVPComponent):
                             # retrieve the most appropriate source package for that tool:
                             pkg_file = self.retrieve_tool_package(desc)
 
+                            if pkg_file is None and desc.get("optional", False):
+                                self.warn(f"Ignoring missing tool package for {full_name}")
+                                continue
+
                             # Extract the package:
                             self.extract_package(pkg_file, self.tools_dir, target_dir=full_name)
 
@@ -194,6 +198,10 @@ class ToolsManager(NVPComponent):
 
         # Next we select the first valid URL:
         url = self.ctx.select_first_valid_path(urls)
+        if url is None:
+            self.warn(f"No valid URL available for package {full_name}")
+            return None
+        
         logger.info("Retrieving package for %s from url %s", full_name, url)
 
         filename = os.path.basename(url)
