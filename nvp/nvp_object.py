@@ -851,17 +851,23 @@ class NVPObject(object):
 
     def is_downloadable(self, url):
         """Check if a given URL is downloadable"""
-        # cf. https://stackoverflow.com/questions/61629856/how-to-check-whether-a-url-is-downloadable-or-not
-        # headers = requests.head(url).headers
-        # return 'attachment' in headers.get('Content-Disposition', '')
-        response = requests.get(url, stream=True)
+        try:
+            response = requests.get(url, stream=True, timeout=10)
+        except requests.exceptions.ConnectionError:
+            # Host unreachable / connection refused / DNS failure
+            return False
+        except requests.exceptions.Timeout:
+            return False
+        except requests.exceptions.RequestException:
+            # Catch-all for anything else requests can raise
+            # (TooManyRedirects, InvalidURL, SSLError, etc.)
+            return False
+
         if not response.ok:
             return False
-
         if "content-length" not in response.headers:
             return False
-
-        return int(response.headers.get("content-length")) > 0
+        return int(response.headers.get("content-length", 0)) > 0
 
     def to_cygwin_path(self, *parts):
         """Try convert a windows path to a cygwin path if applicable"""
