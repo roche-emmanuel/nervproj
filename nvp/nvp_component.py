@@ -32,6 +32,8 @@ class NVPComponent(NVPObject):
 
     def load_config_entry(self, ename):
         """Load a config entry as direct entry or list of elements."""
+        if ename not in self.config:
+            return None
         entry = self.config[ename]
         if isinstance(entry, list):
             return self.load_config_elements(entry)
