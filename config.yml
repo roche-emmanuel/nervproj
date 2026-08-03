@@ -111,7 +111,6 @@ windows_tools:
     git: https://chromium.googlesource.com/chromium/tools/depot_tools.git
   - name: clang
     sub_path: bin/clang++.exe
-    optional: true
     urls:
       # - http://files.nervtech.org/nvp_packages/tools/clang-18.1.8-windows.7z
       # - http://files.nervtech.org/nvp_packages/tools/clang-19.1.7-windows.7z
@@ -147,6 +146,7 @@ linux_tools:
   - name: par2
     path: par2
   - name: clang
+    optional: true
     sub_path: bin/clang++
     root_dir: /usr/lib/llvm-20
     # urls:
