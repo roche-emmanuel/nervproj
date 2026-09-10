@@ -595,6 +595,7 @@ project_paths:
 user_config_urls:
   - ${HOME}/.nvp/config.yml
   - D:\Seafile\Perso\Admin\nervproj.config.yml
+  - C:\Seafile\Perso\Admin\nervproj.config.yml
   - D:\Documents\Perso\Admin\nervproj.config.yml
   - /home/kenshin/seafile/Perso/Admin/nervproj.config.yml
   - /home/kenshin/Seafile/Perso/Admin/nervproj.config.yml
