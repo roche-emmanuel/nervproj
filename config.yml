@@ -1078,6 +1078,7 @@ custom_python_envs:
       # - pyfastnoisesimd
       - landlab
       - scipy
+      - requests
 
   etopo_env:
     inherit: default_env
