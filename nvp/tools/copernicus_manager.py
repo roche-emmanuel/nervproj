@@ -1,7 +1,8 @@
+
 """
 Copernicus / ESA land-data pipeline manager.
 
-Covers three offline data products used by the ArgusWorldBuilder vegetation pipeline:
+Covers four offline data products used by the ArgusWorldBuilder vegetation pipeline:
 
   1. GLO-30 DEM  (elevation)
      Source : s3://copernicus-dem-30m  (1° tiles, GeoTIFF, no sign-in)
@@ -39,33 +40,38 @@ Usage examples (tree density):
   nvp gen_tree_density --lat-min=-21.39 --lat-max=-20.87 --lon-min=55.21 --lon-max=55.84 --res=4033 -o output/reunion_4k
   # If HRL tiles are absent the fallback flat raster is written automatically.
 
-Data source
-    Element 84 "Earth-search" STAC API  : https://earth-search.aws.element84.com/v1
-    Sentinel-2 L2A Cloud-Optimized GeoTIFFs: https://sentinel-cogs.s3.us-west-2.amazonaws.com
-    Licence: Copernicus free / full / open.  Attribution required:
-             "Contains modified Copernicus Sentinel data <years>"
- 
-Output
-    imagery.png   — RGB uint8, res×res, EPSG:4326 grid covering the *same squared
-                    bbox* as heightmap.png / landcover.png (pixel aligned)
-    imagery.json  — sidecar: origin, size_m, ue_scale, res, source scene ids,
-                    date range, valid-observation fraction, attribution string
- 
-World YAML keys (all optional):
-    imagery:
-      res: 0                    # 0 → native 10 m rounded UP to next power of two
-                                # -1 → exact native (size_m / 10)
-                                # N  → explicit pixel size
-      date_start: "2022-01-01"
-      date_end:   "2025-12-31"
-      max_cloud_cover: 20.0     # scene-level filter (percent)
-      max_scenes_per_tile: 8    # least-cloudy scenes kept per MGRS tile
-      mask_scl_classes: [0, 1, 3, 8, 9, 10]
-      cache_dir: X:/resources/EarthData/cache/sentinel2   # warped scene cache
- 
-Usage
-    nvp gen_imagery -c configs/honolulu_4k.yml
-    nvp gen_imagery --lat-min=21.2 --lat-max=21.75 --lon-min=-158.3 --lon-max=-157.6 -o D:/Projects/OSM/honolulu_4k
+  4. Sentinel-2 L2A true-colour imagery 10 m
+     Source : https://earth-search.aws.element84.com/v1  (STAC API, no sign-in)
+              https://sentinel-cogs.s3.us-west-2.amazonaws.com  (COGs, HTTPS range reads)
+     Command: gen_imagery
+     Output : imagery.png  (RGB uint8, same squared bbox as heightmap.png, pixel aligned)
+              imagery_nobs.png  (uint8, clear observations per pixel — QA map)
+              imagery.json  sidecar (origin, size_m, ue_scale, scene ids, attribution)
+     Licence: Copernicus free / full / open.  Attribution required:
+              "Contains modified Copernicus Sentinel data <years>"
+     Method : per MGRS tile, full-swath scenes only (footprint test on the STAC
+              geometry), least cloudy first, fetched until >= min_observations
+              clear looks on >= coverage_target of the covered pixels.  Composite =
+              SCL-masked per-pixel median, temporal low-percentile fallback where
+              a pixel is never clear.  Integer sorts only, bounded memory.
+
+     World YAML keys (imagery: block, all optional):
+       res: 0                      # 0 → native rounded UP to power of two, -1 → native, N → explicit
+       date_start: "2022-01-01"
+       date_end:   "2025-12-31"
+       max_cloud_cover: 30.0       # scene-level cutoff, %
+       min_scenes_per_tile: 8      # always fetched
+       max_scenes_per_tile: 24     # cap while extending
+       min_observations: 3
+       coverage_target: 0.995
+       fallback_percentile: 25
+       full_swath_ratio: 0.9       # footprint / best footprint per tile
+       mask_scl_classes: [0, 1, 3, 8, 9, 10]
+       cache_dir: X:/resources/EarthData/cache/sentinel2
+
+Usage examples (imagery):
+  nvp gen_imagery -c output/honolulu_4k/world.yml
+  nvp gen_imagery --lat-min=21.2 --lat-max=21.75 --lon-min=-158.3 --lon-max=-157.6 -o output/honolulu_4k
 """
 
 # Example command to download DEM tiles:
@@ -93,6 +99,7 @@ Usage
 # https://github.com/mdbartos/pysheds
 # https://richdem.readthedocs.io/en/latest/
 
+import time
 import json
 import math
 import os
@@ -116,32 +123,6 @@ from nvp.nvp_context import NVPContext
 
 class CopernicusManager(NVPComponent):
     """CopernicusManager component class"""
-
-    # ------------------------------------------------------------------
-    # Sentinel-2 L2A imagery helpers
-    # ------------------------------------------------------------------
- 
-    SENTINEL2_STAC_URL   = "https://earth-search.aws.element84.com/v1/search"
-    SENTINEL2_COLLECTION = "sentinel-2-l2a"
-    SENTINEL2_PIXEL_M    = 10.0
- 
-    # L2A Scene Classification (SCL) codes.  Masked by default:
-    #   0 no-data, 1 saturated/defective, 3 cloud shadow,
-    #   8 cloud medium prob, 9 cloud high prob, 10 thin cirrus
-    # Kept: 2 dark area (often real shadowed terrain), 4 vegetation, 5 bare,
-    #       6 water, 7 unclassified, 11 snow/ice
-    SENTINEL2_DEFAULT_MASK_SCL = [0, 1, 3, 8, 9, 10]
- 
-    # GDAL settings for efficient partial reads of remote COGs over HTTPS.
-    SENTINEL2_GDAL_ENV = {
-        "AWS_NO_SIGN_REQUEST":              "YES",
-        "GDAL_DISABLE_READDIR_ON_OPEN":     "EMPTY_DIR",
-        "CPL_VSIL_CURL_ALLOWED_EXTENSIONS":  ".tif",
-        "GDAL_HTTP_MULTIPLEX":              "YES",
-        "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES",
-        "VSI_CACHE":                        "TRUE",
-        "VSI_CACHE_SIZE":                   str(256 * 1024 * 1024),
-    }
 
     def __init__(self, ctx: NVPContext):
         """class constructor"""
@@ -1166,16 +1147,61 @@ class CopernicusManager(NVPComponent):
                                elev_min_m=elev_min, elev_max_m=elev_max)
 
 
+    # ==================================================================
+    # Sentinel-2 L2A imagery  (gen_imagery)
+    # ==================================================================
+    #
+    # Strategy
+    #   1. STAC search (cloud-cover sorted).  For every item compute the
+    #      fraction of OUR bbox covered by the item's data footprint
+    #      (item["geometry"], pure-python polygon clipping).  Per MGRS tile,
+    #      keep only "full-swath" scenes: coverage >= full_swath_ratio * best
+    #      coverage seen for that tile.  This rejects the swath-edge slivers
+    #      that report 0 % cloud because they contain almost no data, without
+    #      relying on s2:nodata_pixel_percentage (useless for island/coastal
+    #      tiles whose ocean part is never acquired).
+    #   2. Fetch min_scenes_per_tile per tile, then keep adding scenes
+    #      (round-robin, cloud order) while fewer than coverage_target of the
+    #      covered pixels have >= min_observations clear looks, up to
+    #      max_scenes_per_tile.
+    #   3. Composite per pixel with integer sorts (no float stacks, no
+    #      nanmedian): median of SCL-valid observations; where none exists,
+    #      a low percentile of all covered observations (clouds are bright,
+    #      so a low percentile is a cloud-free estimate without a mask).
+    #      Spatial nearest fill only for pixels never covered by any scene.
+
+    SENTINEL2_STAC_URL   = "https://earth-search.aws.element84.com/v1/search"
+    SENTINEL2_COLLECTION = "sentinel-2-l2a"
+    SENTINEL2_PIXEL_M    = 10.0
+    SENTINEL2_CACHE_TAG  = "v2"   # cache layout: <id>_<res>_<bboxtag>_v2_{rgb,cov,valid}.npy
+
+    # L2A Scene Classification (SCL) codes masked by default:
+    #   0 no-data, 1 saturated/defective, 3 cloud shadow,
+    #   8 cloud medium prob, 9 cloud high prob, 10 thin cirrus
+    # Kept: 2 dark area, 4 vegetation, 5 bare, 6 water, 7 unclassified, 11 snow
+    SENTINEL2_DEFAULT_MASK_SCL = [0, 1, 3, 8, 9, 10]
+
+    # GDAL settings for efficient partial reads of remote COGs over HTTPS.
+    SENTINEL2_GDAL_ENV = {
+        "AWS_NO_SIGN_REQUEST":               "YES",
+        "GDAL_DISABLE_READDIR_ON_OPEN":      "EMPTY_DIR",
+        "CPL_VSIL_CURL_ALLOWED_EXTENSIONS":  ".tif",
+        "GDAL_HTTP_MULTIPLEX":               "YES",
+        "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES",
+        "GDAL_HTTP_MAX_RETRY":               "4",
+        "GDAL_HTTP_RETRY_DELAY":             "2",
+        "VSI_CACHE":                         "TRUE",
+        "VSI_CACHE_SIZE":                    str(256 * 1024 * 1024),
+    }
+
     @staticmethod
     def _next_pow2(n):
         """Smallest power of two >= n (n >= 1)."""
         return 1 << (int(n) - 1).bit_length()
- 
+
     def _resolve_imagery_res(self, cfg, lat0, lon0, lat1, lon1):
         """
-        Imagery resolution is a *texture* size, not a landscape size, so it has
-        its own rule (independent of vegetation.map_res / heightmap res):
- 
+        Imagery resolution is a *texture* size, not a landscape size:
           --res / imagery.res  = N  > 0 → explicit
                                = -1     → exact native (size_m / 10 m)
                                = 0 / absent → native rounded up to next power of two
@@ -1183,35 +1209,122 @@ class CopernicusManager(NVPComponent):
         """
         size_m = self.compute_size_m(lat0, lon0, lat1, lon1)
         native = max(1, int(round(size_m / self.SENTINEL2_PIXEL_M)))
- 
+
         icfg = cfg.get("imagery", {})
         res = int(self.get_param("res", icfg.get("res", 0)))
         if res == -1:
             res = native
         elif res <= 0:
             res = self._next_pow2(native)
- 
+
         if res < native:
-            self.warn(
-                "Imagery res %d is below native %d px (10 m/px): source detail will be lost.",
-                res, native,
-            )
+            self.warn("Imagery res %d is below native %d px (10 m/px): source detail will be lost.", res, native)
         self.info(
             "Imagery resolution: %d px (native %d px, area %.1f km x %.1f km, %.2f m/px)",
             res, native, size_m / 1000.0, size_m / 1000.0, size_m / res,
         )
         return res, native
- 
-    def _stac_search_sentinel2(self, lat0, lon0, lat1, lon1, date_start, date_end,
-                               max_cloud, max_scenes_per_tile):
+
+    # ------------------------------------------------------------------
+    # footprint geometry (pure python, no shapely dependency)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _clip_ring_to_rect(ring, xmin, ymin, xmax, ymax):
+        """Sutherland–Hodgman clip of a closed ring [(x,y),...] to a rectangle."""
+
+        def clip(points, inside, intersect):
+            out = []
+            if not points:
+                return out
+            prev = points[-1]
+            prev_in = inside(prev)
+            for cur in points:
+                cur_in = inside(cur)
+                if cur_in:
+                    if not prev_in:
+                        out.append(intersect(prev, cur))
+                    out.append(cur)
+                elif prev_in:
+                    out.append(intersect(prev, cur))
+                prev, prev_in = cur, cur_in
+            return out
+
+        def ix(p, q, x):   # intersection with vertical line x
+            t = (x - p[0]) / (q[0] - p[0])
+            return (x, p[1] + t * (q[1] - p[1]))
+
+        def iy(p, q, y):   # intersection with horizontal line y
+            t = (y - p[1]) / (q[1] - p[1])
+            return (p[0] + t * (q[0] - p[0]), y)
+
+        pts = [(float(p[0]), float(p[1])) for p in ring]
+        if len(pts) > 1 and pts[0] == pts[-1]:
+            pts = pts[:-1]
+        pts = clip(pts, lambda p: p[0] >= xmin, lambda p, q: ix(p, q, xmin))
+        pts = clip(pts, lambda p: p[0] <= xmax, lambda p, q: ix(p, q, xmax))
+        pts = clip(pts, lambda p: p[1] >= ymin, lambda p, q: iy(p, q, ymin))
+        pts = clip(pts, lambda p: p[1] <= ymax, lambda p, q: iy(p, q, ymax))
+        return pts
+
+    @staticmethod
+    def _ring_area(pts):
+        """Shoelace area of a polygon [(x,y),...]."""
+        if len(pts) < 3:
+            return 0.0
+        a = 0.0
+        for i in range(len(pts)):
+            x0, y0 = pts[i]
+            x1, y1 = pts[(i + 1) % len(pts)]
+            a += x0 * y1 - x1 * y0
+        return abs(a) * 0.5
+
+    def _item_bbox_coverage(self, item, lat0, lon0, lat1, lon1):
         """
-        Query Earth-search for Sentinel-2 L2A items intersecting the bbox, sorted
-        by scene cloud cover ascending, and keep the N best items *per MGRS tile*
-        so every part of the bbox gets enough clear observations even when it
-        straddles a tile boundary.
- 
-        Returns a list of STAC item dicts.
+        Fraction (0..1) of the output bbox covered by the item's *data*
+        footprint (STAC geometry; outer rings only, holes are negligible for
+        S2 footprints).  Computed in degrees, so the ratio is exact.
         """
+        geom = item.get("geometry") or {}
+        gtype = geom.get("type")
+        coords = geom.get("coordinates", [])
+        rings = []
+        if gtype == "Polygon" and coords:
+            rings = [coords[0]]
+        elif gtype == "MultiPolygon":
+            rings = [poly[0] for poly in coords if poly]
+        elif item.get("bbox"):
+            b = item["bbox"]
+            rings = [[(b[0], b[1]), (b[2], b[1]), (b[2], b[3]), (b[0], b[3])]]
+
+        bbox_area = abs(lon1 - lon0) * abs(lat1 - lat0)
+        if bbox_area <= 0.0 or not rings:
+            return 0.0
+        area = 0.0
+        for ring in rings:
+            area += self._ring_area(self._clip_ring_to_rect(ring, lon0, lat0, lon1, lat1))
+        return min(1.0, area / bbox_area)
+
+    def _item_pixel_window(self, item, lat0, lon0, lat1, lon1, res):
+        """Pixel window (y0, y1, x0, x1) of the output grid overlapped by the item bbox."""
+        b = item.get("bbox")
+        if not b:
+            return 0, res, 0, res
+        ilon0, ilat0, ilon1, ilat1 = b
+        sx = res / (lon1 - lon0)
+        sy = res / (lat1 - lat0)
+        x0 = int(max(0, math.floor((ilon0 - lon0) * sx)))
+        x1 = int(min(res, math.ceil((ilon1 - lon0) * sx)))
+        y0 = int(max(0, math.floor((lat1 - ilat1) * sy)))
+        y1 = int(min(res, math.ceil((lat1 - ilat0) * sy)))
+        return y0, max(y0, y1), x0, max(x0, x1)
+
+    # ------------------------------------------------------------------
+    # STAC search + scene selection
+    # ------------------------------------------------------------------
+
+    def _stac_search_sentinel2(self, lat0, lon0, lat1, lon1, date_start, date_end, max_cloud):
+        """All L2A items intersecting the bbox in the date window, cloud-sorted ascending."""
         body = {
             "collections": [self.SENTINEL2_COLLECTION],
             "bbox": [lon0, lat0, lon1, lat1],
@@ -1220,18 +1333,21 @@ class CopernicusManager(NVPComponent):
             "sortby": [{"field": "properties.eo:cloud_cover", "direction": "asc"}],
             "limit": 200,
         }
- 
         items = []
         url = self.SENTINEL2_STAC_URL
         while url is not None:
-            self.info("STAC search: %s (%d items so far)", url, len(items))
-            resp = requests.post(url, json=body, timeout=60)
-            resp.raise_for_status()
+            resp = None
+            for attempt in range(3):
+                try:
+                    resp = requests.post(url, json=body, timeout=60)
+                    resp.raise_for_status()
+                    break
+                except Exception as exc:  # pylint: disable=broad-except
+                    self.warn("STAC request failed (attempt %d/3): %s", attempt + 1, exc)
+                    time.sleep(2.0 * (attempt + 1))
+            self.check(resp is not None, "STAC search failed after 3 attempts")
             page = resp.json()
             items.extend(page.get("features", []))
- 
-            # Follow pagination: earth-search returns a 'next' link whose body
-            # carries the paging token for the next POST.
             url = None
             for link in page.get("links", []):
                 if link.get("rel") == "next":
@@ -1239,239 +1355,379 @@ class CopernicusManager(NVPComponent):
                     if "body" in link:
                         body = link["body"]
                     break
- 
-        # Group by MGRS tile and keep the least-cloudy N per tile.
+        self.info("STAC: %d candidate scenes (cloud < %.0f%%, %s..%s)", len(items), max_cloud, date_start, date_end)
+        return items
+
+    @staticmethod
+    def _item_tile(item):
+        props = item.get("properties", {})
+        tile = props.get("grid:code")
+        if tile is None:
+            tile = "%s%s%s" % (
+                props.get("mgrs:utm_zone", "?"),
+                props.get("mgrs:latitude_band", "?"),
+                props.get("mgrs:grid_square", "?"),
+            )
+        return tile
+
+    def _select_full_swath_scenes(self, items, lat0, lon0, lat1, lon1, full_swath_ratio, min_tile_coverage):
+        """
+        Group items per MGRS tile and keep only full-swath scenes (footprint
+        coverage >= full_swath_ratio * best coverage for that tile).  Tiles whose
+        best coverage of the bbox is below min_tile_coverage are dropped.
+        Returns {tile: [items sorted by cloud asc]}.
+        """
         per_tile = {}
         for it in items:
-            props = it.get("properties", {})
-            tile = props.get("grid:code")
-            if tile is None:
-                tile = "%s%s%s" % (
-                    props.get("mgrs:utm_zone", "?"),
-                    props.get("mgrs:latitude_band", "?"),
-                    props.get("mgrs:grid_square", "?"),
-                )
-            per_tile.setdefault(tile, [])
-            if len(per_tile[tile]) < max_scenes_per_tile:
-                per_tile[tile].append(it)
- 
-        selected = [it for lst in per_tile.values() for it in lst]
-        self.info(
-            "STAC: %d candidate items, %d MGRS tiles, %d selected",
-            len(items), len(per_tile), len(selected),
-        )
+            cov = self._item_bbox_coverage(it, lat0, lon0, lat1, lon1)
+            it["_bbox_cov"] = cov
+            per_tile.setdefault(self._item_tile(it), []).append(it)
+
+        selected = {}
         for tile, lst in per_tile.items():
+            best = max(it["_bbox_cov"] for it in lst)
+            if best < min_tile_coverage:
+                self.info("Tile %s: best coverage %.2f%% of bbox < %.2f%%, ignored", tile, 100 * best, 100 * min_tile_coverage)
+                continue
+            full = [it for it in lst if it["_bbox_cov"] >= full_swath_ratio * best]
+            full.sort(key=lambda it: it["properties"].get("eo:cloud_cover", 100.0))
+            selected[tile] = full
             self.info(
-                "  %s: %s",
-                tile,
-                ", ".join("%s (%.1f%%)" % (it["id"], it["properties"].get("eo:cloud_cover", -1)) for it in lst),
+                "Tile %s: covers %.1f%% of bbox, %d/%d full-swath candidates, best cloud %.1f%%",
+                tile, 100 * best, len(full), len(lst),
+                full[0]["properties"].get("eo:cloud_cover", -1) if full else -1,
             )
         return selected
- 
-    def _warp_remote_band(self, href, transform, res, count, resampling, dtype):
+
+    # ------------------------------------------------------------------
+    # remote read + per-scene cache
+    # ------------------------------------------------------------------
+
+    def _warp_remote_band(self, href, transform, res, count, resampling, dtype, retries=3):
         """
-        Read a remote COG warped onto the output EPSG:4326 grid via WarpedVRT.
-        Only the overlapping region of the source is fetched (HTTP range reads).
-        Returns an array of shape (count, res, res) with 0 where the source does
-        not cover the grid.
+        Read a remote COG warped onto the output EPSG:4326 grid via WarpedVRT
+        (HTTP range reads of the overlapping region only).  Returns
+        (count, res, res) with 0 outside the source footprint.
         """
-        with rasterio.Env(**self.SENTINEL2_GDAL_ENV):
-            with rasterio.open(href) as src:
-                with WarpedVRT(
-                    src,
-                    crs="EPSG:4326",
-                    transform=transform,
-                    width=res,
-                    height=res,
-                    resampling=resampling,
-                    nodata=0,
-                    dtype=dtype,
-                ) as vrt:
-                    return vrt.read(indexes=list(range(1, count + 1)))
- 
+        last_exc = None
+        for attempt in range(retries):
+            try:
+                with rasterio.Env(**self.SENTINEL2_GDAL_ENV):
+                    with rasterio.open(href) as src:
+                        with WarpedVRT(
+                            src, crs="EPSG:4326", transform=transform,
+                            width=res, height=res, resampling=resampling,
+                            nodata=0, dtype=dtype,
+                        ) as vrt:
+                            return vrt.read(indexes=list(range(1, count + 1)))
+            except Exception as exc:  # pylint: disable=broad-except
+                last_exc = exc
+                self.warn("Remote read failed (attempt %d/%d) %s: %s", attempt + 1, retries, href, exc)
+                time.sleep(3.0 * (attempt + 1))
+        raise RuntimeError("Remote read failed after %d attempts: %s (%s)" % (retries, href, last_exc))
+
+    def _scene_cache_paths(self, item, transform, res, cache_dir):
+        bbox_tag = "%08x" % (hash(tuple(np.round(np.array(transform)[:6], 8))) & 0xFFFFFFFF)
+        stem = self.get_path(cache_dir, "%s_%d_%s_%s" % (item["id"], res, bbox_tag, self.SENTINEL2_CACHE_TAG))
+        return stem + "_rgb.npy", stem + "_cov.npy", stem + "_valid.npy"
+
     def _fetch_sentinel2_scene(self, item, transform, res, mask_scl, cache_dir):
         """
-        Warp one scene's TCI ('visual', 8-bit RGB @ 10 m) and SCL (20 m) onto the
-        output grid, build the per-pixel validity mask, and cache both as .npy.
-        Returns (rgb_path, valid_path) or None if the item lacks the assets.
- 
-        Cache key includes the output res and bbox hash so different targets never
-        collide.
+        Warp one scene's TCI (visual, 8-bit RGB @ 10 m) + SCL (20 m) onto the
+        output grid and cache: rgb (res,res,3) uint8, cov (res,res) bool
+        [inside data footprint], valid (res,res) bool [cov & not cloud/shadow].
+        Returns (rgb_path, cov_path, valid_path) or None.
         """
         assets = item.get("assets", {})
         if "visual" not in assets or "scl" not in assets:
             self.warn("Item %s has no 'visual'/'scl' asset, skipping", item["id"])
             return None
- 
-        bbox_tag = "%08x" % (hash(tuple(np.round(np.array(transform)[:6], 8))) & 0xFFFFFFFF)
-        stem = self.get_path(cache_dir, "%s_%d_%s" % (item["id"], res, bbox_tag))
-        rgb_path = stem + "_rgb.npy"
-        valid_path = stem + "_valid.npy"
- 
-        if self.file_exists(rgb_path) and self.file_exists(valid_path):
+
+        rgb_path, cov_path, valid_path = self._scene_cache_paths(item, transform, res, cache_dir)
+        if all(self.file_exists(p) for p in (rgb_path, cov_path, valid_path)):
             self.info("Scene cached: %s", item["id"])
-            return rgb_path, valid_path
- 
-        self.info("Fetching scene %s (cloud %.1f%%)", item["id"], item["properties"].get("eo:cloud_cover", -1))
- 
-        rgb = self._warp_remote_band(
-            assets["visual"]["href"], transform, res, 3, Resampling.bilinear, "uint8"
-        )  # (3, res, res)
-        scl = self._warp_remote_band(
-            assets["scl"]["href"], transform, res, 1, Resampling.nearest, "uint8"
-        )[0]  # (res, res)
- 
-        covered = np.any(rgb != 0, axis=0)          # outside tile footprint → all 0
-        cloudy = np.isin(scl, mask_scl)
-        valid = covered & ~cloudy
- 
-        # Channels-last for cheaper per-row slicing later.
-        np.save(rgb_path, np.ascontiguousarray(np.moveaxis(rgb, 0, -1)))
-        np.save(valid_path, valid)
-        self.info("  valid pixels: %.1f%%", 100.0 * valid.mean())
-        return rgb_path, valid_path
- 
-    def _median_composite(self, scene_paths, res, chunk_rows=256):
+            return rgb_path, cov_path, valid_path
+
+        self.info("Fetching scene %s (cloud %.1f%%, footprint %.1f%% of bbox)",
+                  item["id"], item["properties"].get("eo:cloud_cover", -1), 100.0 * item.get("_bbox_cov", 0.0))
+        try:
+            rgb = self._warp_remote_band(assets["visual"]["href"], transform, res, 3, Resampling.bilinear, "uint8")
+            scl = self._warp_remote_band(assets["scl"]["href"], transform, res, 1, Resampling.nearest, "uint8")[0]
+        except RuntimeError as exc:
+            self.warn("Skipping scene %s: %s", item["id"], exc)
+            return None
+
+        covered = np.any(rgb != 0, axis=0)
+        valid = covered & ~np.isin(scl, mask_scl)
+        del scl
+
+        # write to temp names then rename → a killed run never leaves a truncated cache file
+        rgb_cl = np.ascontiguousarray(np.moveaxis(rgb, 0, -1))
+        del rgb
+        for arr, path in ((rgb_cl, rgb_path), (covered, cov_path), (valid, valid_path)):
+            tmp = path + ".tmp.npy"
+            np.save(tmp, arr)
+            os.replace(tmp, path)
+        self.info("  covered %.1f%%  clear %.1f%% of bbox", 100.0 * covered.mean(), 100.0 * valid.mean())
+        return rgb_path, cov_path, valid_path
+
+    # ------------------------------------------------------------------
+    # compositing (integer sorts, bounded memory)
+    # ------------------------------------------------------------------
+
+    def _composite_scenes(self, scene_paths, res, fallback_pct, chunk_rows=64):
         """
-        Per-pixel median over all scenes where the pixel is valid, computed in
-        row chunks over memory-mapped caches.  Returns (rgb uint8 (res,res,3),
-        n_obs uint8 (res,res)) — n_obs is the number of clear observations per
-        pixel (0 = hole).
+        Per-pixel composite over all scenes, row-chunked over memmapped caches.
+          strict   : median of SCL-valid observations
+          fallback : `fallback_pct` percentile of all covered observations,
+                     used where no valid observation exists
+        Implementation: per chunk build (h, res, 3, n) uint8 stacks with
+        invalid samples set to 255, sort along the last (contiguous) axis, and
+        pick the wanted order statistic with take_along_axis using the
+        per-pixel counts.  Real 255 samples sort into the same place as the
+        sentinel and give the same numeric result, so no bias is introduced.
+        Returns (rgb (res,res,3) uint8, n_valid (res,res) uint8, n_cov (res,res) uint8).
         """
-        rgb_maps = [np.load(p, mmap_mode="r") for p, _ in scene_paths]
-        valid_maps = [np.load(p, mmap_mode="r") for _, p in scene_paths]
-        n = len(rgb_maps)
- 
+        n = len(scene_paths)
+        rgb_maps = [np.load(p[0], mmap_mode="r") for p in scene_paths]
+        cov_maps = [np.load(p[1], mmap_mode="r") for p in scene_paths]
+        valid_maps = [np.load(p[2], mmap_mode="r") for p in scene_paths]
+
+        # keep the two stacks around ~150 MB each
+        chunk_rows = max(8, min(chunk_rows, int(150 * 1024 * 1024 / max(1, n * res * 3))))
+        self.info("Compositing %d scenes, %d rows per chunk, %d chunks", n, chunk_rows, (res + chunk_rows - 1) // chunk_rows)
+
         out = np.zeros((res, res, 3), dtype=np.uint8)
-        n_obs = np.zeros((res, res), dtype=np.uint8)
- 
+        n_valid = np.zeros((res, res), dtype=np.uint8)
+        n_cov = np.zeros((res, res), dtype=np.uint8)
+        q = float(fallback_pct) / 100.0
+
         for y0 in range(0, res, chunk_rows):
             y1 = min(res, y0 + chunk_rows)
             h = y1 - y0
-            # stack: (n, h, res, 3) as float32 with NaN for invalid → nanmedian
-            stack = np.empty((n, h, res, 3), dtype=np.float32)
+            strict = np.empty((h, res, 3, n), dtype=np.uint8)
+            loose = np.empty((h, res, 3, n), dtype=np.uint8)
+            cnt_v = np.zeros((h, res), dtype=np.int32)
+            cnt_c = np.zeros((h, res), dtype=np.int32)
+
             for i in range(n):
-                block = rgb_maps[i][y0:y1].astype(np.float32)
-                vmask = valid_maps[i][y0:y1]
-                block[~vmask] = np.nan
-                stack[i] = block
-            count = np.sum(~np.isnan(stack[..., 0]), axis=0)
-            with np.errstate(all="ignore"):
-                med = np.nanmedian(stack, axis=0)
-            med = np.nan_to_num(med, nan=0.0)
-            out[y0:y1] = np.clip(np.round(med), 0, 255).astype(np.uint8)
-            n_obs[y0:y1] = np.clip(count, 0, 255).astype(np.uint8)
+                block = np.asarray(rgb_maps[i][y0:y1])          # (h, res, 3) uint8
+                cmask = np.asarray(cov_maps[i][y0:y1])          # (h, res) bool
+                vmask = np.asarray(valid_maps[i][y0:y1])
+                loose[..., i] = block
+                loose[~cmask, :, i] = 255
+                strict[..., i] = block
+                strict[~vmask, :, i] = 255
+                cnt_c += cmask
+                cnt_v += vmask
+
+            strict.sort(axis=-1)
+            loose.sort(axis=-1)
+
+            # lower median of the valid samples
+            idx_v = np.clip((cnt_v - 1) // 2, 0, n - 1)
+            med = np.take_along_axis(strict, np.broadcast_to(idx_v[:, :, None, None], (h, res, 3, 1)), axis=-1)[..., 0]
+
+            # low percentile of the covered samples
+            idx_c = np.clip(np.floor(q * (cnt_c - 1)).astype(np.int32), 0, n - 1)
+            fb = np.take_along_axis(loose, np.broadcast_to(idx_c[:, :, None, None], (h, res, 3, 1)), axis=-1)[..., 0]
+
+            use_fb = (cnt_v == 0) & (cnt_c > 0)
+            med[use_fb] = fb[use_fb]
+            med[cnt_c == 0] = 0
+
+            out[y0:y1] = med
+            n_valid[y0:y1] = np.clip(cnt_v, 0, 255).astype(np.uint8)
+            n_cov[y0:y1] = np.clip(cnt_c, 0, 255).astype(np.uint8)
+            del strict, loose
             self.info("  composite rows %d-%d / %d", y0, y1, res)
- 
-        return out, n_obs
- 
-    def _write_imagery_sidecar(self, out_file, lat0, lon0, lat1, lon1, res, extra):
-        """Same layout as the vegetation sidecars, plus imagery-specific keys."""
-        return self._write_veg_sidecar(out_file, lat0, lon0, lat1, lon1, res, extra)
- 
+
+        return out, n_valid, n_cov
+
+    # ------------------------------------------------------------------
+    # command
+    # ------------------------------------------------------------------
+
     def generate_imagery(self):
         """
-        Build a cloud-free Sentinel-2 L2A true-colour composite (imagery.png) for
-        the world bbox, pixel-aligned with heightmap/landcover, plus a JSON sidecar.
- 
-        Steps:
-          1. STAC search (Earth-search v1), least-cloudy N scenes per MGRS tile
-          2. Warp each scene's TCI + SCL onto the output EPSG:4326 grid (windowed
-             remote reads), mask clouds/shadows, cache to .npy
-          3. Per-pixel median across valid observations (row-chunked)
-          4. Fill residual holes from the nearest valid pixel
-          5. Write imagery.png (RGB uint8) + imagery.json
- 
-        CLI / config keys consumed:
-          --lat-min/max  --lon-min/max   bbox (or read from world YAML)
-          --res                          texture size (0 = native→pow2, -1 = native)
-          --date-start / --date-end      search window (YYYY-MM-DD)
-          --max-cloud                    scene-level cloud cover cutoff (%)
-          --max-scenes                   scenes kept per MGRS tile
-          --cache-dir                    warped scene cache directory
-          -o / --output-dir              destination folder
-          -c / --config                  world YAML
-          --no-sidecar                   suppress JSON sidecar
+        Cloud-free Sentinel-2 L2A true-colour composite (imagery.png) for the
+        world bbox, pixel-aligned with heightmap/landcover, + JSON sidecar and
+        an observation-count map (imagery_nobs.png).  See the section comment
+        above for the strategy.
+
+        CLI / config keys consumed (imagery: block in the world YAML):
+          --res                  texture size (0 = native→pow2 [default], -1 = native, N)
+          --date-start/--date-end   search window (default 2022-01-01 .. 2025-12-31)
+          --max-cloud            scene-level cloud cover cutoff, % (default 30)
+          --min-scenes           scenes always fetched per tile (default 8)
+          --max-scenes           scene cap per tile (default 24)
+          --min-obs              clear observations wanted per pixel (default 3)
+          --coverage-target      fraction of covered pixels that must reach --min-obs (default 0.995)
+          --fallback-pct         percentile of covered obs used where no clear obs exists (default 25)
+          --full-swath-ratio     min footprint / best footprint per tile (default 0.9)
+          --cache-dir            warped scene cache directory
+          -c / -o / --no-sidecar as for the other commands
         """
         cfgfile = self.get_param("config")
         cfg = self.read_yaml(cfgfile) if cfgfile else {}
         icfg = cfg.get("imagery", {})
- 
-        lat0, lon0, lat1, lon1, _unused_res, out_dir = self._resolve_bbox_and_res(cfg)
+
+        lat0, lon0, lat1, lon1, _unused, out_dir = self._resolve_bbox_and_res(cfg)
         self.make_folder(out_dir)
         res, native_res = self._resolve_imagery_res(cfg, lat0, lon0, lat1, lon1)
- 
+
         date_start = self.get_param("date_start", icfg.get("date_start", "2022-01-01"))
         date_end   = self.get_param("date_end",   icfg.get("date_end",   "2025-12-31"))
-        max_cloud  = float(self.get_param("max_cloud", icfg.get("max_cloud_cover", 20.0)))
-        max_scenes = int(self.get_param("max_scenes", icfg.get("max_scenes_per_tile", 8)))
+        max_cloud  = float(self.get_param("max_cloud",       icfg.get("max_cloud_cover", 30.0)))
+        min_per    = int(self.get_param("min_scenes",        icfg.get("min_scenes_per_tile", 8)))
+        max_per    = int(self.get_param("max_scenes",        icfg.get("max_scenes_per_tile", 24)))
+        min_obs    = int(self.get_param("min_obs",           icfg.get("min_observations", 3)))
+        cov_target = float(self.get_param("coverage_target", icfg.get("coverage_target", 0.995)))
+        fb_pct     = float(self.get_param("fallback_pct",    icfg.get("fallback_percentile", 25.0)))
+        swath_r    = float(self.get_param("full_swath_ratio", icfg.get("full_swath_ratio", 0.9)))
+        min_tile   = float(icfg.get("min_tile_coverage", 0.001))
         mask_scl   = list(icfg.get("mask_scl_classes", self.SENTINEL2_DEFAULT_MASK_SCL))
- 
+        max_per    = max(max_per, min_per)
+
         cache_dir = self.get_param(
             "cache_dir",
             icfg.get("cache_dir", self.get_path(self._default_tiles_dir, "sentinel2_cache")),
         )
         self.make_folder(cache_dir)
- 
+
         self.info(
-            "Generating imagery: BBOX lat[%.5f,%.5f] lon[%.5f,%.5f] res=%d  dates %s..%s  cloud<%.0f%%  %d scenes/tile",
-            lat0, lat1, lon0, lon1, res, date_start, date_end, max_cloud, max_scenes,
+            "Generating imagery: BBOX lat[%.5f,%.5f] lon[%.5f,%.5f] res=%d  dates %s..%s  cloud<%.0f%%  "
+            "%d..%d scenes/tile, target %d clear obs on %.1f%% of pixels",
+            lat0, lat1, lon0, lon1, res, date_start, date_end, max_cloud,
+            min_per, max_per, min_obs, 100.0 * cov_target,
         )
- 
+
         transform = from_bounds(lon0, lat0, lon1, lat1, res, res)
- 
-        # 1. find scenes
-        items = self._stac_search_sentinel2(
-            lat0, lon0, lat1, lon1, date_start, date_end, max_cloud, max_scenes
-        )
+
+        # 1. candidates → full-swath scenes per tile
+        items = self._stac_search_sentinel2(lat0, lon0, lat1, lon1, date_start, date_end, max_cloud)
         self.check(len(items) > 0, "No Sentinel-2 scenes found for this bbox / date range / cloud filter.")
- 
-        # 2. warp + mask + cache
-        scene_paths = []
-        for it in items:
-            paths = self._fetch_sentinel2_scene(it, transform, res, mask_scl, cache_dir)
-            if paths is not None:
+        per_tile = self._select_full_swath_scenes(items, lat0, lon0, lat1, lon1, swath_r, min_tile)
+        self.check(len(per_tile) > 0, "No tile with usable coverage.")
+
+        # 2. fetch: min_per per tile unconditionally, then extend until target
+        queues = {t: list(lst) for t, lst in per_tile.items()}
+        fetched = {t: 0 for t in per_tile}
+        n_valid = np.zeros((res, res), dtype=np.uint16)
+        n_cov = np.zeros((res, res), dtype=np.uint16)
+        scene_paths, used_items = [], []
+
+        def fetch_one(tile):
+            while queues[tile]:
+                item = queues[tile].pop(0)
+                paths = self._fetch_sentinel2_scene(item, transform, res, mask_scl, cache_dir)
+                if paths is None:
+                    continue
+                n_cov += np.asarray(np.load(paths[1], mmap_mode="r"), dtype=np.uint16)
+                n_valid += np.asarray(np.load(paths[2], mmap_mode="r"), dtype=np.uint16)
                 scene_paths.append(paths)
-        self.check(len(scene_paths) > 0, "No usable Sentinel-2 scenes (missing assets).")
- 
-        # 3. median composite
-        self.info("Compositing %d scenes ...", len(scene_paths))
-        rgb, n_obs = self._median_composite(scene_paths, res)
- 
-        # 4. fill holes (pixels with zero clear observations) from nearest valid pixel
-        holes = n_obs == 0
-        hole_frac = float(holes.mean())
-        if hole_frac > 0.0:
-            self.warn("%.3f%% of pixels have no clear observation; filling from nearest valid pixel", 100.0 * hole_frac)
-            if hole_frac < 1.0:
-                _dist, idx = distance_transform_edt(holes, return_indices=True)
-                rgb = rgb[idx[0], idx[1]]
-            else:
-                self.warn("Every pixel is a hole — output will be black.")
- 
-        # 5. write outputs
-        img = Image.fromarray(rgb, mode="RGB")
+                used_items.append(item)
+                fetched[tile] += 1
+                return True
+            return False
+
+        def done_fraction():
+            cov_any = n_cov > 0
+            if not cov_any.any():
+                return 0.0
+            return float(np.mean(n_valid[cov_any] >= min_obs))
+
+        def tile_needs_more(tile):
+            """True if the tile's footprint window still has under-observed covered pixels."""
+            if not queues[tile] or fetched[tile] >= max_per:
+                return False
+            ref = used_items[-1] if used_items else None
+            item = queues[tile][0]
+            y0, y1, x0, x1 = self._item_pixel_window(item, lat0, lon0, lat1, lon1, res)
+            if (y1 - y0) * (x1 - x0) == 0:
+                queues[tile] = []
+                return False
+            cov = n_cov[y0:y1, x0:x1] > 0
+            if not cov.any():
+                return True
+            under = float(np.mean(n_valid[y0:y1, x0:x1][cov] < min_obs))
+            return under > (1.0 - cov_target)
+
+        # phase A: baseline
+        for _round in range(min_per):
+            for tile in per_tile:
+                if fetched[tile] < min_per:
+                    fetch_one(tile)
+        self.info("Baseline: %d scenes, %.2f%% of covered pixels have >= %d clear obs (bbox covered %.1f%%)",
+                  len(scene_paths), 100.0 * done_fraction(), min_obs, 100.0 * float(np.mean(n_cov > 0)))
+
+        # phase B: extend while under target
+        while done_fraction() < cov_target:
+            progressed = False
+            for tile in per_tile:
+                if tile_needs_more(tile) and fetch_one(tile):
+                    progressed = True
+            if not progressed:
+                break
+            self.info("  [%d scenes] %.2f%% of covered pixels have >= %d clear obs",
+                      len(scene_paths), 100.0 * done_fraction(), min_obs)
+
+        self.check(len(scene_paths) > 0, "No usable Sentinel-2 scenes.")
+        final_done = done_fraction()
+        if final_done < cov_target:
+            self.warn("Coverage target not reached (%.2f%% < %.2f%%): temporal fallback will be used more widely. "
+                      "Raise max_scenes_per_tile / max_cloud_cover or widen the date window to improve.",
+                      100.0 * final_done, 100.0 * cov_target)
+        del n_valid, n_cov
+
+        # 3. composite
+        rgb, n_valid8, n_cov8 = self._composite_scenes(scene_paths, res, fb_pct)
+
+        # 4. spatial fill only where no scene ever covered the pixel (open ocean)
+        never = n_cov8 == 0
+        never_frac = float(never.mean())
+        fb_frac = float(np.mean((n_valid8 == 0) & ~never))
+        self.info("Pixels using temporal fallback: %.3f%%, never covered: %.3f%%", 100.0 * fb_frac, 100.0 * never_frac)
+        if 0.0 < never_frac < 1.0:
+            _d, idx = distance_transform_edt(never, return_indices=True)
+            rgb = rgb[idx[0], idx[1]]
+            del idx
+
+        # 5. outputs
         out_file = self.get_path(out_dir, "imagery.png")
-        img.save(out_file, optimize=False)
+        Image.fromarray(rgb, mode="RGB").save(out_file)
         self.info("Imagery saved to %s  (%dx%d)", out_file, res, res)
- 
+
+        nobs_file = self.get_path(out_dir, "imagery_nobs.png")
+        Image.fromarray(n_valid8, mode="L").save(nobs_file)
+        self.info("Observation-count map saved to %s", nobs_file)
+
         hcfg = cfg.get("heighmap", {})
         if not self.get_param("no_sidecar", hcfg.get("no_sidecar", False)):
-            years = sorted({it["properties"]["datetime"][:4] for it in items})
-            self._write_imagery_sidecar(out_file, lat0, lon0, lat1, lon1, res, {
-                "source":            "Sentinel-2 L2A (Earth-search / sentinel-cogs)",
-                "product":           "TCI true-colour, SCL-masked per-pixel median",
-                "native_res":        native_res,
-                "source_pixel_m":    self.SENTINEL2_PIXEL_M,
-                "date_start":        date_start,
-                "date_end":          date_end,
-                "max_cloud_cover":   max_cloud,
-                "scenes_per_tile":   max_scenes,
-                "mask_scl_classes":  mask_scl,
-                "scene_ids":         [it["id"] for it in items],
-                "mean_observations": round(float(n_obs.mean()), 2),
-                "hole_fraction":     round(hole_frac, 6),
-                "attribution":       "Contains modified Copernicus Sentinel data %s" % "-".join(
+            years = sorted({it["properties"]["datetime"][:4] for it in used_items})
+            self._write_veg_sidecar(out_file, lat0, lon0, lat1, lon1, res, {
+                "source":                "Sentinel-2 L2A (Earth-search / sentinel-cogs)",
+                "product":               "TCI true-colour, SCL-masked median + temporal percentile fallback",
+                "native_res":            native_res,
+                "source_pixel_m":        self.SENTINEL2_PIXEL_M,
+                "date_start":            date_start,
+                "date_end":              date_end,
+                "max_cloud_cover":       max_cloud,
+                "min_scenes_per_tile":   min_per,
+                "max_scenes_per_tile":   max_per,
+                "min_observations":      min_obs,
+                "coverage_target":       cov_target,
+                "coverage_reached":      round(final_done, 5),
+                "fallback_percentile":   fb_pct,
+                "full_swath_ratio":      swath_r,
+                "mask_scl_classes":      mask_scl,
+                "scene_count":           len(used_items),
+                "scenes_per_tile":       fetched,
+                "scene_ids":             [it["id"] for it in used_items],
+                "mean_clear_observations": round(float(n_valid8.mean()), 2),
+                "fallback_fraction":     round(fb_frac, 6),
+                "never_covered_fraction": round(never_frac, 6),
+                "attribution":           "Contains modified Copernicus Sentinel data %s" % "-".join(
                     [years[0], years[-1]] if len(years) > 1 else years
                 ),
             })
@@ -1573,8 +1829,13 @@ if __name__ == "__main__":
     )
     psr.add_str("--date-start", dest="date_start")("Search window start (YYYY-MM-DD, default 2022-01-01)")
     psr.add_str("--date-end", dest="date_end")("Search window end (YYYY-MM-DD, default 2025-12-31)")
-    psr.add_float("--max-cloud", dest="max_cloud")("Scene-level cloud cover cutoff in percent (default 20)")
-    psr.add_int("--max-scenes", dest="max_scenes")("Least-cloudy scenes kept per MGRS tile (default 8)")
+    psr.add_float("--max-cloud", dest="max_cloud")("Scene-level cloud cover cutoff in percent (default 30)")
+    psr.add_int("--min-scenes", dest="min_scenes")("Scenes always fetched per MGRS tile (default 8)")
+    psr.add_int("--max-scenes", dest="max_scenes")("Scene cap per MGRS tile (default 24)")
+    psr.add_int("--min-obs", dest="min_obs")("Clear observations wanted per pixel (default 3)")
+    psr.add_float("--coverage-target", dest="coverage_target")("Fraction of covered pixels that must reach --min-obs (default 0.995)")
+    psr.add_float("--fallback-pct", dest="fallback_pct")("Percentile of covered obs used where no clear obs exists (default 25)")
+    psr.add_float("--full-swath-ratio", dest="full_swath_ratio")("Footprint / best footprint ratio to accept a scene (default 0.9)")
     psr.add_str("--cache-dir", dest="cache_dir")("Directory to cache warped Sentinel-2 scenes (.npy)")
     psr.add_str("-o", "--output-dir", dest="output_dir")("Output directory")
     psr.add_flag("--no-sidecar", dest="no_sidecar")("Suppress JSON sidecar output")
