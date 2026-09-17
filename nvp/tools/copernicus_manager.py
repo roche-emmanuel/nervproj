@@ -1623,8 +1623,9 @@ class CopernicusManager(NVPComponent):
                 paths = self._fetch_sentinel2_scene(item, transform, res, mask_scl, cache_dir)
                 if paths is None:
                     continue
-                n_cov += np.asarray(np.load(paths[1], mmap_mode="r"), dtype=np.uint16)
-                n_valid += np.asarray(np.load(paths[2], mmap_mode="r"), dtype=np.uint16)
+                # in-place adds: plain `+=` would rebind the closure variable
+                np.add(n_cov, np.asarray(np.load(paths[1], mmap_mode="r"), dtype=np.uint16), out=n_cov)
+                np.add(n_valid, np.asarray(np.load(paths[2], mmap_mode="r"), dtype=np.uint16), out=n_valid)
                 scene_paths.append(paths)
                 used_items.append(item)
                 fetched[tile] += 1
