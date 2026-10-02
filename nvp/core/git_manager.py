@@ -178,6 +178,15 @@ class GitManager(NVPComponent):
             self.git_diff(cwd)
             return True
 
+        if cmd == "wdiff":
+            cwd = self.get_canonical_cwd()
+            commit1 = self.get_param("commit1")
+            commit2 = self.get_param("commit2")
+            dname = self.get_param("out_name")
+            ddir = self.get_param("dest_dir")
+            self.git_write_diff(cwd, commit1, commit2, dname, ddir)
+            return True
+
         if cmd == "push":
             cwd = self.get_canonical_cwd()
             self.git_push(cwd)
@@ -249,14 +258,14 @@ class GitManager(NVPComponent):
 
         return False
 
-    def execute_git(self, args, cwd=None):
+    def execute_git(self, args, cwd=None, **kwargs):
         """execute a git command with the provided arguments"""
         tools = self.get_component("tools")
         cmd = [tools.get_git_path()] + args
 
         # Execute the command:
         logger.debug("git command: %s", cmd)
-        res, rcode, outs = self.execute(cmd, cwd=cwd)
+        res, rcode, outs = self.execute(cmd, cwd=cwd, **kwargs)
 
         if not res:
             logger.error("git command %s (in %s) failed with return code %d:\n%s", cmd, cwd, rcode, outs)
@@ -325,6 +334,16 @@ class GitManager(NVPComponent):
         """Retrieve the git diff from a given folder"""
         self.execute_git(["diff"], cwd=folder)
 
+    def git_write_diff(self, folder, commit1, commit2, dname, ddir):
+        """Write the diff as cpack"""
+        if ddir is None:
+            ddir = self.get_path(self.ctx.get_root_dir(), "../cpacks")
+        outfile = self.get_path(ddir, f"{dname}.diff.txt")
+
+        logfile = open(outfile, "w", encoding="utf-8")
+        self.execute_git(["diff", commit1, commit2], cwd=folder, outfile=logfile)
+        logfile.close()
+
     def git_push(self, folder):
         """perform git push from a given folder"""
         self.execute_git(["push"], cwd=folder)
@@ -391,6 +410,13 @@ if __name__ == "__main__":
     psr.add_str("-p", "--project", dest="project")(help="The project that should be cloned.")
     psr.add_str("-u", "--url", dest="url")(help="The url that should be cloned.")
     psr.add_flag("-r", "--recursive", dest="recursive")(help="Recursive cloning.")
+
+    psr = context.build_parser("wdiff")
+    psr.add_str("commit1", nargs="?", default=None)(help="Source commit")
+    psr.add_str("commit2", nargs="?", default=None)(help="Dest commit")
+    psr.add_str("out_name", nargs="?", default=None)(help="Output name")
+    psr.add_str("-p", "--project", dest="project")(help="The project that should be cloned.")
+    psr.add_str("-d", "--dest-dir", dest="dest_dir")(help="Dest folder")
 
     psr = context.build_parser("commit")
     psr.add_str("message")(help="Commit message")
