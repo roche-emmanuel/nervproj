@@ -15,6 +15,10 @@ from nvp.nvp_project import NVPProject
 
 logger = logging.getLogger(__name__)
 
+# Top-level config sections (dicts) that a user config extends instead of replacing: the user entries are
+# added to the existing ones, and a user entry with the same name as an existing one overrides that entry only.
+MERGED_CONFIG_KEYS = ("scripts", "custom_python_envs")
+
 
 # def signal_handler(_sig, _frame):
 #     """Handler for ctrl+c signal"""
@@ -304,6 +308,15 @@ class NVPContext(NVPObject):
                         self.config[key].update(val)
                 else:
                     # add the new key value:
+                    self.config[key] = val
+            elif key in MERGED_CONFIG_KEYS:
+                # Sections that are extended by default (eg. "scripts"): add the user entries to the existing ones.
+                if val is None:
+                    # Empty section in the user config: nothing to add.
+                    continue
+                if isinstance(self.config.get(key), dict) and isinstance(val, dict):
+                    self.config[key].update(val)
+                else:
                     self.config[key] = val
             else:
                 # regular keys:
