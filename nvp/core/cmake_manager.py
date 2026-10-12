@@ -637,6 +637,9 @@ class CMakeManager(NVPComponent):
 
         desc = self.cmake_projects[proj_name]
 
+        platform = self.get_platform()
+        self.info(f"Building for platform: {platform}")
+
         if install_dir is None:
             install_dir = desc["install_dir"]
 
@@ -663,7 +666,6 @@ class CMakeManager(NVPComponent):
         deps = desc.get("dependencies", {})
 
         # Also add the dependencies specific to this platform:
-        platform = self.get_platform()
         platform_deps = desc.get(f"{platform}_dependencies", {})
         deps.update(platform_deps)
 
@@ -707,7 +709,6 @@ class CMakeManager(NVPComponent):
         defs = desc.get("defs", {})
 
         # Also add the definitions specific to this platform:
-        platform = self.get_platform()
         platform_defs = desc.get(f"{platform}_defs", {})
         defs.update(platform_defs)
         for dname, value in defs.items():
