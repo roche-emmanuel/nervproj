@@ -134,19 +134,78 @@ class DevUtils(NVPComponent):
             logger.info("Content pack '%s' done.", name)
 
     @staticmethod
+    def _expand_braces(pattern):
+        """Expand {a,b} alternatives (nested ones included) into a list of plain patterns.
+
+        Example: "textures/**/*.{jpg,png}" => ["textures/**/*.jpg", "textures/**/*.png"]
+        """
+        m = re.search(r"\{([^{}]*)\}", pattern)
+        if m is None:
+            return [pattern]
+        out = []
+        for alt in m.group(1).split(","):
+            out.extend(DevUtils._expand_braces(pattern[: m.start()] + alt + pattern[m.end() :]))
+        return out
+
+    @staticmethod
+    def _split_patterns(patterns):
+        """Split a semicolon-separated pattern string and expand any {a,b} alternatives."""
+        result = []
+        for p in patterns.split(";"):
+            p = p.strip()
+            if p:
+                result.extend(DevUtils._expand_braces(p))
+        return result
+
+    @staticmethod
+    def _glob_to_regex(pattern):
+        """Convert a glob pattern with ** support to a regular expression.
+
+        - "**/" matches zero or more directories (so "a/**/b.png" matches "a/b.png" and "a/x/y/b.png")
+        - a trailing or inline "**" matches anything, including "/"
+        - "*" matches any run of characters except "/"
+        - "?" matches a single character except "/"
+        - "[...]" character classes are supported ("[!...]" for negation)
+        """
+        pattern = pattern.replace("\\", "/")
+        i, n, res = 0, len(pattern), ""
+        while i < n:
+            c = pattern[i]
+            if pattern.startswith("**", i):
+                i += 2
+                if pattern.startswith("/", i):
+                    i += 1
+                    res += "(?:.*/)?"
+                else:
+                    res += ".*"
+                continue
+            if c == "*":
+                res += "[^/]*"
+            elif c == "?":
+                res += "[^/]"
+            elif c == "[" and pattern.find("]", i + 1) != -1:
+                j = pattern.find("]", i + 1)
+                cls = pattern[i + 1 : j]
+                if cls.startswith("!"):
+                    cls = "^" + cls[1:]
+                res += "[" + cls + "]"
+                i = j
+            else:
+                res += re.escape(c)
+            i += 1
+        return res
+
+    @staticmethod
     def _fnmatch_ex(path, pattern):
-        """fnmatch extended with ** support (matches zero or more path segments)."""
+        """fnmatch extended with ** support (matches zero or more path segments).
+
+        Patterns without '**' keep the plain fnmatch semantics, where '*' also
+        matches across '/' (so "*.h" selects headers at any depth).
+        """
+        path = path.replace("\\", "/")
         if "**" not in pattern:
             return fnmatch.fnmatch(path, pattern)
-        # Normalise separators
-        path = path.replace("\\", "/")
-        pattern = pattern.replace("\\", "/")
-        # Split on ** and match each segment with fnmatch, allowing ** to span
-        # zero or more '/' separated components.
-        import re as _re
-
-        regex = _re.escape(pattern).replace(r"\*\*", ".*").replace(r"\*", "[^/]*").replace(r"\?", "[^/]")
-        return bool(_re.fullmatch(regex, path))
+        return re.fullmatch(DevUtils._glob_to_regex(pattern), path) is not None
 
     def collect_content(
         self, folder, patterns=None, ignore_patterns=None, output_file=None, include_api_txt=False, append=False
@@ -157,12 +216,14 @@ class DevUtils(NVPComponent):
 
         1. Include filter (-p / patterns): if provided, keep only files whose
            relative path matches at least one of the semicolon-separated glob
-           patterns (e.g. "*.h;gui/*.cpp;config/*.yml").  When omitted, all
-           files found recursively under folder are kept.
+           patterns (e.g. "*.h;gui/*.cpp;config/*.yml").  Patterns support '**'
+           (zero or more directories) and {a,b} alternatives
+           (e.g. "textures/**/*.{jpg,png}").  When omitted, all files found
+           recursively under folder are kept.
 
         2. Exclude filter (-x / ignore_patterns): if provided, drop any file
            whose relative path matches at least one of the semicolon-separated
-           glob patterns.  Applied after the include filter.
+           glob patterns (same syntax as above).  Applied after the include filter.
 
         3. Binary detection: binary files are not inlined but still appear in
            the output as a header-only entry (filename + size) so the reader
@@ -180,7 +241,7 @@ class DevUtils(NVPComponent):
         """
         # --- include filter ---
         if patterns is not None:
-            glob_patterns = [p.strip() for p in patterns.split(";") if p.strip()]
+            glob_patterns = self._split_patterns(patterns)
             # Optimisation: if none of the patterns contain a wildcard, treat them as
             # direct file paths and skip the costly recursive directory scan entirely.
             if not any(c in p for p in glob_patterns for c in ("*", "?", "[")):
@@ -214,8 +275,8 @@ class DevUtils(NVPComponent):
 
         # --- exclude filter ---
         if ignore_patterns is not None:
-            ignore_globs = [p.strip() for p in ignore_patterns.split(";") if p.strip()]
-            allfiles = [f for f in allfiles if not any(fnmatch.fnmatch(f, p) for p in ignore_globs)]
+            ignore_globs = self._split_patterns(ignore_patterns)
+            allfiles = [f for f in allfiles if not any(self._fnmatch_ex(f, p) for p in ignore_globs)]
 
         if not allfiles:
             logger.info("No files matched the selection criteria.")
@@ -377,6 +438,7 @@ if __name__ == "__main__":
     )
     psr.add_str("-p", "--patterns", dest="patterns", nargs="?", default=None)(
         "Semicolon-separated glob patterns to select files (e.g. '*.h;gui/*.cpp;*.log'). "
+        "Supports '**' and {a,b} alternatives (e.g. 'tex/**/*.{jpg,png}'). "
         "Defaults to all non-binary files when omitted."
     )
     psr.add_str("-x", "--ignore", dest="ignore_patterns", nargs="?", default=None)(
