@@ -4,6 +4,7 @@ import fnmatch
 import logging
 import os
 import re
+from datetime import datetime
 
 import numpy as np
 from PIL import Image
@@ -12,6 +13,15 @@ from nvp.nvp_component import NVPComponent
 from nvp.nvp_context import NVPContext
 
 logger = logging.getLogger(__name__)
+
+# --- Content pack layout (see DevUtils._write_pack) ---------------------------------------
+# A pack is ONE file, laid out for a reader that can load only the first ~260 KB of a
+# document directly and reaches the rest through search returning ~2 KB chunks.
+PACK_INDEX_MAX_BYTES = 150_000  # the index must stay well inside the direct-read window
+PACK_OUTLINE_CAPS = (60, 30, 15, 0)  # max symbols listed per file, tried in turn until the index fits
+PACK_MARKER = "//~ "  # prefix of the packer's locator lines (not part of the packed files)
+PACK_MARKER_EVERY_LINES = 40
+PACK_MARKER_EVERY_BYTES = 1500
 
 
 class DevUtils(NVPComponent):
@@ -88,9 +98,15 @@ class DevUtils(NVPComponent):
         'enabled' flag).  Otherwise every pack whose 'enabled' flag is True is
         processed in the order they appear in the config.
 
-        Each pack drives one or more collect_content calls (one per 'steps'
-        entry).  The first step of each pack always overwrites the output file;
-        subsequent steps append to it automatically.
+        Each pack gathers the files of all its 'steps' entries and writes ONE file,
+        <name>.api.txt, made of:
+
+        - a header explaining how to read the pack;
+        - an INDEX: every file with its size, line count, the line range it occupies in
+          the pack, and an outline of its classes/functions (kept small enough to sit
+          entirely inside the first ~260 KB, which is all a reader may load directly);
+        - the files themselves, sorted by path, each between a FILE / END FILE line, with
+          a locator line every few dozen lines so that any search hit identifies its file.
 
         Path placeholders (e.g. ${NVL_DIR}) in 'folder' and 'output' values
         are resolved via self.resolve_path() before use.
@@ -115,23 +131,250 @@ class DevUtils(NVPComponent):
 
             logger.info("Building content pack '%s' => %s (%d step(s)).", name, output, len(steps))
 
-            first_call = True
+            text_entries = []
+            binary_entries = []
+            seen = set()
             for step in steps:
                 folder = self.resolve_path(step.get("folder", os.getcwd()))
                 ignore_patterns = step.get("ignore", None)
+                source = os.path.basename(os.path.normpath(folder)) or folder
 
                 # patterns may be a single string or a list of strings.
-                # Each entry is passed as a separate collect_content call so
-                # that wildcard expansion is scoped to one pattern group at a time.
+                # Each entry is gathered separately so that wildcard expansion is
+                # scoped to one pattern group at a time.
                 raw = step.get("patterns")
                 pattern_list = raw if isinstance(raw, list) else [raw]
 
                 for patterns in pattern_list:
-                    # First overall call writes fresh; every subsequent one appends.
-                    self.collect_content(folder, patterns, ignore_patterns, output, include_api_txt, not first_call)
-                    first_call = False
+                    texts, bins, _total = self._collect_entries(folder, patterns, ignore_patterns, include_api_txt)
+                    for bucket, found in ((text_entries, texts), (binary_entries, bins)):
+                        for entry in found:
+                            key = (folder, entry["path"])
+                            if key in seen:
+                                continue  # the same file matched by two pattern groups
+                            seen.add(key)
+                            entry["source"] = source
+                            bucket.append(entry)
 
+            self._write_pack(name, output, text_entries, binary_entries)
             logger.info("Content pack '%s' done.", name)
+
+    # ------------------------------------------------------------------
+    # Content pack writer (single-file "virtual filesystem" format)
+    # ------------------------------------------------------------------
+
+    _PY_SYMBOL = re.compile(r"^(\s*)(?:async\s+)?(class|def)\s+(\w+)")
+    _JS_SYMBOL = re.compile(
+        r"^\s*(?:export\s+)?(?:async\s+)?function\s+(\w+)|^\s*(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?(?:\(|function)"
+    )
+    _MD_HEADING = re.compile(r"^(#{1,3})\s+(.*\S)")
+    _JINJA_BLOCK = re.compile(r"\{%-?\s*(?:block|macro)\s+(\w+)")
+    _CPP_SYMBOL = re.compile(r"^\s*(?:class|struct|namespace|enum(?:\s+class)?)\s+(\w+)")
+
+    @classmethod
+    def _outline(cls, path, lines):
+        """Return a short list of 'symbol (Lnn)' strings describing the structure of a file.
+
+        Understands Python (classes, methods, top-level functions), JavaScript, Markdown
+        headings, Jinja blocks/macros and C++ class/struct/namespace declarations; any other
+        file type gives an empty outline.
+        """
+        ext = os.path.splitext(path)[1].lower()
+        out = []
+        if ext == ".py":
+            current_class = None
+            for n, line in enumerate(lines, start=1):
+                m = cls._PY_SYMBOL.match(line)
+                if m is None:
+                    continue
+                indent = len(m.group(1).replace("\t", "    "))
+                kind, name = m.group(2), m.group(3)
+                if kind == "class" and indent == 0:
+                    current_class = name
+                    out.append(f"class {name} (L{n})")
+                elif kind == "def" and indent == 0:
+                    current_class = None
+                    out.append(f"def {name} (L{n})")
+                elif kind == "def" and indent <= 4 and current_class:
+                    out.append(f"{current_class}.{name} (L{n})")
+        elif ext in (".js", ".mjs"):
+            for n, line in enumerate(lines, start=1):
+                m = cls._JS_SYMBOL.match(line)
+                if m:
+                    out.append(f"{m.group(1) or m.group(2)} (L{n})")
+        elif ext in (".md", ".markdown"):
+            in_fence = False
+            for n, line in enumerate(lines, start=1):
+                if line.lstrip().startswith("```"):
+                    in_fence = not in_fence
+                m = None if in_fence else cls._MD_HEADING.match(line)
+                if m:
+                    out.append(f"{'#' * len(m.group(1))} {m.group(2).strip()} (L{n})")
+        elif ext in (".html", ".jinja", ".j2"):
+            for n, line in enumerate(lines, start=1):
+                m = cls._JINJA_BLOCK.search(line)
+                if m:
+                    out.append(f"block {m.group(1)} (L{n})")
+        elif ext in (".h", ".hpp", ".hh", ".cpp", ".cc", ".cxx"):
+            for n, line in enumerate(lines, start=1):
+                m = cls._CPP_SYMBOL.match(line)
+                if m:
+                    out.append(f"{m.group(1)} (L{n})")
+        return out
+
+    @staticmethod
+    def _wrap_list(items, prefix, width=118):
+        """Join *items* with ', ' and wrap them in comment lines starting with *prefix*."""
+        lines, cur = [], prefix
+        for i, item in enumerate(items):
+            piece = item + ("," if i < len(items) - 1 else "")
+            if len(cur) + len(piece) + 1 > width and cur != prefix:
+                lines.append(cur.rstrip())
+                cur = prefix
+            cur += piece + " "
+        if cur != prefix:
+            lines.append(cur.rstrip())
+        return lines
+
+    @staticmethod
+    def _split_file_lines(text):
+        """Return the lines of *text* (no phantom empty last line when it ends with a newline)."""
+        lines = text.split("\n")
+        if len(lines) > 1 and lines[-1] == "":
+            lines.pop()
+        return lines
+
+    @staticmethod
+    def _body_lines(display, lines):
+        """Render one file: a FILE line, its content with a locator line every few dozen lines,
+        an END FILE line and a blank line.  Locator lines say that the NEXT line is line N of the file.
+        """
+        size = len("\n".join(lines).encode("utf-8"))
+        out = [f"// ===== FILE: {display} ({size} bytes, {len(lines)} lines) ====="]
+        since_lines, since_bytes = 0, 0
+        for n, line in enumerate(lines, start=1):
+            if n > 1 and (since_lines >= PACK_MARKER_EVERY_LINES or since_bytes >= PACK_MARKER_EVERY_BYTES):
+                out.append(f"{PACK_MARKER}{display}:{n}")
+                since_lines, since_bytes = 0, 0
+            out.append(line)
+            since_lines += 1
+            since_bytes += len(line) + 1
+        out.append(f"// ===== END FILE: {display} =====")
+        out.append("")
+        return out
+
+    def _build_pack_index(self, name, files, binaries, starts, outline_cap):
+        """Build the header + index lines of a pack.
+
+        *starts* maps display name -> (first, last) line of the file block in the pack; numbers are
+        zero-padded to a fixed width so the number of index lines never depends on them.
+        """
+        total_bytes = sum(f["bytes"] for f in files)
+        idx = [
+            f"// ===== CONTENT PACK: {name} =====",
+            f"// Generated {datetime.now().strftime('%Y-%m-%d %H:%M')}: {len(files)} text file(s), {total_bytes} bytes of text,"
+            f" {len(binaries)} binary file(s) (listed only).",
+            "// This single file is a snapshot of a set of files, like a small virtual filesystem; each file is shown verbatim.",
+            "//",
+            "// HOW TO READ THIS PACK",
+            "// - Do not read the whole pack. Only the first ~260 KB can be loaded directly, and this index is built to fit there:",
+            "//   look the file up in the INDEX below, then open just that file.",
+            "// - Each file starts at '// ===== FILE: <path> (...) =====' and ends at '// ===== END FILE: <path> ====='.",
+            "//   The 'pack lines' column gives those two line numbers in this file: with a line-based reader",
+            "//   (offset/limit, `sed -n 'A,Bp'`, an editor) you can open exactly one file.",
+            "// - Without a line-based reader, search for the file name (e.g. 'task_notes_panel.py') or for a symbol of its outline.",
+            f"//   Every few dozen lines a locator line '{PACK_MARKER}<path>:<N>' is inserted, meaning 'the next line is line N of",
+            "//   <path>', so any search hit, however small, tells which file and which line it comes from.",
+            f"// - Lines starting with '{PACK_MARKER.rstrip()}' (and the FILE / END FILE lines) are added by the packer: they are NOT part of",
+            "//   the files and must never be copied back into code. Line numbers (Lnn, :N) refer to the original files.",
+            "// - Paths use forward slashes. Files are sorted by path, so a folder's files are next to each other.",
+            "// - Empty files are skipped; binary files appear at the end of the index with their size only.",
+            "//",
+            "// ===== INDEX =====",
+            "// path | bytes | lines | pack lines (first-last)",
+        ]
+        for f in files:
+            first, last = starts.get(f["display"], (0, 0))
+            idx.append(f"// {f['display']} | {f['bytes']} | {f['line_count']} | {first:07d}-{last:07d}")
+            symbols = f["outline"][:outline_cap] if outline_cap else []
+            if symbols:
+                more = len(f["outline"]) - len(symbols)
+                if more > 0:
+                    symbols = symbols + [f"... +{more} more"]
+                idx.extend(self._wrap_list(symbols, "//     ", 118))
+        if binaries:
+            idx.append("//")
+            idx.append("// ===== BINARY FILES (not included) =====")
+            for b in binaries:
+                idx.append(f"// {b['display']} ({b['size']} bytes, binary)")
+        idx.append("// ===== END OF INDEX =====")
+        idx.append("")
+        return idx
+
+    def _write_pack(self, name, output, text_entries, binary_entries):
+        """Write the single-file pack *output* (see build_content_packs for the layout)."""
+        # --- display names: forward slashes, prefixed by the step's folder only on collisions ---
+        counts = {}
+        for e in text_entries + binary_entries:
+            e["norm"] = e["path"].replace("\\", "/")
+            counts[e["norm"]] = counts.get(e["norm"], 0) + 1
+        for e in text_entries + binary_entries:
+            e["display"] = e["norm"] if counts[e["norm"]] == 1 else f"{e['source']}/{e['norm']}"
+
+        text_entries = sorted(text_entries, key=lambda e: e["display"].lower())
+        binary_entries = sorted(binary_entries, key=lambda e: e["display"].lower())
+
+        files = []
+        for e in text_entries:
+            lines = self._split_file_lines(e["text"])
+            files.append(
+                {
+                    "display": e["display"],
+                    "lines": lines,
+                    "line_count": len(lines),
+                    "bytes": len("\n".join(lines).encode("utf-8")),
+                    "outline": self._outline(e["display"], lines),
+                }
+            )
+        binaries = [{"display": e["display"], "size": e["size"]} for e in binary_entries]
+
+        # --- pick the richest outline size for which the index still fits the direct-read window ---
+        idx = []
+        for cap in PACK_OUTLINE_CAPS:
+            idx = self._build_pack_index(name, files, binaries, {}, cap)
+            if len("\n".join(idx).encode("utf-8")) <= PACK_INDEX_MAX_BYTES:
+                break
+        else:
+            logger.warning(
+                "Index of pack '%s' is %d bytes even without outlines: it may not fit the direct-read window.",
+                name,
+                len("\n".join(idx).encode("utf-8")),
+            )
+        used_cap = cap
+
+        # --- bodies, and where each file lands (the index length is fixed: numbers are zero-padded) ---
+        bodies = {f["display"]: self._body_lines(f["display"], f["lines"]) for f in files}
+        line_no = len(idx)  # lines already written; the first body line is line_no + 1
+        starts = {}
+        for f in files:
+            body = bodies[f["display"]]
+            starts[f["display"]] = (line_no + 1, line_no + len(body) - 1)  # FILE line .. END FILE line
+            line_no += len(body)
+        idx = self._build_pack_index(name, files, binaries, starts, used_cap)
+
+        out_lines = list(idx)
+        for f in files:
+            out_lines.extend(bodies[f["display"]])
+        text = "\n".join(out_lines) + "\n"
+        self.write_text_file(text, output, mode="w")
+        logger.info(
+            "Wrote pack %s: %d file(s), %d bytes (index: %d lines, outlines capped at %d symbols per file).",
+            output,
+            len(files),
+            len(text.encode("utf-8")),
+            len(idx),
+            used_cap,
+        )
 
     @staticmethod
     def _expand_braces(pattern):
@@ -207,37 +450,15 @@ class DevUtils(NVPComponent):
             return fnmatch.fnmatch(path, pattern)
         return re.fullmatch(DevUtils._glob_to_regex(pattern), path) is not None
 
-    def collect_content(
-        self, folder, patterns=None, ignore_patterns=None, output_file=None, include_api_txt=False, append=False
-    ):
-        """Collect all content from files in the given folder.
+    def _collect_entries(self, folder, patterns=None, ignore_patterns=None, include_api_txt=False):
+        """Select the files of *folder* and read them.
 
-        File selection works in three steps:
+        Returns (text_entries, binary_entries, total_text_size).  Text entries are dicts with
+        'path' (relative to folder), 'size' (bytes on disk) and 'text', sorted by size ascending;
+        binary entries only have 'path' and 'size'.  Empty files are dropped.
 
-        1. Include filter (-p / patterns): if provided, keep only files whose
-           relative path matches at least one of the semicolon-separated glob
-           patterns (e.g. "*.h;gui/*.cpp;config/*.yml").  Patterns support '**'
-           (zero or more directories) and {a,b} alternatives
-           (e.g. "textures/**/*.{jpg,png}").  When omitted, all files found
-           recursively under folder are kept.
-
-        2. Exclude filter (-x / ignore_patterns): if provided, drop any file
-           whose relative path matches at least one of the semicolon-separated
-           glob patterns (same syntax as above).  Applied after the include filter.
-
-        3. Binary detection: binary files are not inlined but still appear in
-           the output as a header-only entry (filename + size) so the reader
-           knows they exist.  When -p is given, all matched files are treated
-           as text (the caller is assumed to know the file type).
-
-        *.api.txt files are always excluded unless include_api_txt is True.
-
-        Text files are written in ascending size order (smallest first, largest
-        last), preceded by binary-file header lines.  Each entry reports its
-        size in bytes and as a percentage of the combined total.
-
-        output_file sets the destination file name (default: "content.api.txt").
-        When append is True, content is appended instead of overwriting.
+        The selection rules (include filter, exclude filter, binary detection, *.api.txt and
+        .git/.github exclusions) are described in collect_content().
         """
         # --- include filter ---
         if patterns is not None:
@@ -280,7 +501,7 @@ class DevUtils(NVPComponent):
 
         if not allfiles:
             logger.info("No files matched the selection criteria.")
-            return
+            return [], [], 0
 
         # Pre-compute file sizes. Empty files are excluded entirely.
         file_sizes = {f: self.get_file_size(self.get_path(folder, f)) for f in allfiles}
@@ -297,21 +518,17 @@ class DevUtils(NVPComponent):
         # listed for reference but their size does not count towards the total.
         total_size = sum(file_sizes[f] for f in text_files)
 
-        contents = []
-
-        # Binary file headers first, sorted by size ascending.
+        binary_entries = []
         for f in sorted(binary_files, key=lambda f: file_sizes[f]):
-            size = file_sizes[f]
-            logger.info("Skipping binary file %s (%d bytes)", f, size)
-            contents.append(f"// File: {f} ({size} bytes, binary)")
+            logger.info("Skipping binary file %s (%d bytes)", f, file_sizes[f])
+            binary_entries.append({"path": f, "size": file_sizes[f]})
 
-        # Text file contents, sorted by size ascending (smallest first, largest last).
+        text_entries = []
         for f in sorted(text_files, key=lambda f: file_sizes[f]):
             size = file_sizes[f]
             pct = (size / total_size * 100.0) if total_size > 0 else 0.0
             logger.info("Reading file %s (%d bytes, %.1f%%)", f, size, pct)
-            contents.append(f"// File: {f} ({size} bytes, {pct:.1f}% of total):\n")
-            contents.append(self.read_text_file(self.get_path(folder, f)))
+            text_entries.append({"path": f, "size": size, "text": self.read_text_file(self.get_path(folder, f))})
 
         logger.info(
             "Collected %d text files and %d binary files, total size: %d bytes.",
@@ -319,6 +536,61 @@ class DevUtils(NVPComponent):
             len(binary_files),
             total_size,
         )
+        return text_entries, binary_entries, total_size
+
+    def collect_content(
+        self, folder, patterns=None, ignore_patterns=None, output_file=None, include_api_txt=False, append=False
+    ):
+        """Collect all content from files in the given folder.
+
+        File selection works in three steps:
+
+        1. Include filter (-p / patterns): if provided, keep only files whose
+           relative path matches at least one of the semicolon-separated glob
+           patterns (e.g. "*.h;gui/*.cpp;config/*.yml").  Patterns support '**'
+           (zero or more directories) and {a,b} alternatives
+           (e.g. "textures/**/*.{jpg,png}").  When omitted, all files found
+           recursively under folder are kept.
+
+        2. Exclude filter (-x / ignore_patterns): if provided, drop any file
+           whose relative path matches at least one of the semicolon-separated
+           glob patterns (same syntax as above).  Applied after the include filter.
+
+        3. Binary detection: binary files are not inlined but still appear in
+           the output as a header-only entry (filename + size) so the reader
+           knows they exist.  When -p is given, all matched files are treated
+           as text (the caller is assumed to know the file type).
+
+        *.api.txt files are always excluded unless include_api_txt is True.
+
+        Text files are written in ascending size order (smallest first, largest
+        last), preceded by binary-file header lines.  Each entry reports its
+        size in bytes and as a percentage of the combined total.
+
+        This command keeps the simple single-file format.  The indexed, size-limited
+        multi-part format is only produced by build_content_packs().
+
+        output_file sets the destination file name (default: "content.api.txt").
+        When append is True, content is appended instead of overwriting.
+        """
+        text_entries, binary_entries, total_size = self._collect_entries(
+            folder, patterns, ignore_patterns, include_api_txt
+        )
+        if not text_entries and not binary_entries:
+            return
+
+        contents = []
+
+        # Binary file headers first, sorted by size ascending.
+        for e in binary_entries:
+            contents.append(f"// File: {e['path']} ({e['size']} bytes, binary)")
+
+        # Text file contents, sorted by size ascending (smallest first, largest last).
+        for e in text_entries:
+            pct = (e["size"] / total_size * 100.0) if total_size > 0 else 0.0
+            contents.append(f"// File: {e['path']} ({e['size']} bytes, {pct:.1f}% of total):\n")
+            contents.append(e["text"])
+
         dest = output_file or "content.api.txt"
         self.write_text_file("\n".join(contents), dest, mode="a" if append else "w")
         logger.info("%s content to %s.", "Appended" if append else "Written", dest)
