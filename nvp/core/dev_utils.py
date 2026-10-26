@@ -30,17 +30,16 @@ class DevUtils(NVPComponent):
     def __init__(self, ctx: NVPContext):
         """Component constructor"""
         NVPComponent.__init__(self, ctx)
-        self.packs_config = None
+        self.config = self.get_packs_config()
+        self.packs = self.load_config_entry("packs")
 
     def get_packs_config(self):
         """Load and cache the content_packs section from the NervHome config."""
-        if self.packs_config is None:
-            cfg = self.ctx.get_config().get("content_packs")
-            if cfg is None:
-                cfg = self.ctx.get_project("NervHome").get_config().get("content_packs")
-            self.check(cfg is not None, "No 'content_packs' section found in config.")
-            self.packs_config = cfg
-        return self.packs_config
+        cfg = self.ctx.get_config().get("content_packs")
+        if cfg is None:
+            cfg = self.ctx.get_project("NervHome").get_config().get("content_packs")
+        self.check(cfg is not None, "No 'content_packs' section found in config.")
+        return cfg
 
     def process_cmd_path(self, cmd):
         """Re-implementation of process_cmd_path"""
@@ -91,7 +90,7 @@ class DevUtils(NVPComponent):
         except OSError:
             return True
 
-    def build_content_packs(self, pack_name=None):
+    def build_content_packs(self, pack_name):
         """Build one or all enabled content packs from the NervHome config.
 
         If pack_name is given, only that pack is processed (regardless of its
@@ -111,53 +110,48 @@ class DevUtils(NVPComponent):
         Path placeholders (e.g. ${NVL_DIR}) in 'folder' and 'output' values
         are resolved via self.resolve_path() before use.
         """
-        cfg = self.get_packs_config()
-        default_output_dir = self.resolve_path(cfg.get("default_output_dir", os.getcwd()))
-        packs = cfg.get("packs", [])
+        default_output_dir = self.resolve_path(self.config.get("default_output_dir", os.getcwd()))
 
-        # Select which packs to run.
-        if pack_name is not None:
-            packs = [p for p in packs if p.get("name") == pack_name]
-            self.check(len(packs) > 0, "No content pack named '%s' found in config.", pack_name)
-        else:
-            packs = [p for p in packs if p.get("enabled", True)]
+        self.check(pack_name is not None, "invalid pack name")
+        pack = self.packs.get(pack_name)
+        self.check(pack is not None, "No content pack named '%s' found in config.", pack_name)
 
-        for pack in packs:
-            name = pack.get("name", "<unnamed>")
-            output_dir = self.resolve_path(pack.get("output_dir", default_output_dir))
-            output = self.get_path(output_dir, f"{name}.api.txt")
-            steps = pack.get("steps", [])
-            include_api_txt = pack.get("include_api_txt", False)
+        name = pack_name
+        # output_dir = self.resolve_path(pack.get("output_dir", default_output_dir))
+        output_dir = default_output_dir
+        output = self.get_path(output_dir, f"{name}.api.txt")
+        steps = pack
+        include_api_txt = False
 
-            logger.info("Building content pack '%s' => %s (%d step(s)).", name, output, len(steps))
+        logger.info("Building content pack '%s' => %s (%d step(s)).", name, output, len(steps))
 
-            text_entries = []
-            binary_entries = []
-            seen = set()
-            for step in steps:
-                folder = self.resolve_path(step.get("folder", os.getcwd()))
-                ignore_patterns = step.get("ignore", None)
-                source = os.path.basename(os.path.normpath(folder)) or folder
+        text_entries = []
+        binary_entries = []
+        seen = set()
+        for step in steps:
+            folder = self.resolve_path(step.get("folder", os.getcwd()))
+            ignore_patterns = step.get("ignore", None)
+            source = os.path.basename(os.path.normpath(folder)) or folder
 
-                # patterns may be a single string or a list of strings.
-                # Each entry is gathered separately so that wildcard expansion is
-                # scoped to one pattern group at a time.
-                raw = step.get("patterns")
-                pattern_list = raw if isinstance(raw, list) else [raw]
+            # patterns may be a single string or a list of strings.
+            # Each entry is gathered separately so that wildcard expansion is
+            # scoped to one pattern group at a time.
+            raw = step.get("patterns")
+            pattern_list = raw if isinstance(raw, list) else [raw]
 
-                for patterns in pattern_list:
-                    texts, bins, _total = self._collect_entries(folder, patterns, ignore_patterns, include_api_txt)
-                    for bucket, found in ((text_entries, texts), (binary_entries, bins)):
-                        for entry in found:
-                            key = (folder, entry["path"])
-                            if key in seen:
-                                continue  # the same file matched by two pattern groups
-                            seen.add(key)
-                            entry["source"] = source
-                            bucket.append(entry)
+            for patterns in pattern_list:
+                texts, bins, _total = self._collect_entries(folder, patterns, ignore_patterns, include_api_txt)
+                for bucket, found in ((text_entries, texts), (binary_entries, bins)):
+                    for entry in found:
+                        key = (folder, entry["path"])
+                        if key in seen:
+                            continue  # the same file matched by two pattern groups
+                        seen.add(key)
+                        entry["source"] = source
+                        bucket.append(entry)
 
-            self._write_pack(name, output, text_entries, binary_entries)
-            logger.info("Content pack '%s' done.", name)
+        self._write_pack(name, output, text_entries, binary_entries)
+        logger.info("Content pack '%s' done.", name)
 
     # ------------------------------------------------------------------
     # Content pack writer (single-file "virtual filesystem" format)
