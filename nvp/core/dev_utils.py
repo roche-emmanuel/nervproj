@@ -120,7 +120,7 @@ class DevUtils(NVPComponent):
         # output_dir = self.resolve_path(pack.get("output_dir", default_output_dir))
         output_dir = default_output_dir
         output = self.get_path(output_dir, f"{name}.api.txt")
-        steps = pack
+        steps = pack.get("steps")
         include_api_txt = False
 
         logger.info("Building content pack '%s' => %s (%d step(s)).", name, output, len(steps))
