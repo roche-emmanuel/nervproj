@@ -1022,6 +1022,16 @@ scripts:
     cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/core/dev_utils.py collect-content
     python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
 
+  # Usage:
+  # nvp dl "https://host/file.7z.001?token=..." -o ./data
+  # nvp dl -i links.txt -o ./data -j 4 -s 4
+  # nvp dl -i links.txt -o ./data --dry-run
+  dl:
+    notify: false
+    custom_python_env: media_env
+    cmd: ${PYTHON} ${PROJECT_ROOT_DIR}/nvp/admin/download_manager.py download
+    python_path: ["${PROJECT_ROOT_DIR}", "${NVP_ROOT_DIR}"]
+
   cpack:
     notify: false
     custom_python_env: media_env
