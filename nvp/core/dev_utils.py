@@ -3,7 +3,10 @@
 import fnmatch
 import logging
 import os
+import lzma
 import re
+import tarfile
+import zipfile
 from datetime import datetime
 
 import numpy as np
@@ -61,12 +64,25 @@ class DevUtils(NVPComponent):
             output_file = self.get_param("output_file")
             include_api_txt = self.get_param("include_api_txt", False)
             append = self.get_param("append", False)
-            self.collect_content(input_folder, patterns, ignore_patterns, output_file, include_api_txt, append)
+            zip_output = self.get_param("zip", False)
+            xzip_output = self.get_param("xzip", False)
+            self.collect_content(
+                input_folder,
+                patterns,
+                ignore_patterns,
+                output_file,
+                include_api_txt,
+                append,
+                zip_output,
+                xzip_output,
+            )
             return True
 
         if cmd == "build-content-packs":
             pack_name = self.get_param("pack_name")
-            self.build_content_packs(pack_name)
+            zip_output = self.get_param("zip", False)
+            xzip_output = self.get_param("xzip", False)
+            self.build_content_packs(pack_name, zip_output, xzip_output)
             return True
 
         if cmd == "clean-log":
@@ -90,8 +106,72 @@ class DevUtils(NVPComponent):
         except OSError:
             return True
 
-    def build_content_packs(self, pack_name):
+    def _write_zip(self, zip_path, entries, mode="w"):
+        """Write a zip archive of the collected files, keeping their relative folders.
+
+        *entries* are dicts with 'folder' (root the file was collected from), 'path' (relative to
+        that folder) and 'display' (the name used inside the archive, forward slashes).  Files are
+        copied byte for byte from disk, so text and binary files alike are stored unmodified.
+        """
+        zdir = os.path.dirname(os.path.abspath(zip_path))
+        os.makedirs(zdir, exist_ok=True)
+        seen = set()
+        count = 0
+        with zipfile.ZipFile(zip_path, mode, compression=zipfile.ZIP_DEFLATED) as zf:
+            for e in sorted(entries, key=lambda x: x["display"].lower()):
+                arcname = e["display"]
+                if arcname in seen:
+                    logger.warning("Duplicate archive name '%s' skipped.", arcname)
+                    continue
+                seen.add(arcname)
+                zf.write(self.get_path(e["folder"], e["path"]), arcname)
+                count += 1
+        logger.info("Wrote zip %s: %d file(s), %d bytes.", zip_path, count, os.path.getsize(zip_path))
+
+    def _write_tar_xz(self, tar_path, entries):
+        """Write a .tar.xz archive of the collected files, keeping their relative folders.
+
+        Same *entries* contract as _write_zip().  Compression is LZMA2 at preset 9 | EXTREME
+        (the strongest xz setting: slow and memory hungry, but smallest output).  Only the
+        standard library is used (tarfile + lzma), so it behaves the same on Windows and Linux:
+        archive names always use forward slashes, as the tar format expects.
+        """
+        tdir = os.path.dirname(os.path.abspath(tar_path))
+        os.makedirs(tdir, exist_ok=True)
+        seen = set()
+        count = 0
+        with tarfile.open(tar_path, "w:xz", preset=9 | lzma.PRESET_EXTREME) as tf:
+            for e in sorted(entries, key=lambda x: x["display"].lower()):
+                arcname = e["display"]
+                if arcname in seen:
+                    logger.warning("Duplicate archive name '%s' skipped.", arcname)
+                    continue
+                seen.add(arcname)
+                tf.add(self.get_path(e["folder"], e["path"]), arcname=arcname, recursive=False)
+                count += 1
+        logger.info("Wrote tar.xz %s: %d file(s), %d bytes.", tar_path, count, os.path.getsize(tar_path))
+
+    @staticmethod
+    def _assign_display_names(entries):
+        """Set e['norm'] (forward-slash path) and e['display'] on each entry.
+
+        The display name is the normalized path, prefixed by the step's folder name only when
+        the same relative path comes from several steps.
+        """
+        counts = {}
+        for e in entries:
+            e["norm"] = e["path"].replace("\\", "/")
+            counts[e["norm"]] = counts.get(e["norm"], 0) + 1
+        for e in entries:
+            e["display"] = e["norm"] if counts[e["norm"]] == 1 else f"{e['source']}/{e['norm']}"
+
+    def build_content_packs(self, pack_name, zip_output=False, xzip_output=False):
         """Build one or all enabled content packs from the NervHome config.
+
+        If zip_output is True, a <name>.zip archive of the collected files (relative folders
+        preserved, binary files included) is written instead of the <name>.api.txt text pack.
+        If xzip_output is True, a <name>.tar.xz archive (maximum xz compression) is written
+        instead.  The two options are mutually exclusive.
 
         If pack_name is given, only that pack is processed (regardless of its
         'enabled' flag).  Otherwise every pack whose 'enabled' flag is True is
@@ -119,7 +199,9 @@ class DevUtils(NVPComponent):
         name = pack_name
         # output_dir = self.resolve_path(pack.get("output_dir", default_output_dir))
         output_dir = default_output_dir
-        output = self.get_path(output_dir, f"{name}.api.txt")
+        self.check(not (zip_output and xzip_output), "--zip and --xzip are mutually exclusive.")
+        ext = ".zip" if zip_output else ".tar.xz" if xzip_output else ".api.txt"
+        output = self.get_path(output_dir, f"{name}{ext}")
         steps = pack.get("steps")
         include_api_txt = False
 
@@ -148,9 +230,18 @@ class DevUtils(NVPComponent):
                             continue  # the same file matched by two pattern groups
                         seen.add(key)
                         entry["source"] = source
+                        entry["folder"] = folder
                         bucket.append(entry)
 
-        self._write_pack(name, output, text_entries, binary_entries)
+        if zip_output or xzip_output:
+            all_entries = text_entries + binary_entries
+            self._assign_display_names(all_entries)
+            if zip_output:
+                self._write_zip(output, all_entries)
+            else:
+                self._write_tar_xz(output, all_entries)
+        else:
+            self._write_pack(name, output, text_entries, binary_entries)
         logger.info("Content pack '%s' done.", name)
 
     # ------------------------------------------------------------------
@@ -308,12 +399,7 @@ class DevUtils(NVPComponent):
     def _write_pack(self, name, output, text_entries, binary_entries):
         """Write the single-file pack *output* (see build_content_packs for the layout)."""
         # --- display names: forward slashes, prefixed by the step's folder only on collisions ---
-        counts = {}
-        for e in text_entries + binary_entries:
-            e["norm"] = e["path"].replace("\\", "/")
-            counts[e["norm"]] = counts.get(e["norm"], 0) + 1
-        for e in text_entries + binary_entries:
-            e["display"] = e["norm"] if counts[e["norm"]] == 1 else f"{e['source']}/{e['norm']}"
+        self._assign_display_names(text_entries + binary_entries)
 
         text_entries = sorted(text_entries, key=lambda e: e["display"].lower())
         binary_entries = sorted(binary_entries, key=lambda e: e["display"].lower())
@@ -533,9 +619,23 @@ class DevUtils(NVPComponent):
         return text_entries, binary_entries, total_size
 
     def collect_content(
-        self, folder, patterns=None, ignore_patterns=None, output_file=None, include_api_txt=False, append=False
+        self,
+        folder,
+        patterns=None,
+        ignore_patterns=None,
+        output_file=None,
+        include_api_txt=False,
+        append=False,
+        zip_output=False,
+        xzip_output=False,
     ):
         """Collect all content from files in the given folder.
+
+        With zip_output=True the selected files (binary ones included) are stored in a zip
+        archive, keeping their paths relative to *folder*, instead of a text file; the default
+        destination is then "content.zip" and *append* adds to an existing archive.
+        With xzip_output=True a .tar.xz archive (maximum compression) is written instead, by
+        default to "content.tar.xz"; appending is not possible with xz and is rejected.
 
         File selection works in three steps:
 
@@ -571,6 +671,19 @@ class DevUtils(NVPComponent):
             folder, patterns, ignore_patterns, include_api_txt
         )
         if not text_entries and not binary_entries:
+            return
+
+        self.check(not (zip_output and xzip_output), "--zip and --xzip are mutually exclusive.")
+        if zip_output or xzip_output:
+            all_entries = text_entries + binary_entries
+            for e in all_entries:
+                e["folder"] = folder
+                e["display"] = e["path"].replace("\\", "/")
+            if zip_output:
+                self._write_zip(output_file or "content.zip", all_entries, mode="a" if append else "w")
+            else:
+                self.check(not append, "--append is not supported with --xzip.")
+                self._write_tar_xz(output_file or "content.tar.xz", all_entries)
             return
 
         contents = []
@@ -720,10 +833,25 @@ if __name__ == "__main__":
     psr.add_flag("-a", "--append", dest="append")(
         "When set, content is appended to the output file instead of overwriting it."
     )
+    psr.add_flag("-z", "--zip", dest="zip")(
+        "When set, create a zip archive of the collected files (relative folders kept) instead of a text file. "
+        "Output defaults to 'content.zip'."
+    )
+    psr.add_flag("-X", "--xzip", dest="xzip")(
+        "When set, create a .tar.xz archive (maximum xz compression, relative folders kept) instead of a text file. "
+        "Output defaults to 'content.tar.xz'. Cannot be combined with --zip or --append."
+    )
 
     psr = context.build_parser("build-content-packs")
     psr.add_str("pack_name", nargs="?", default=None)(
         "Name of the content pack to build. When omitted, all enabled packs are built."
+    )
+    psr.add_flag("-z", "--zip", dest="zip")(
+        "When set, create <pack_name>.zip (collected files with their relative folders) instead of <pack_name>.api.txt."
+    )
+    psr.add_flag("-x", "--xzip", dest="xzip")(
+        "When set, create <pack_name>.tar.xz (maximum xz compression, relative folders kept) instead of "
+        "<pack_name>.api.txt. Cannot be combined with --zip."
     )
 
     psr = context.build_parser("clean-log")
