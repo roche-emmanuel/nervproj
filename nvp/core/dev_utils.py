@@ -2,8 +2,8 @@
 
 import fnmatch
 import logging
-import os
 import lzma
+import os
 import re
 import tarfile
 import zipfile
@@ -82,7 +82,9 @@ class DevUtils(NVPComponent):
             pack_name = self.get_param("pack_name")
             zip_output = self.get_param("zip", False)
             xzip_output = self.get_param("xzip", False)
-            self.build_content_packs(pack_name, zip_output, xzip_output)
+            keep_bin = self.get_param("keep_bin", False)
+            verbose = not self.get_param("quiet", False)
+            self.build_content_packs(pack_name, zip_output, xzip_output, keep_bin, verbose)
             return True
 
         if cmd == "clean-log":
@@ -106,7 +108,34 @@ class DevUtils(NVPComponent):
         except OSError:
             return True
 
-    def _write_zip(self, zip_path, entries, mode="w"):
+    # @staticmethod
+    # def is_binary_file(filepath, blocksize=8192):
+    #     try:
+    #         with open(filepath, "rb") as fh:
+    #             chunk = fh.read(blocksize)
+    #     except OSError:
+    #         return True
+
+    #     if not chunk:
+    #         return False  # empty file: treat as text
+    #     if b"\x00" in chunk:
+    #         return True
+
+    #     # Fraction of bytes that are not typical text characters
+    #     text_chars = bytes({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7F})
+    #     nontext = chunk.translate(None, text_chars)
+    #     if len(nontext) / len(chunk) > 0.30:
+    #         return True
+
+    #     # Must also be valid UTF-8 (allowing a truncated multibyte char at the end)
+    #     try:
+    #         chunk.decode("utf-8")
+    #     except UnicodeDecodeError as e:
+    #         if e.start < len(chunk) - 3:
+    #             return True
+    #     return False
+
+    def _write_zip(self, zip_path, entries, mode="w", verbose=False):
         """Write a zip archive of the collected files, keeping their relative folders.
 
         *entries* are dicts with 'folder' (root the file was collected from), 'path' (relative to
@@ -123,12 +152,14 @@ class DevUtils(NVPComponent):
                 if arcname in seen:
                     logger.warning("Duplicate archive name '%s' skipped.", arcname)
                     continue
+                if verbose:
+                    logger.info("Adding file: '%s'", arcname)
                 seen.add(arcname)
                 zf.write(self.get_path(e["folder"], e["path"]), arcname)
                 count += 1
         logger.info("Wrote zip %s: %d file(s), %d bytes.", zip_path, count, os.path.getsize(zip_path))
 
-    def _write_tar_xz(self, tar_path, entries):
+    def _write_tar_xz(self, tar_path, entries, verbose):
         """Write a .tar.xz archive of the collected files, keeping their relative folders.
 
         Same *entries* contract as _write_zip().  Compression is LZMA2 at preset 9 | EXTREME
@@ -146,6 +177,8 @@ class DevUtils(NVPComponent):
                 if arcname in seen:
                     logger.warning("Duplicate archive name '%s' skipped.", arcname)
                     continue
+                if verbose:
+                    logger.info("Adding file: '%s'", arcname)
                 seen.add(arcname)
                 tf.add(self.get_path(e["folder"], e["path"]), arcname=arcname, recursive=False)
                 count += 1
@@ -165,7 +198,7 @@ class DevUtils(NVPComponent):
         for e in entries:
             e["display"] = e["norm"] if counts[e["norm"]] == 1 else f"{e['source']}/{e['norm']}"
 
-    def build_content_packs(self, pack_name, zip_output=False, xzip_output=False):
+    def build_content_packs(self, pack_name, zip_output=False, xzip_output=False, keep_bin=False, verbose=False):
         """Build one or all enabled content packs from the NervHome config.
 
         If zip_output is True, a <name>.zip archive of the collected files (relative folders
@@ -213,6 +246,8 @@ class DevUtils(NVPComponent):
         for step in steps:
             folder = self.resolve_path(step.get("folder", os.getcwd()))
             ignore_patterns = step.get("ignore", None)
+            if ignore_patterns is not None:
+                ignore_patterns = self._split_patterns(ignore_patterns)
             source = os.path.basename(os.path.normpath(folder)) or folder
 
             # patterns may be a single string or a list of strings.
@@ -234,12 +269,14 @@ class DevUtils(NVPComponent):
                         bucket.append(entry)
 
         if zip_output or xzip_output:
-            all_entries = text_entries + binary_entries
+            all_entries = text_entries
+            if keep_bin:
+                all_entries += binary_entries
             self._assign_display_names(all_entries)
             if zip_output:
-                self._write_zip(output, all_entries)
+                self._write_zip(output, all_entries, "w", verbose)
             else:
-                self._write_tar_xz(output, all_entries)
+                self._write_tar_xz(output, all_entries, verbose)
         else:
             self._write_pack(name, output, text_entries, binary_entries)
         logger.info("Content pack '%s' done.", name)
@@ -474,10 +511,13 @@ class DevUtils(NVPComponent):
     def _split_patterns(patterns):
         """Split a semicolon-separated pattern string and expand any {a,b} alternatives."""
         result = []
-        for p in patterns.split(";"):
-            p = p.strip()
-            if p:
-                result.extend(DevUtils._expand_braces(p))
+        if not isinstance(patterns, list):
+            patterns = [patterns]
+        for pl in patterns:
+            for p in pl.split(";"):
+                p = p.strip()
+                if p:
+                    result.extend(DevUtils._expand_braces(p))
         return result
 
     @staticmethod
@@ -576,8 +616,7 @@ class DevUtils(NVPComponent):
 
         # --- exclude filter ---
         if ignore_patterns is not None:
-            ignore_globs = self._split_patterns(ignore_patterns)
-            allfiles = [f for f in allfiles if not any(self._fnmatch_ex(f, p) for p in ignore_globs)]
+            allfiles = [f for f in allfiles if not any(self._fnmatch_ex(f, p) for p in ignore_patterns)]
 
         if not allfiles:
             logger.info("No files matched the selection criteria.")
@@ -628,6 +667,8 @@ class DevUtils(NVPComponent):
         append=False,
         zip_output=False,
         xzip_output=False,
+        keep_bin=False,
+        verbose=False,
     ):
         """Collect all content from files in the given folder.
 
@@ -667,6 +708,8 @@ class DevUtils(NVPComponent):
         output_file sets the destination file name (default: "content.api.txt").
         When append is True, content is appended instead of overwriting.
         """
+        if ignore_patterns is not None:
+            ignore_patterns = self._split_patterns(ignore_patterns)
         text_entries, binary_entries, total_size = self._collect_entries(
             folder, patterns, ignore_patterns, include_api_txt
         )
@@ -675,15 +718,18 @@ class DevUtils(NVPComponent):
 
         self.check(not (zip_output and xzip_output), "--zip and --xzip are mutually exclusive.")
         if zip_output or xzip_output:
-            all_entries = text_entries + binary_entries
+            all_entries = text_entries
+            if keep_bin:
+                all_entries += binary_entries
+
             for e in all_entries:
                 e["folder"] = folder
                 e["display"] = e["path"].replace("\\", "/")
             if zip_output:
-                self._write_zip(output_file or "content.zip", all_entries, mode="a" if append else "w")
+                self._write_zip(output_file or "content.zip", all_entries, mode="a" if append else "w", verbose=verbose)
             else:
                 self.check(not append, "--append is not supported with --xzip.")
-                self._write_tar_xz(output_file or "content.tar.xz", all_entries)
+                self._write_tar_xz(output_file or "content.tar.xz", all_entries, verbose)
             return
 
         contents = []
@@ -853,6 +899,8 @@ if __name__ == "__main__":
         "When set, create <pack_name>.tar.xz (maximum xz compression, relative folders kept) instead of "
         "<pack_name>.api.txt. Cannot be combined with --zip."
     )
+    psr.add_flag("-b", "--keep_bin", dest="keep_bin")("When set, keep the binary files in archives.")
+    psr.add_flag("-q", "--quiet", dest="quiet")("Quiet outputs.")
 
     psr = context.build_parser("clean-log")
     psr.add_str("input_file")("Log file to clean")
