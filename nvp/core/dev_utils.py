@@ -570,6 +570,37 @@ class DevUtils(NVPComponent):
             return fnmatch.fnmatch(path, pattern)
         return re.fullmatch(DevUtils._glob_to_regex(pattern), path) is not None
 
+    @staticmethod
+    def _has_wildcard(pattern):
+        """Return True if *pattern* contains a glob wildcard ('*', '?' or '[')."""
+        return any(c in pattern for c in ("*", "?", "["))
+
+    @staticmethod
+    def _literal_prefix(pattern):
+        """Return the directory part of *pattern* that precedes its first wildcard segment.
+
+        Only whole leading path segments are kept, so the result is always a directory
+        (forward slashes, no trailing slash, "" for the folder root).  Examples:
+        "deps/inc/vrvCore/*" => "deps/inc/vrvCore", "vrvCore/*/lib/*.a" => "vrvCore",
+        "src/Foo*.h" => "src", "*.h" => "", "**/x.png" => "".
+        """
+        segments = pattern.replace("\\", "/").split("/")
+        prefix = []
+        for seg in segments[:-1]:  # the last segment is a file name pattern, never a directory
+            if DevUtils._has_wildcard(seg):
+                break
+            prefix.append(seg)
+        return "/".join(s for s in prefix if s not in ("", "."))
+
+    def _list_files_under(self, folder, prefix):
+        """List (recursively) the files below folder/prefix, as paths relative to *folder*."""
+        if not prefix:
+            return self.get_all_files(folder, recursive=True)
+        subdir = self.get_path(folder, prefix)
+        if not os.path.isdir(subdir):
+            return []
+        return [prefix + "/" + f.replace("\\", "/") for f in self.get_all_files(subdir, recursive=True)]
+
     def _collect_entries(self, folder, patterns=None, ignore_patterns=None, include_api_txt=False):
         """Select the files of *folder* and read them.
 
@@ -583,19 +614,30 @@ class DevUtils(NVPComponent):
         # --- include filter ---
         if patterns is not None:
             glob_patterns = self._split_patterns(patterns)
-            # Optimisation: if none of the patterns contain a wildcard, treat them as
-            # direct file paths and skip the costly recursive directory scan entirely.
-            if not any(c in p for p in glob_patterns for c in ("*", "?", "[")):
-                allfiles = []
-                for p in glob_patterns:
+            # Each pattern is resolved on its own, and only inside the deepest directory that
+            # can contain a match (its literal prefix, i.e. the segments before the first
+            # wildcard).  This avoids enumerating the whole of *folder* when it is huge.
+            found = {}  # insertion-ordered set of relative paths
+            scan_cache = {}  # literal prefix -> files found under it (relative to folder)
+            for p in glob_patterns:
+                if not self._has_wildcard(p):
+                    # Direct file path: no directory scan at all.
                     fpath = self.get_path(folder, p)
                     if self.file_exists(fpath):
-                        allfiles.append(p)
+                        found[p] = None
                     else:
                         logger.warning("Pattern '%s' does not match any file (resolved to: %s).", p, fpath)
-            else:
-                allfiles = self.get_all_files(folder, recursive=True)
-                allfiles = [f for f in allfiles if any(self._fnmatch_ex(f, p) for p in glob_patterns)]
+                    continue
+
+                prefix = self._literal_prefix(p)
+                candidates = scan_cache.get(prefix)
+                if candidates is None:
+                    candidates = self._list_files_under(folder, prefix)
+                    scan_cache[prefix] = candidates
+                for f in candidates:
+                    if f not in found and self._fnmatch_ex(f, p):
+                        found[f] = None
+            allfiles = list(found)
         else:
             # No explicit pattern: collect all files; binary ones become header-only entries.
             allfiles = self.get_all_files(folder, recursive=True)
