@@ -198,6 +198,37 @@ class DevUtils(NVPComponent):
         for e in entries:
             e["display"] = e["norm"] if counts[e["norm"]] == 1 else f"{e['source']}/{e['norm']}"
 
+    def _resolve_pack_steps(self, pack_name, visited=None):
+        """Return the list of steps of a pack, including those of its 'subs' packs.
+
+        A pack may declare 'subs': a pack name or a list of pack names whose steps must also be
+        collected.  This is recursive (a sub may have its own subs).  *visited* holds the names
+        of the packs already included: a pack reached a second time (loop, e.g. A -> B -> A, or
+        a shared sub reached through two paths) is skipped, so there are no infinite loops and
+        no duplicated work.  The steps of the subs come first, then the pack's own steps.
+        """
+        if visited is None:
+            visited = set()
+        if pack_name in visited:
+            logger.info("Pack '%s' already included, skipping.", pack_name)
+            return []
+        visited.add(pack_name)
+
+        pack = self.packs.get(pack_name)
+        self.check(pack is not None, "No content pack named '%s' found in config.", pack_name)
+
+        subs = pack.get("subs") or []
+        if isinstance(subs, str):
+            subs = [subs]
+
+        steps = []
+        for sub in subs:
+            if sub not in visited:
+                logger.info("Pack '%s': including sub pack '%s'.", pack_name, sub)
+            steps.extend(self._resolve_pack_steps(sub, visited))
+        steps.extend(pack.get("steps") or [])
+        return steps
+
     def build_content_packs(self, pack_name, zip_output=False, xzip_output=False, keep_bin=False, verbose=False):
         """Build one or all enabled content packs from the NervHome config.
 
@@ -209,6 +240,10 @@ class DevUtils(NVPComponent):
         If pack_name is given, only that pack is processed (regardless of its
         'enabled' flag).  Otherwise every pack whose 'enabled' flag is True is
         processed in the order they appear in the config.
+
+        A pack may also list other packs in 'subs' (a name or a list of names): their steps are
+        gathered too, recursively.  Each pack is included only once, which also protects
+        against circular references.
 
         Each pack gathers the files of all its 'steps' entries and writes ONE file,
         <name>.api.txt, made of:
@@ -235,7 +270,8 @@ class DevUtils(NVPComponent):
         self.check(not (zip_output and xzip_output), "--zip and --xzip are mutually exclusive.")
         ext = ".zip" if zip_output else ".tar.xz" if xzip_output else ".api.txt"
         output = self.get_path(output_dir, f"{name}{ext}")
-        steps = pack.get("steps")
+        # Own steps plus the steps of all the packs listed in 'subs' (recursively, each pack once):
+        steps = self._resolve_pack_steps(pack_name)
         include_api_txt = False
 
         logger.info("Building content pack '%s' => %s (%d step(s)).", name, output, len(steps))
