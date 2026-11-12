@@ -189,16 +189,29 @@ class DevUtils(NVPComponent):
         """Set e['norm'] (forward-slash path) and e['display'] on each entry.
 
         The display name is the normalized path, prefixed by the step's folder name only when
-        the same relative path comes from several steps.
+        the same relative path comes from several steps.  When an entry has a 'rel' key (path
+        relative to the pack root, see build_content_packs) it is used instead of 'path'.
         """
         counts = {}
         for e in entries:
-            e["norm"] = e["path"].replace("\\", "/")
+            e["norm"] = e.get("rel", e["path"]).replace("\\", "/")
             counts[e["norm"]] = counts.get(e["norm"], 0) + 1
         for e in entries:
             e["display"] = e["norm"] if counts[e["norm"]] == 1 else f"{e['source']}/{e['norm']}"
 
-    def _resolve_pack_steps(self, pack_name, visited=None):
+    @staticmethod
+    def _relative_to_root(full_path, root):
+        """Return *full_path* relative to *root* (forward slashes), or None if it is not under it."""
+        full = os.path.normcase(os.path.abspath(full_path))
+        base = os.path.normcase(os.path.abspath(root))
+        try:
+            if os.path.commonpath([full, base]) != base:
+                return None
+        except ValueError:  # different drives on Windows
+            return None
+        return os.path.relpath(full, base).replace("\\", "/")
+
+    def _resolve_pack_steps(self, pack_name, visited=None, parent_root=None):
         """Return the list of steps of a pack, including those of its 'subs' packs.
 
         A pack may declare 'subs': a pack name or a list of pack names whose steps must also be
@@ -206,6 +219,11 @@ class DevUtils(NVPComponent):
         of the packs already included: a pack reached a second time (loop, e.g. A -> B -> A, or
         a shared sub reached through two paths) is skipped, so there are no infinite loops and
         no duplicated work.  The steps of the subs come first, then the pack's own steps.
+
+        A pack may declare a 'root' folder: the files it embeds are then stored with paths
+        relative to that root.  The returned steps are copies carrying the effective root under
+        the '_root' key.  The root of the including (parent) pack takes priority over the root
+        of its subs; a sub's own root is only used when no parent root is in force.
         """
         if visited is None:
             visited = set()
@@ -217,6 +235,10 @@ class DevUtils(NVPComponent):
         pack = self.packs.get(pack_name)
         self.check(pack is not None, "No content pack named '%s' found in config.", pack_name)
 
+        root = parent_root
+        if root is None and pack.get("root"):
+            root = self.resolve_path(pack["root"])
+
         subs = pack.get("subs") or []
         if isinstance(subs, str):
             subs = [subs]
@@ -225,8 +247,9 @@ class DevUtils(NVPComponent):
         for sub in subs:
             if sub not in visited:
                 logger.info("Pack '%s': including sub pack '%s'.", pack_name, sub)
-            steps.extend(self._resolve_pack_steps(sub, visited))
-        steps.extend(pack.get("steps") or [])
+            steps.extend(self._resolve_pack_steps(sub, visited, root))
+        for step in pack.get("steps") or []:
+            steps.append(dict(step, _root=root) if root is not None else step)
         return steps
 
     def build_content_packs(self, pack_name, zip_output=False, xzip_output=False, keep_bin=False, verbose=False):
@@ -255,6 +278,12 @@ class DevUtils(NVPComponent):
         - the files themselves, sorted by path, each between a FILE / END FILE line, with
           a locator line every few dozen lines so that any search hit identifies its file.
 
+        A pack may define a 'root' folder.  The paths stored in the pack (or archive) are then
+        relative to that root, whatever the 'folder' of the step that found the file, and it is
+        a fatal error if a collected file is not under the root.  When packs are combined with
+        'subs', the root of the including pack applies to the subs' files too (it takes priority
+        over their own root).
+
         Path placeholders (e.g. ${NVL_DIR}) in 'folder' and 'output' values
         are resolved via self.resolve_path() before use.
         """
@@ -280,6 +309,7 @@ class DevUtils(NVPComponent):
         binary_entries = []
         seen = set()
         for step in steps:
+            root = step.get("_root")
             folder = self.resolve_path(step.get("folder", os.getcwd()))
             ignore_patterns = step.get("ignore", None)
             if ignore_patterns is not None:
@@ -296,9 +326,21 @@ class DevUtils(NVPComponent):
                 texts, bins, _total = self._collect_entries(folder, patterns, ignore_patterns, include_api_txt)
                 for bucket, found in ((text_entries, texts), (binary_entries, bins)):
                     for entry in found:
-                        key = (folder, entry["path"])
+                        full = self.get_path(folder, entry["path"])
+                        if root is not None:
+                            rel = self._relative_to_root(full, root)
+                            self.check(
+                                rel is not None,
+                                "File '%s' (step folder '%s') is not under the root folder '%s' of pack '%s'.",
+                                full,
+                                folder,
+                                root,
+                                name,
+                            )
+                            entry["rel"] = rel
+                        key = os.path.normcase(os.path.abspath(full))
                         if key in seen:
-                            continue  # the same file matched by two pattern groups
+                            continue  # the same file matched by two pattern groups / steps
                         seen.add(key)
                         entry["source"] = source
                         entry["folder"] = folder
